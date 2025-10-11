@@ -71,26 +71,7 @@ res.json({success:true,token})
         res.json({success:false,message:error.messagen})
     }
 }
-
-// Route for admin Login    
-// const adminLogin =async (req, res)=>{
-// try{
-//     const {email,password}=req.body
-//     if(email=== process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD){
-//         const token =jwt.sign(email+password,process.env.JWT_SECRET);
-//         res.json({success:true,token})    
-//     }
-//     else{
-//         res.json({success:false,message:'Invaild Credntials'})
-//     }
-//   }catch(error)
-//     {
-//         console.log(error);
-//         res.json({success:false,message:error.messagen})
-//     }
-// }
-
-
+// Route for admin login
 const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -122,10 +103,12 @@ const adminLogin = async (req, res) => {
       return res.json({ success: false, message: "Invalid password" });
     }
 
-    // JWT token
-    const token = jwt.sign({ email: settings.email }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    // ✅ JWT token with admin flag
+    const token = jwt.sign(
+      { email: settings.email, isAdmin: true },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
 
     res.json({ success: true, token });
   } catch (error) {

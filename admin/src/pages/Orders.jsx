@@ -10,19 +10,27 @@ const Orders = ({ token, setToken }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Central unauthorized handler
+  // ✅ Load token from localStorage if missing (helps on refresh)
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token');
+    if (savedToken && !token) {
+      setToken(savedToken);
+    }
+  }, [token, setToken]);
+
+  // 🔒 Central unauthorized handler
   const handleUnauthorized = (endpoint) => {
     console.error(
-      `❌ Unauthorized (401) while calling ${endpoint}. Token:`,
+      `❌ Unauthorized while calling ${endpoint}. Token:`,
       token ? token.substring(0, 15) + '...' : 'EMPTY'
     );
-    toast.error('Not Authorized Login Again');
+    toast.error('Session expired. Please login again.');
     setToken('');
     localStorage.removeItem('token');
     navigate('/');
   };
 
-  // Fetch all orders
+  // 📦 Fetch all orders
   const fetchAllOrders = async () => {
     if (!token) {
       handleUnauthorized('/api/order/list');
@@ -32,29 +40,38 @@ const Orders = ({ token, setToken }) => {
 
     try {
       const response = await axios.get(`${backendUrl}/api/order/list`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { token }, // ✅ FIXED: match backend middleware
       });
 
       if (response.data.success) {
         setOrders(response.data.orders || []);
+      } else if (
+        response.data.message?.includes('Not Authorized') ||
+        response.status === 401
+      ) {
+        handleUnauthorized('/api/order/list');
       } else {
-        console.warn('⚠️ Failed to fetch orders:', response.data.message);
         toast.error(response.data.message || 'Failed to fetch orders');
       }
     } catch (error) {
-      if (error.response?.status === 401) {
+      if (
+        error.response?.status === 401 ||
+        error.response?.data?.message?.includes('Not Authorized')
+      ) {
         handleUnauthorized('/api/order/list');
       } else {
         console.error('💥 Error fetching orders:', error);
-        toast.error(error.response?.data?.message || error.message || 'An error occurred');
+        toast.error(error.response?.data?.message || error.message);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Update order status
+  // 🔄 Update order status
   const statusHandler = async (event, orderId) => {
+    const newStatus = event.target.value;
+
     if (!token) {
       handleUnauthorized('/api/order/status');
       return;
@@ -63,32 +80,41 @@ const Orders = ({ token, setToken }) => {
     try {
       const response = await axios.post(
         `${backendUrl}/api/order/status`,
-        { orderId, status: event.target.value },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { orderId, status: newStatus },
+        { headers: { token } } // ✅ FIXED: match backend middleware
       );
 
       if (response.data.success) {
-        toast.success(response.data.message || 'Status updated successfully');
-        fetchAllOrders(); // Refresh orders
+        toast.success(response.data.message || 'Order status updated');
+        fetchAllOrders(); // Refresh after update
+      } else if (
+        response.data.message?.includes('Not Authorized') ||
+        response.status === 401
+      ) {
+        handleUnauthorized('/api/order/status');
       } else {
-        console.warn('⚠️ Failed to update status:', response.data.message);
         toast.error(response.data.message || 'Failed to update status');
       }
     } catch (error) {
-      if (error.response?.status === 401) {
+      if (
+        error.response?.status === 401 ||
+        error.response?.data?.message?.includes('Not Authorized')
+      ) {
         handleUnauthorized('/api/order/status');
       } else {
         console.error('💥 Error updating status:', error);
-        toast.error(error.response?.data?.message || error.message || 'An error occurred');
+        toast.error(error.response?.data?.message || error.message);
       }
     }
   };
 
+  // 🧭 Load orders when token changes
   useEffect(() => {
-    fetchAllOrders();
+    if (token) fetchAllOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // 🌀 Loading spinner
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -100,6 +126,7 @@ const Orders = ({ token, setToken }) => {
     );
   }
 
+  // 📋 Render orders
   return (
     <div className="min-h-screen bg-gray-50 py-2 px-4">
       <div className="max-w-6xl mx-auto">
@@ -127,15 +154,11 @@ const Orders = ({ token, setToken }) => {
                   key={order._id}
                   className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200"
                 >
-                  {/* Order Header */}
+                  {/* Header */}
                   <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center">
-                        <img
-                          src={assets.parcel_icon}
-                          alt="Parcel icon"
-                          className="h-8 w-8 mr-3"
-                        />
+                        <img src={assets.parcel_icon} alt="Parcel" className="h-8 w-8 mr-3" />
                         <div>
                           <h4 className="text-lg font-semibold text-gray-800">
                             Order #{order._id.substring(0, 7)}
@@ -154,141 +177,116 @@ const Orders = ({ token, setToken }) => {
                     </div>
                   </div>
 
-                  {/* Order Content */}
-                  <div className="p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      {/* Items */}
-                      <div className="lg:col-span-1">
-                        <div className="mb-6">
-                          <h5 className="text-md font-medium text-gray-700 mb-3 flex items-center">
-                            Order Items ({items.length})
-                          </h5>
-                          <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
-                            {items.map((item, idx) => (
-                              <div
-                                key={idx}
-                                className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
-                              >
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm">{item.name}</p>
-                                  <p className="text-xs text-gray-500">
-                                    Qty: {item.quantity}
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-sm font-medium text-gray-900">
-                                    {currency}
-                                    {(item.discountprice * item.quantity).toFixed(2)}
-                                  </p>
-                                  <p className="text-xs line-through text-gray-400">
-                                    {currency}
-                                    {(item.price * item.quantity).toFixed(2)}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Address & Payment */}
-                      <div className="lg:col-span-1">
-                        <div className="mb-6">
-                          <h5 className="text-md font-medium text-gray-700 mb-3">
-                            Delivery Address
-                          </h5>
-                          <div className="bg-gray-50 rounded-lg p-4 text-sm">
-                            <p className="font-medium">
-                              {order.address.firstName} {order.address.lastName}
-                            </p>
-                            <p className="text-gray-600">{order.address.street},</p>
-                            <p className="text-gray-600">
-                              {order.address.city}, {order.address.state},{' '}
-                              {order.address.country}
-                            </p>
-                            <p className="text-gray-600">{order.address.zipcode}</p>
-                            <p className="text-gray-600 mt-2">
-                              📞 {order.address.phone}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mb-6">
-                          <h5 className="text-md font-medium text-gray-700 mb-3">
-                            Payment Information
-                          </h5>
-                          <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Method:</span>
-                                <span className="font-medium capitalize">
-                                  {order.paymentMethod}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Status:</span>
-                                <span
-                                  className={`font-medium ${
-                                    order.payment ? 'text-green-600' : 'text-yellow-600'
-                                  }`}
-                                >
-                                  {order.payment ? 'Completed' : 'Pending'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Summary & Status */}
-                      <div className="lg:col-span-1">
-                        <div className="mb-6">
-                          <h5 className="text-md font-medium text-gray-700 mb-3">
-                            Order Summary
-                          </h5>
-                          <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Subtotal:</span>
-                                <span className="font-medium">
-                                  {currency}
-                                  {subtotal.toFixed(2)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Delivery Fee:</span>
-                                <span className="font-medium">
-                                  {currency}
-                                  {(order.deliveryCharges || 0).toFixed(2)}
-                                </span>
-                              </div>
-                              <div className="pt-2 border-t border-green-200 flex justify-between font-semibold">
-                                <span className="text-gray-700">Total Amount:</span>
-                                <span className="text-green-700">
-                                  {currency}
-                                  {total.toFixed(2)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <h5 className="text-md font-medium text-gray-700 mb-3">
-                            Update Status
-                          </h5>
-                          <select
-                            onChange={(event) => statusHandler(event, order._id)}
-                            value={order.status}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                  {/* Content */}
+                  <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Items */}
+                    <div>
+                      <h5 className="text-md font-medium text-gray-700 mb-3">
+                        Order Items ({items.length})
+                      </h5>
+                      <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                        {items.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
                           >
-                            <option value="Order Placed">Order Placed</option>
-                            <option value="Packing">Packing</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Out for delivery">Out for Delivery</option>
-                            <option value="Delivered">Delivered</option>
-                          </select>
+                            <div>
+                              <p className="font-medium text-sm">{item.name}</p>
+                              <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-gray-900">
+                                {currency}
+                                {(item.discountprice * item.quantity).toFixed(2)}
+                              </p>
+                              <p className="text-xs line-through text-gray-400">
+                                {currency}
+                                {(item.price * item.quantity).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Address & Payment */}
+                    <div>
+                      <h5 className="text-md font-medium text-gray-700 mb-3">Delivery Address</h5>
+                      <div className="bg-gray-50 rounded-lg p-4 text-sm">
+                        <p className="font-medium">
+                          {order.address.firstName} {order.address.lastName}
+                        </p>
+                        <p>{order.address.street}</p>
+                        <p>
+                          {order.address.city}, {order.address.state}
+                        </p>
+                        <p>{order.address.zipcode}</p>
+                        <p className="mt-2">📞 {order.address.phone}</p>
+                      </div>
+
+                      <div className="mt-6">
+                        <h5 className="text-md font-medium text-gray-700 mb-3">
+                          Payment Information
+                        </h5>
+                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-100 text-sm">
+                          <div className="flex justify-between">
+                            <span>Method:</span>
+                            <span className="font-medium capitalize">{order.paymentMethod}</span>
+                          </div>
+                          <div className="flex justify-between mt-2">
+                            <span>Status:</span>
+                            <span
+                              className={`font-medium ${
+                                order.payment ? 'text-green-600' : 'text-yellow-600'
+                              }`}
+                            >
+                              {order.payment ? 'Completed' : 'Pending'}
+                            </span>
+                          </div>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Summary & Status */}
+                    <div>
+                      <h5 className="text-md font-medium text-gray-700 mb-3">Order Summary</h5>
+                      <div className="bg-green-50 rounded-lg p-4 border border-green-100 text-sm">
+                        <div className="flex justify-between">
+                          <span>Subtotal:</span>
+                          <span className="font-medium">
+                            {currency}
+                            {subtotal.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Delivery Fee:</span>
+                          <span className="font-medium">
+                            {currency}
+                            {(order.deliveryCharges || 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="pt-2 mt-2 border-t border-green-200 flex justify-between font-semibold">
+                          <span>Total:</span>
+                          <span className="text-green-700">
+                            {currency}
+                            {total.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-6">
+                        <h5 className="text-md font-medium text-gray-700 mb-3">Update Status</h5>
+                        <select
+                          onChange={(e) => statusHandler(e, order._id)}
+                          value={order.status}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                        >
+                          <option value="Order Placed">Order Placed</option>
+                          <option value="Packing">Packing</option>
+                          <option value="Shipped">Shipped</option>
+                          <option value="Out for delivery">Out for Delivery</option>
+                          <option value="Delivered">Delivered</option>
+                        </select>
                       </div>
                     </div>
                   </div>

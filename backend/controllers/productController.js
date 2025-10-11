@@ -1,54 +1,94 @@
-import {v2 as cloudinary} from 'cloudinary'
-import productModel from '../models/productModel.js'
+import { v2 as cloudinary } from "cloudinary";
+import productModel from "../models/productModel.js";
 
-// Fun to add product
 const addProduct = async (req, res) => {
-    try {
-        const { name, description,cost, price,discountprice,quantity, category, subcategory, bestseller } = req.body;
-      const image1 = req.files.image1 && req.files.image1[0];
-      const image2 = req.files.image2 && req.files.image2[0];
-      const image3 = req.files.image3 && req.files.image3[0];
-      const image4 = req.files.image4 && req.files.image4[0];
+  try {
+    const {
+      name,
+      description,
+      cost,
+      price,
+      discountprice,
+      quantity,
+      category,
+      subcategory,
+      bestseller,
+      isDeal,
+      dealName,
+      dealDescription,
+      dealDiscountType,
+      dealDiscountValue,
+      dealProducts,
+      dealFinalPrice,
+    } = req.body;
 
-      const images = [image1,image2,image3,image4].filter((item)=>item!== undefined)
+    // --- Upload main product images ---
+    const mainImages = Object.values(req.files || {}).filter(f => f[0]?.fieldname.startsWith("image"));
+    const imagesUrl = await Promise.all(
+      mainImages.map(async (fileArr) => {
+        const file = fileArr[0];
+        const result = await cloudinary.uploader.upload(file.path, { resource_type: "image" });
+        return result.secure_url;
+      })
+    );
 
-      let imagesUrl =await Promise.all(
-        images.map(async(item)=>{
-            let result =await cloudinary.uploader.upload(item.path,{resource_type:'image'});
-            return result.secure_url
-       })
-    )
-        const productData={
-            name,
-            description,
-            category,
-            subcategory,
-            cost:Number(cost),
-            price: Number(price),
-            discountprice: Number(discountprice),
-            quantity:Number(quantity),
-            bestseller:bestseller === 'true' ? true:false,
-            image:imagesUrl,
-            date:Date.now()
-        }
+    let productData = {
+      name,
+      description,
+      category,
+      subcategory,
+      cost: Number(cost || 0),
+      price: Number(price || 0),
+      discountprice: Number(discountprice || 0),
+      quantity: Number(quantity || 0),
+      bestseller: bestseller === "true",
+      image: imagesUrl,
+      date: Date.now(),
+    };
 
-        console.log(productData)
+    // --- Handle deal ---
+    if (isDeal === "true" || isDeal === true) {
+      // Upload multiple deal images
+      let dealImagesUrl = [];
+      if (req.files.dealImages) {
+        dealImagesUrl = await Promise.all(
+          req.files.dealImages.map(async (file) => {
+            const result = await cloudinary.uploader.upload(file.path, { resource_type: "image" });
+            return result.secure_url;
+          })
+        );
+      }
 
-        const product =new productModel(productData);
-        await product.save()
+      // Parse deal products JSON if needed
+      let parsedDealProducts = [];
+      if (dealProducts) {
+        parsedDealProducts = typeof dealProducts === "string" ? JSON.parse(dealProducts) : dealProducts;
+      }
 
-        res.json({success:true,message:'Product Added'})
-
-        res.json({})
-        console.log("req.body:", req.body);
-console.log("req.files:", req.files);
-
-
-    } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+      productData = {
+        ...productData,
+        isDeal: true,
+        dealName,
+        dealDescription,
+        dealDiscountType,
+        dealDiscountValue: Number(dealDiscountValue || 0),
+        dealProducts: parsedDealProducts,
+        dealImages: dealImagesUrl,   // ✅ multiple deal images
+        dealTotal: parsedDealProducts.reduce((acc, p) => acc + (Number(p.total) || 0), 0),
+        dealFinalPrice: Number(dealFinalPrice || 0),
+      };
     }
-}
+
+    const product = new productModel(productData);
+    await product.save();
+
+    res.json({ success: true, message: isDeal ? "Deal Created Successfully" : "Product Added" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 // Fun to list product
 const listProducts = async (req, res) => {
 try{

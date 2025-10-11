@@ -21,7 +21,7 @@ const Sidebar = () => {
       <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50 p-3 shadow-sm">
         <div className="flex justify-between items-center">
           {/* Logo (use Link, not NavLink) */}
-          <Link to="/dashboard" className="p-1">
+          <Link to="/" className="p-1">
             <img
               src={assets.logo}
               alt="Logo"
@@ -59,7 +59,7 @@ const Sidebar = () => {
         <div className="md:hidden fixed top-14 left-0 right-0 bg-white border-b border-gray-200 z-40 shadow-lg animate-slideDown">
           <div className="flex flex-col p-4 space-y-2">
             <NavLink
-              to="/dashboard"
+              to="/"
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
@@ -139,7 +139,7 @@ const Sidebar = () => {
             {/* Navigation Tabs */}
             <nav className="flex space-x-1">
               <NavLink
-                to="/dashboard"
+                to="/"
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-6 py-3 border-b-2 transition ${
                     isActive
