@@ -11,7 +11,6 @@ import adminAuth from "../middleware/adminAuth.js";
 
 const productRoutes = express.Router();
 
-// ✅ Product Routes
 productRoutes.post(
   "/add",
   adminAuth,
@@ -20,7 +19,6 @@ productRoutes.post(
     { name: "image2", maxCount: 1 },
     { name: "image3", maxCount: 1 },
     { name: "image4", maxCount: 1 },
-     { name: "dealImages", maxCount: 1 }
   ]),
   addProduct
 );
@@ -28,6 +26,5 @@ productRoutes.post(
 productRoutes.post("/remove", adminAuth, removeProduct);
 productRoutes.post("/single", singleProduct);
 productRoutes.get("/list", listProducts);
-
 
 export default productRoutes;

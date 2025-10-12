@@ -9,6 +9,7 @@ import productRoutes from './routes/productRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import settingRoutes from "./routes/settingRoutes.js";
+import dealRoutes from './routes/dealRoutes.js';
 
 // App Config    
 const app = express();
@@ -24,6 +25,7 @@ app.use(cors());
 // API endpoints 
 app.use('/api/user',userRoutes)
 app.use('/api/product',productRoutes)
+app.use('/api/deal',dealRoutes)
 app.use('/api/cart',cartRoutes)
 app.use('/api/order',orderRoutes)
 app.use("/api/settings", settingRoutes);
