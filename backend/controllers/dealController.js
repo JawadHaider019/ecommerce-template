@@ -1,6 +1,13 @@
 import { v2 as cloudinary } from "cloudinary";
 import dealModel from "../models/dealModel.js";
 
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 // ---------------- Add Deal ----------------
 const addDeal = async (req, res) => {
   try {
@@ -13,12 +20,11 @@ const addDeal = async (req, res) => {
       dealTotal,
       dealFinalPrice,
       dealStartDate,
-      dealEndDate
+      dealEndDate,
+      dealType 
     } = req.body;
 
-    console.log("=== DEAL UPLOAD ===");
-    console.log("req.body:", req.body);
-    console.log("req.files:", req.files);
+
 
     // Get deal images from req.files
     const dealImage1 = req.files.dealImage1 && req.files.dealImage1[0];
@@ -65,30 +71,131 @@ const addDeal = async (req, res) => {
       dealDiscountType: dealDiscountType || "percentage",
       dealDiscountValue: Number(dealDiscountValue),
       dealProducts: parsedDealProducts,
-      // REMOVED: dealImage field - only storing array of images
-      dealImages: dealImagesUrl, // Array of ALL images only
+      dealImages: dealImagesUrl,
       dealTotal: Number(dealTotal || 0),
       dealFinalPrice: Number(dealFinalPrice || 0),
       dealStartDate: dealStartDate ? new Date(dealStartDate) : new Date(),
       dealEndDate: dealEndDate ? new Date(dealEndDate) : null,
+      dealType: dealType || 'flash_sale', 
+      status: 'draft',
       date: Date.now()
     };
 
-    console.log("Deal data (images array only):", dealData);
+    console.log("Deal data with dealType:", dealData);
 
     const deal = new dealModel(dealData);
     await deal.save();
 
-    console.log("Deal saved successfully with images array only");
+    console.log("Deal saved successfully with dealType");
+    console.log("Saved deal document:", deal); // Add this log to see the actual saved document
 
+    // FIX: Return the actual saved document, not dealData
     res.json({ 
       success: true, 
       message: "Deal Created Successfully",
-      deal: dealData
+      deal: deal // Return the saved MongoDB document
     });
 
   } catch (error) {
     console.error("Add Deal Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+// ---------------- Update Deal ----------------
+const updateDeal = async (req, res) => {
+  try {
+    const {
+      id,
+      dealName,
+      dealDescription,
+      dealDiscountType,
+      dealDiscountValue,
+      dealTotal,
+      dealFinalPrice,
+      dealStartDate,
+      dealEndDate,
+      dealType, // ADD dealType
+      status
+    } = req.body;
+
+    console.log("=== UPDATE DEAL ===");
+    console.log("Request body:", req.body);
+
+    if (!id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Deal ID is required" 
+      });
+    }
+
+    // Find the deal first to preserve existing images if no new ones are uploaded
+    const existingDeal = await dealModel.findById(id);
+    if (!existingDeal) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Deal not found" 
+      });
+    }
+
+    const updateData = {
+      dealName,
+      dealDescription: dealDescription || "",
+      dealDiscountType: dealDiscountType || "percentage",
+      dealDiscountValue: Number(dealDiscountValue),
+      dealTotal: Number(dealTotal || 0),
+      dealFinalPrice: Number(dealFinalPrice || 0),
+      dealStartDate: dealStartDate ? new Date(dealStartDate) : new Date(),
+      dealEndDate: dealEndDate ? new Date(dealEndDate) : null,
+      dealType: dealType || 'flash_sale', // ADD dealType
+      status: status || 'draft'
+    };
+
+    // Handle image updates if new images are provided
+    if (req.files && Object.keys(req.files).length > 0) {
+      const dealImage1 = req.files.dealImage1 && req.files.dealImage1[0];
+      const dealImage2 = req.files.dealImage2 && req.files.dealImage2[0];
+      const dealImage3 = req.files.dealImage3 && req.files.dealImage3[0];
+      const dealImage4 = req.files.dealImage4 && req.files.dealImage4[0];
+
+      const dealImages = [dealImage1, dealImage2, dealImage3, dealImage4].filter((item) => item !== undefined);
+
+      if (dealImages.length > 0) {
+        console.log("Uploading new deal images...");
+        let dealImagesUrl = await Promise.all(
+          dealImages.map(async (item) => {
+            let result = await cloudinary.uploader.upload(item.path, {
+              resource_type: 'image',
+              folder: "deals"
+            });
+            return result.secure_url;
+          })
+        );
+        updateData.dealImages = dealImagesUrl;
+      }
+    } else {
+      // Keep existing images if no new images are uploaded
+      updateData.dealImages = existingDeal.dealImages;
+    }
+
+    const updatedDeal = await dealModel.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    console.log("Deal updated successfully with dealType:", updatedDeal);
+
+    res.json({ 
+      success: true, 
+      message: "Deal Updated Successfully", 
+      deal: updatedDeal 
+    });
+
+  } catch (error) {
+    console.error("Update Deal Error:", error);
     res.status(500).json({ 
       success: false, 
       message: error.message 
@@ -182,9 +289,64 @@ const singleDeal = async (req, res) => {
   }
 };
 
+// ---------------- Update Deal Status ----------------
+const updateDealStatus = async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    console.log("=== UPDATE DEAL STATUS ===");
+    console.log("Request body:", req.body);
+
+    if (!id || !status) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Deal ID and status are required" 
+      });
+    }
+
+    const validStatuses = ['draft', 'published', 'archived', 'scheduled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid status. Must be: draft, published, archived, or scheduled" 
+      });
+    }
+
+    const updatedDeal = await dealModel.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedDeal) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Deal not found" 
+      });
+    }
+
+    console.log("Deal status updated successfully:", updatedDeal);
+
+    res.json({ 
+      success: true, 
+      message: "Deal status updated successfully",
+      deal: updatedDeal
+    });
+
+  } catch (error) {
+    console.error("Update Deal Status Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
 export {
   addDeal,
   listDeals,
   removeDeal,
-  singleDeal
+  singleDeal,
+  updateDeal,
+  updateDealStatus
 };

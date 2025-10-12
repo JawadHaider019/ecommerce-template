@@ -1,28 +1,35 @@
-import express from "express";
-import upload from "../middleware/multer.js";
-import {
-  addDeal,
-  listDeals,
-  removeDeal,
-  singleDeal
-} from "../controllers/dealController.js";
-import adminAuth from "../middleware/adminAuth.js";
+import express from 'express';
+import { 
+  addDeal, 
+  listDeals, 
+  removeDeal, 
+  singleDeal, 
+  updateDeal, 
+  updateDealStatus
 
-const dealRoutes = express.Router();
+} from '../controllers/dealController.js';
+import multer from 'multer';
 
-dealRoutes.post("/add", 
-  adminAuth,
-  upload.fields([
-    { name: "dealImage1", maxCount: 1 },
-    { name: "dealImage2", maxCount: 1 },
-    { name: "dealImage3", maxCount: 1 },
-    { name: "dealImage4", maxCount: 1 }
-  ]), 
-  addDeal
-);
+const router = express.Router();
+const upload = multer({ dest: 'uploads/' });
 
-dealRoutes.get("/list", listDeals);
-dealRoutes.post("/remove", adminAuth, removeDeal);
-dealRoutes.post("/single", singleDeal);
+router.post('/add', upload.fields([
+  { name: 'dealImage1', maxCount: 1 },
+  { name: 'dealImage2', maxCount: 1 },
+  { name: 'dealImage3', maxCount: 1 },
+  { name: 'dealImage4', maxCount: 1 }
+]), addDeal);
 
-export default dealRoutes;
+router.get('/list', listDeals);
+router.post('/remove', removeDeal);
+router.post('/single', singleDeal);
+router.post('/update', upload.fields([
+  { name: 'dealImage1', maxCount: 1 },
+  { name: 'dealImage2', maxCount: 1 },
+  { name: 'dealImage3', maxCount: 1 },
+  { name: 'dealImage4', maxCount: 1 }
+]), updateDeal);
+router.post('/update-status', updateDealStatus);
+
+
+export default router;

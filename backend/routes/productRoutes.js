@@ -1,30 +1,37 @@
-import express from "express";
-import {
-  listProducts,
-  addProduct,
-  removeProduct,
-  singleProduct,
-} from "../controllers/productController.js";
+import express from 'express';
+import { 
+  addProduct, 
+  listProducts, 
+  removeProduct, 
+  singleProduct, 
+  updateProduct, 
+  updateProductStatus
 
-import upload from "../middleware/multer.js";
-import adminAuth from "../middleware/adminAuth.js";
+} from '../controllers/productController.js';
+import multer from 'multer';
 
-const productRoutes = express.Router();
+const router = express.Router();
+const upload = multer({ dest: 'uploads/' });
 
-productRoutes.post(
-  "/add",
-  adminAuth,
-  upload.fields([
-    { name: "image1", maxCount: 1 },
-    { name: "image2", maxCount: 1 },
-    { name: "image3", maxCount: 1 },
-    { name: "image4", maxCount: 1 },
-  ]),
-  addProduct
-);
+router.post('/add', upload.fields([
+  { name: 'image1', maxCount: 1 },
+  { name: 'image2', maxCount: 1 },
+  { name: 'image3', maxCount: 1 },
+  { name: 'image4', maxCount: 1 }
+]), addProduct);
 
-productRoutes.post("/remove", adminAuth, removeProduct);
-productRoutes.post("/single", singleProduct);
-productRoutes.get("/list", listProducts);
+router.get('/list', listProducts);
+router.post('/remove', removeProduct);
+router.post('/single', singleProduct);
+router.post('/update', upload.fields([
+  { name: 'image1', maxCount: 1 },
+  { name: 'image2', maxCount: 1 },
+  { name: 'image3', maxCount: 1 },
+  { name: 'image4', maxCount: 1 }
+]), updateProduct);
 
-export default productRoutes;
+router.post('/update-status', updateProductStatus);
+
+
+
+export default router;
