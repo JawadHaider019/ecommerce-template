@@ -20,11 +20,11 @@ const addDeal = async (req, res) => {
     console.log("req.body:", req.body);
     console.log("req.files:", req.files);
 
-    // Get deal images from req.files - FIXED: using correct field name
-    const dealImage1 = req.files.dealImage && req.files.dealImage[0];
-    const dealImage2 = req.files.dealImage && req.files.dealImage[1]; 
-    const dealImage3 = req.files.dealImage && req.files.dealImage[2];
-    const dealImage4 = req.files.dealImage && req.files.dealImage[3];
+    // Get deal images from req.files
+    const dealImage1 = req.files.dealImage1 && req.files.dealImage1[0];
+    const dealImage2 = req.files.dealImage2 && req.files.dealImage2[0];
+    const dealImage3 = req.files.dealImage3 && req.files.dealImage3[0];
+    const dealImage4 = req.files.dealImage4 && req.files.dealImage4[0];
 
     const dealImages = [dealImage1, dealImage2, dealImage3, dealImage4].filter((item) => item !== undefined);
 
@@ -59,17 +59,14 @@ const addDeal = async (req, res) => {
       }
     }
 
-    // Use the first deal image as the main image
-    const dealImageUrl = dealImagesUrl[0] || "";
-
     const dealData = {
       dealName,
       dealDescription: dealDescription || "",
       dealDiscountType: dealDiscountType || "percentage",
       dealDiscountValue: Number(dealDiscountValue),
       dealProducts: parsedDealProducts,
-      dealImage: dealImageUrl,
-      dealImages: dealImagesUrl,
+      // REMOVED: dealImage field - only storing array of images
+      dealImages: dealImagesUrl, // Array of ALL images only
       dealTotal: Number(dealTotal || 0),
       dealFinalPrice: Number(dealFinalPrice || 0),
       dealStartDate: dealStartDate ? new Date(dealStartDate) : new Date(),
@@ -77,14 +74,13 @@ const addDeal = async (req, res) => {
       date: Date.now()
     };
 
-    console.log("Deal data:", dealData);
+    console.log("Deal data (images array only):", dealData);
 
     const deal = new dealModel(dealData);
     await deal.save();
 
-    console.log("Deal saved successfully");
+    console.log("Deal saved successfully with images array only");
 
-    // SINGLE RESPONSE
     res.json({ 
       success: true, 
       message: "Deal Created Successfully",

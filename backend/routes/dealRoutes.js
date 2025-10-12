@@ -10,11 +10,13 @@ import adminAuth from "../middleware/adminAuth.js";
 
 const dealRoutes = express.Router();
 
-
 dealRoutes.post("/add", 
   adminAuth,
   upload.fields([
-    { name: "dealImage", maxCount: 4 } 
+    { name: "dealImage1", maxCount: 1 },
+    { name: "dealImage2", maxCount: 1 },
+    { name: "dealImage3", maxCount: 1 },
+    { name: "dealImage4", maxCount: 1 }
   ]), 
   addDeal
 );

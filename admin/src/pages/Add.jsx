@@ -187,12 +187,12 @@ const Add = ({ token }) => {
         }));
         formData.append("dealProducts", JSON.stringify(dealProductsData));
 
-        // Append deal images with correct field name
-        dealImages.forEach((img) => {
-          if (img) {
-            formData.append("dealImage", img);
-          }
-        });
+    
+dealImages.forEach((img, index) => {
+  if (img) {
+    formData.append(`dealImage${index + 1}`, img); 
+  }
+});
 
         console.log("=== DEAL FORM DATA ===");
         for (let [key, value] of formData.entries()) {
@@ -389,7 +389,7 @@ const DealImagesSection = memo(({ dealImages, handleDealImageChange }) => {
       <label className="block text-sm font-medium text-gray-700 mb-4">Deal Images</label>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {dealImages.map((img, index) => (
-          <label key={index} htmlFor={`dealImage${index}`} className="relative group cursor-pointer">
+          <label key={index} htmlFor={`dealImage${index + 1}`} className="relative group cursor-pointer">
             <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden hover:border-black transition-colors">
               {img ? (
                 <img className="w-full h-full object-cover" src={URL.createObjectURL(img)} alt="Deal preview" />
@@ -402,7 +402,7 @@ const DealImagesSection = memo(({ dealImages, handleDealImageChange }) => {
             </div>
             <input 
               type="file" 
-              id={`dealImage${index}`} 
+              id={`dealImage${index + 1}`} 
               hidden 
               onChange={(e) => handleDealImageChange(e, index)} 
               accept="image/*" 
