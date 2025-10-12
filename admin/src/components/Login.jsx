@@ -6,12 +6,13 @@ import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEnvelope, faLock, faSignInAlt } from '@fortawesome/free-solid-svg-icons'
 
-const Login = ({setToken}) => {
+const Login = () => {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const navigate = useNavigate()
+    const { login } = useAuth()
 
     const onSubmitHandler = async (e) => {
         try {
@@ -21,10 +22,9 @@ const Login = ({setToken}) => {
             const response = await axios.post(backendUrl + '/api/user/admin', { email, password })
             
             if(response.data.success){
-                setToken(response.data.token)
+                login(response.data.token, response.data.admin) // Use context login
                 toast.success('Login successful! Redirecting...')
-                // Redirect to dashboard after successful login
-                navigate('/')
+                navigate('/') // Redirect to dashboard
             } else {
                 toast.error(response.data.message)
             }

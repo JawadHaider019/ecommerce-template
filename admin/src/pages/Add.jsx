@@ -2,8 +2,11 @@ import React, { useState, useCallback, useMemo, memo } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { backendUrl } from "../App";
+import { useAuth } from "../context/AuthContext"; 
 
-const Add = ({ token }) => {
+const Add = () => { 
+  const { token, logout } = useAuth(); 
+  
   // --- Category & Subcategory State ---
   const [categories] = useState({
     Soap: ["Neem", "Aloe Vera", "Charcoal"],
@@ -121,6 +124,14 @@ const Add = ({ token }) => {
 
   const onSubmitHandler = useCallback(async (e) => {
     e.preventDefault();
+    
+    // Check if token exists before proceeding
+    if (!token) {
+      toast.error("Please login to continue");
+      logout();
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -187,12 +198,12 @@ const Add = ({ token }) => {
         }));
         formData.append("dealProducts", JSON.stringify(dealProductsData));
 
-    
-dealImages.forEach((img, index) => {
-  if (img) {
-    formData.append(`dealImage${index + 1}`, img); 
-  }
-});
+        // Append deal images
+        dealImages.forEach((img, index) => {
+          if (img) {
+            formData.append(`dealImage${index + 1}`, img); 
+          }
+        });
 
         console.log("=== DEAL FORM DATA ===");
         for (let [key, value] of formData.entries()) {
@@ -215,6 +226,14 @@ dealImages.forEach((img, index) => {
       }
     } catch (err) {
       console.error("Submission Error:", err);
+      
+      // Handle token expiration specifically
+      if (err.response?.status === 401) {
+        toast.error("Session expired. Please login again.");
+        logout(); // This will redirect to login page
+        return;
+      }
+      
       toast.error(err.response?.data?.message || err.message || "Something went wrong");
     } finally {
       setLoading(false);
@@ -222,7 +241,7 @@ dealImages.forEach((img, index) => {
   }, [
     isDeal, name, description, category, subCategory, quantity, bestseller, cost, price, discountprice, images,
     dealName, dealDescription, dealDiscountType, dealDiscountValue, dealTotal, finalPrice, dealStartDate,
-    dealEndDate, dealProducts, dealImages, token, resetForm, backendUrl
+    dealEndDate, dealProducts, dealImages, token, resetForm, backendUrl, logout
   ]);
 
   // Memoized sub-components
@@ -330,14 +349,18 @@ dealImages.forEach((img, index) => {
           <div className="flex items-center justify-center mt-8">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !token} // Disable if no token
               className={`px-10 py-3 font-medium rounded-lg flex items-center transition-colors ${
-                loading ? "bg-gray-400 cursor-not-allowed text-white" : "bg-black text-white hover:bg-gray-800"
+                loading || !token ? "bg-gray-400 cursor-not-allowed text-white" : "bg-black text-white hover:bg-gray-800"
               }`}
             >
               {loading ? (
                 <>
                   <i className="fas fa-spinner fa-spin mr-2"></i> Saving...
+                </>
+              ) : !token ? (
+                <>
+                  <i className="fas fa-exclamation-triangle mr-2"></i> Please Login
                 </>
               ) : isDeal ? (
                 <>
@@ -356,7 +379,7 @@ dealImages.forEach((img, index) => {
   );
 };
 
-// Memoized sub-components
+// Memoized sub-components (all remain exactly the same)
 const ProductImagesSection = memo(({ images, handleImageChange }) => {
   return (
     <div className="mb-8">
