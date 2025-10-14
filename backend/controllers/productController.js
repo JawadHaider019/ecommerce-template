@@ -87,6 +87,12 @@ const singleProduct = async (req, res) => {
 // ------------------- UPDATE PRODUCT -------------------
 const updateProduct = async (req, res) => {
   try {
+
+    const fields = ['id', 'name', 'description', 'cost', 'price', 'discountprice', 'quantity', 'category', 'subcategory', 'bestseller', 'status', 'removedImages'];
+    fields.forEach(field => {
+      console.log(`${field}:`, req.body[field]);
+    });
+
     const {
       id,
       name,
@@ -102,24 +108,37 @@ const updateProduct = async (req, res) => {
       removedImages
     } = req.body;
 
-    if (!id) return res.status(400).json({ success: false, message: "Product ID is required" });
+ 
+    if (!id) {
+      console.log("ERROR: No product ID provided");
+      return res.status(400).json({ success: false, message: "Product ID is required" });
+    }
 
     const existingProduct = await productModel.findById(id);
-    if (!existingProduct) return res.status(404).json({ success: false, message: "Product not found" });
+    if (!existingProduct) {
+      console.log("ERROR: Product not found with ID:", id);
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
 
-    // Base update data
+    console.log("Existing product status:", existingProduct.status);
+
+    // Base update data - ensure status is properly handled
     const updateData = {
-      name,
-      description,
-      category,
-      subcategory,
-      cost: Number(cost),
-      price: Number(price),
-      discountprice: Number(discountprice),
-      quantity: Number(quantity),
+      name: name || existingProduct.name,
+      description: description || existingProduct.description,
+      category: category || existingProduct.category,
+      subcategory: subcategory || existingProduct.subcategory,
+      cost: Number(cost) || existingProduct.cost,
+      price: Number(price) || existingProduct.price,
+      discountprice: Number(discountprice) || existingProduct.discountprice,
+      quantity: Number(quantity) || existingProduct.quantity,
       bestseller: bestseller === 'true' || bestseller === true,
-      status: status || 'draft'
+      status: status || existingProduct.status // Use received status or keep existing
     };
+
+    console.log("=== UPDATE DATA TO BE SAVED ===");
+    console.log("Update data:", updateData);
+    console.log("Status in updateData:", updateData.status);
 
     // ------------------- IMAGE HANDLING -------------------
     let finalImages = [...existingProduct.image];
@@ -128,6 +147,7 @@ const updateProduct = async (req, res) => {
     let removedImageUrls = [];
     try {
       removedImageUrls = typeof removedImages === "string" ? JSON.parse(removedImages) : removedImages || [];
+      console.log("Removed images:", removedImageUrls);
     } catch (e) {
       console.error("Error parsing removedImages:", e);
     }
@@ -150,6 +170,7 @@ const updateProduct = async (req, res) => {
 
     // Handle new image uploads
     if (req.files && Object.keys(req.files).length > 0) {
+    
       const newImages = [];
       let index = 1;
       while (req.files[`image${index}`]) {
@@ -167,11 +188,22 @@ const updateProduct = async (req, res) => {
 
     updateData.image = finalImages;
 
-    const updatedProduct = await productModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+    // Perform the update
+    const updatedProduct = await productModel.findByIdAndUpdate(
+      id, 
+      updateData, 
+      { new: true, runValidators: true }
+    );
 
-    res.json({ success: true, message: "Product updated successfully", product: updatedProduct });
+
+    res.json({ 
+      success: true, 
+      message: "Product updated successfully", 
+      product: updatedProduct 
+    });
+
   } catch (error) {
-    console.error("Update Product Error:", error);
+  
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -190,7 +222,7 @@ const updateProductStatus = async (req, res) => {
 
     res.json({ success: true, message: "Product status updated successfully", product: updatedProduct });
   } catch (error) {
-    console.error("Update Product Status Error:", error);
+  
     res.status(500).json({ success: false, message: error.message });
   }
 };

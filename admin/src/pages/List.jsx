@@ -528,10 +528,10 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
         {deals.length === 0 ? (
           <EmptyState type="deals" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {deals.map((item) => (
               <div key={item._id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
-                <div className="p-4">
+                <div className="p-3">
                   <div className="flex items-start space-x-4">
                     <img 
                       className="w-20 h-20 object-cover rounded-lg border border-gray-200 flex-shrink-0" 
@@ -633,8 +633,8 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
               ) : (
                 deals.map((item) => (
                   <tr key={item._id} className="hover:bg-gray-50 transition-colors duration-150">
-                    <td className="py-4 px-6">
-                      <div className="flex items-center space-x-4">
+                    <td className="py-4 px-4">
+                      <div className="flex items-center space-x-3">
                         <img 
                           className="w-12 h-12 object-cover rounded-lg border border-gray-200" 
                           src={item.dealImages[0]} 
@@ -646,13 +646,13 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4">
                       <span className="inline-flex items-center px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium capitalize">
                         <FaFire className="w-3 h-3 mr-1" />
                         {item.dealType || 'standard'}
                       </span>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4">
                       <div className="flex items-center space-x-1">
                         {item.dealDiscountType === 'percentage' ? (
                           <FaPercentage className="w-3 h-3 text-green-500" />
@@ -664,13 +664,13 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4">
                       <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                         <FaCube className="w-3 h-3 mr-1" />
                         {item.dealProducts?.length || 0} products
                       </span>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4">
                       <div className="text-sm text-gray-600 space-y-1">
                         <div className="flex items-center space-x-1">
                           <FaCalendarAlt className="w-3 h-3 text-gray-400" />
@@ -684,7 +684,7 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
                        
                         <StatusDropdown 
@@ -693,7 +693,7 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
                         />
                       </div>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
                         <ActionButton
                           onClick={() => onView(item)}

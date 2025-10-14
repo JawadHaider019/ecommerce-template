@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { backendUrl, currency } from '../App'
 import { toast } from 'react-toastify'
-import { FaArrowLeft, FaTimes, FaShoppingBag } from 'react-icons/fa'
+import { FaArrowLeft, FaTimes, FaInfoCircle } from 'react-icons/fa'
 
 const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
   const [formData, setFormData] = useState({
@@ -43,9 +43,25 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
     }
   }, [formData.category])
 
+  // Calculate basic pricing metrics
+  const calculatePricingSummary = () => {
+    const cost = parseFloat(formData.cost) || 0;
+    const price = parseFloat(formData.price) || 0;
+    const discountPrice = parseFloat(formData.discountprice) || 0;
+
+    const actualSellingPrice = discountPrice > 0 ? discountPrice : price;
+    const discountAmount = discountPrice > 0 ? price - discountPrice : 0;
+    const discountPercentage = price > 0 ? ((discountAmount / price) * 100) : 0;
+
+    return {
+      discountAmount: isNaN(discountAmount) ? 0 : discountAmount,
+      discountPercentage: isNaN(discountPercentage) ? 0 : discountPercentage,
+      actualSellingPrice: isNaN(actualSellingPrice) ? 0 : actualSellingPrice
+    };
+  }
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
-    console.log(`Changing ${name} to:`, type === 'checkbox' ? checked : value);
     
     setFormData(prev => ({
       ...prev,
@@ -77,13 +93,6 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
     try {
       setLoading(true)
       
-      console.log("=== DEBUG: Saving Product ===");
-      console.log("Product ID:", product._id);
-      console.log("Current formData.status:", formData.status);
-      console.log("Current formData.images:", formData.image);
-      console.log("New images to upload:", newImages.length);
-      console.log("Removed images:", removedImages);
-
       // Create FormData for file upload
       const formDataToSend = new FormData()
       
@@ -93,12 +102,12 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
       formDataToSend.append('description', formData.description)
       formDataToSend.append('category', formData.category)
       formDataToSend.append('subcategory', formData.subcategory)
-      formDataToSend.append('cost', formData.cost)
-      formDataToSend.append('price', formData.price)
-      formDataToSend.append('discountprice', formData.discountprice)
-      formDataToSend.append('quantity', formData.quantity)
-      formDataToSend.append('bestseller', formData.bestseller)
-      formDataToSend.append('status', formData.status) // This will now have the correct value
+      formDataToSend.append('cost', formData.cost.toString())
+      formDataToSend.append('price', formData.price.toString())
+      formDataToSend.append('discountprice', formData.discountprice.toString())
+      formDataToSend.append('quantity', formData.quantity.toString())
+      formDataToSend.append('bestseller', formData.bestseller.toString())
+      formDataToSend.append('status', formData.status)
       
       // Send removedImages as a proper JSON string
       formDataToSend.append('removedImages', JSON.stringify(removedImages))
@@ -107,18 +116,6 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
       newImages.forEach((image, index) => {
         formDataToSend.append(`image${index + 1}`, image)
       })
-
-      // Debug: Log what's being sent
-      console.log("=== FORM DATA CONTENTS ===");
-      for (let pair of formDataToSend.entries()) {
-        if (pair[0].includes('image') && pair[1] instanceof File) {
-          console.log(pair[0] + ': [FILE] -', pair[1].name);
-        } else if (pair[0] === 'removedImages') {
-          console.log(pair[0] + ':', pair[1]);
-        } else {
-          console.log(pair[0] + ':', pair[1]);
-        }
-      }
 
       const response = await axios.post(
         backendUrl + '/api/product/update',
@@ -133,8 +130,6 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
       
       if (response.data.success) {
         toast.success('Product updated successfully')
-        console.log("Updated product response:", response.data.product);
-        console.log("Updated product status:", response.data.product.status);
         
         // Clear the image states after successful save
         setNewImages([])
@@ -145,9 +140,8 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
         toast.error(response.data.message)
       }
     } catch (error) {
-      console.log('Product update error:', error)
-      console.log('Error details:', error.response?.data)
-      toast.error(error.response?.data?.message || error.message)
+      console.error('Product update error:', error)
+      toast.error(error.response?.data?.message || error.message || 'Failed to update product')
     } finally {
       setLoading(false)
     }
@@ -171,8 +165,8 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
         toast.error(response.data.message)
       }
     } catch (error) {
-      console.log(error)
-      toast.error(error.message)
+      console.error('Delete error:', error)
+      toast.error(error.message || 'Failed to delete product')
     }
   }
 
@@ -238,7 +232,7 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
             ) : (
               <EditMode 
                 formData={formData}
-                onChange={handleChange} // Use the same handler for all fields
+                onChange={handleChange}
                 loading={loading}
                 categories={categories}
                 subcategories={subcategories}
@@ -248,6 +242,8 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
                 onImageUpload={handleImageUpload}
                 onRemoveExistingImage={removeExistingImage}
                 onRemoveNewImage={removeNewImage}
+                // Pricing summary
+                pricingSummary={calculatePricingSummary()}
               />
             )}
           </div>
@@ -296,6 +292,7 @@ const ViewMode = ({ product }) => (
     </div>
   </div>
 )
+
 const EditMode = ({ 
   formData, 
   onChange, 
@@ -306,235 +303,301 @@ const EditMode = ({
   removedImages,
   onImageUpload,
   onRemoveExistingImage,
-  onRemoveNewImage
-}) => (
-  <div className="space-y-8">
-    {/* Product Information */}
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div className="space-y-4">
+  onRemoveNewImage,
+  pricingSummary
+}) => {
+  const {
+    discountAmount,
+    discountPercentage,
+    actualSellingPrice
+  } = pricingSummary;
+
+  return (
+    <div className="space-y-8">
+      {/* Product Information */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={onChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              placeholder="Enter product name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+            <select
+              name="category"
+              value={formData.category}
+              onChange={onChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            >
+              <option value="">Select Category</option>
+              {categories.map((category, index) => (
+                <option key={index} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory</label>
+            <select
+              name="subcategory"
+              value={formData.subcategory}
+              onChange={onChange}
+              disabled={!formData.category}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              <option value="">Select Subcategory</option>
+              {subcategories.map((subcategory, index) => (
+                <option key={index} value={subcategory}>
+                  {subcategory}
+                </option>
+              ))}
+            </select>
+            {!formData.category && (
+              <p className="text-sm text-gray-500 mt-1">Please select a category first</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Cost Price ({currency})</label>
+            <input
+              type="number"
+              name="cost"
+              value={formData.cost}
+              onChange={onChange}
+              min="0"
+              step="0.01"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Original Price ({currency})</label>
+            <input
+              type="number"
+              name="price"
+              value={formData.price}
+              onChange={onChange}
+              min="0"
+              step="0.01"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Discount Price ({currency})</label>
+            <input
+              type="number"
+              name="discountprice"
+              value={formData.discountprice}
+              onChange={onChange}
+              min="0"
+              step="0.01"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+            <input
+              type="number"
+              name="quantity"
+              value={formData.quantity}
+              onChange={onChange}
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={onChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            >
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="archived">Archived</option>
+              <option value="scheduled">Scheduled</option>
+            </select>
+            <p className="text-sm text-gray-500 mt-1">Current status: <span className="font-medium capitalize">{formData.status}</span></p>
+          </div>
+
+          <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <input
+              type="checkbox"
+              name="bestseller"
+              checked={formData.bestseller}
+              onChange={onChange}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label className="ml-2 block text-sm text-gray-700 font-medium">Mark as Bestseller</label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={onChange}
+              rows="4"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              placeholder="Enter product description..."
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Image Management */}
+      <div className="border-t pt-6">
+        <h3 className="text-lg font-semibold mb-4 text-gray-900">Product Images</h3>
+        
+        {/* Removed Images Info */}
+        {removedImages.length > 0 && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-700">
+              <span className="font-medium">{removedImages.length} image(s)</span> will be removed when you save changes.
+            </p>
+          </div>
+        )}
+        
+        {/* Existing Images */}
+        {formData.image && formData.image.length > 0 && (
+          <div className="mb-6">
+            <h4 className="text-md font-medium mb-3 text-gray-700">Current Images</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {formData.image.map((img, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={img}
+                    alt={`Product image ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onRemoveExistingImage(index)}
+                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  >
+                    <FaTimes className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* New Images */}
+        {newImages.length > 0 && (
+          <div className="mb-6">
+            <h4 className="text-md font-medium mb-3 text-gray-700">New Images to Upload</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {newImages.map((image, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={URL.createObjectURL(image)}
+                    alt={`New image ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onRemoveNewImage(index)}
+                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  >
+                    <FaTimes className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Add New Images */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Add More Images</label>
           <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={onChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-            placeholder="Enter product name"
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={onImageUpload}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           />
+          <p className="text-sm text-gray-500 mt-2">You can select multiple images. New images will be added to existing ones.</p>
         </div>
+      </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-          <select
-            name="category"
-            value={formData.category}
-            onChange={onChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-          >
-            <option value="">Select Category</option>
-            {categories.map((category, index) => (
-              <option key={index} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Simple Pricing Summary */}
+      <div className="border-t pt-6">
+        <h3 className="text-lg font-semibold mb-4 text-gray-900 flex items-center">
+          <FaInfoCircle className="w-5 h-5 mr-2 text-blue-600" />
+          Pricing Summary
+        </h3>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Cost Price */}
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-700">
+                {currency}{parseFloat(formData.cost || 0).toFixed(2)}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">Cost Price</div>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory</label>
-          <select
-            name="subcategory"
-            value={formData.subcategory}
-            onChange={onChange}
-            disabled={!formData.category}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          >
-            <option value="">Select Subcategory</option>
-            {subcategories.map((subcategory, index) => (
-              <option key={index} value={subcategory}>
-                {subcategory}
-              </option>
-            ))}
-          </select>
-          {!formData.category && (
-            <p className="text-sm text-gray-500 mt-1">Please select a category first</p>
+            {/* Selling Price */}
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {currency}{actualSellingPrice.toFixed(2)}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">Selling Price</div>
+            </div>
+
+            {/* Discount */}
+            <div className="text-center">
+              {discountAmount > 0 ? (
+                <>
+                  <div className="text-2xl font-bold text-red-600">
+                    {discountPercentage.toFixed(1)}%
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    Discount 
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-gray-500">No Discount</div>
+                  <div className="text-sm text-gray-600 mt-1">Discount Applied</div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Additional Info */}
+          {discountAmount > 0 && (
+            <div className="mt-4 p-3 bg-white rounded border border-blue-100">
+              <div className="text-sm text-gray-600 text-center">
+                Original Price: <span className="font-medium line-through">{currency}{parseFloat(formData.price || 0).toFixed(2)}</span>
+                {' '}→{' '}
+                Discount Price: <span className="font-medium text-green-600">{currency}{actualSellingPrice.toFixed(2)}</span>
+              </div>
+            </div>
           )}
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Cost Price ({currency})</label>
-          <input
-            type="number"
-            name="cost"
-            value={formData.cost}
-            onChange={onChange}
-            min="0"
-            step="0.01"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Original Price ({currency})</label>
-          <input
-            type="number"
-            name="price"
-            value={formData.price}
-            onChange={onChange}
-            min="0"
-            step="0.01"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Discount Price ({currency})</label>
-          <input
-            type="number"
-            name="discountprice"
-            value={formData.discountprice}
-            onChange={onChange}
-            min="0"
-            step="0.01"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
-          <input
-            type="number"
-            name="quantity"
-            value={formData.quantity}
-            onChange={onChange}
-            min="0"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
-          <select
-            name="status"
-            value={formData.status}
-            onChange={onChange} // Use the same onChange handler
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-          >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
-            <option value="scheduled">Scheduled</option>
-          </select>
-          <p className="text-sm text-gray-500 mt-1">Current status: <span className="font-medium capitalize">{formData.status}</span></p>
-        </div>
-
-        <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
-          <input
-            type="checkbox"
-            name="bestseller"
-            checked={formData.bestseller}
-            onChange={onChange}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label className="ml-2 block text-sm text-gray-700 font-medium">Mark as Bestseller</label>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={onChange}
-            rows="4"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-            placeholder="Enter product description..."
-          />
-        </div>
       </div>
     </div>
-
-   {/* Image Management */}
-    <div className="border-t pt-6">
-      <h3 className="text-lg font-semibold mb-4 text-gray-900">Product Images</h3>
-      
-      {/* Removed Images Info */}
-      {removedImages.length > 0 && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-700">
-            <span className="font-medium">{removedImages.length} image(s)</span> will be removed when you save changes.
-          </p>
-        </div>
-      )}
-      
-      {/* Existing Images */}
-      {formData.image && formData.image.length > 0 && (
-        <div className="mb-6">
-          <h4 className="text-md font-medium mb-3 text-gray-700">Current Images</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {formData.image.map((img, index) => (
-              <div key={index} className="relative group">
-                <img
-                  src={img}
-                  alt={`Product image ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => onRemoveExistingImage(index)}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                >
-                  <FaTimes className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* New Images */}
-      {newImages.length > 0 && (
-        <div className="mb-6">
-          <h4 className="text-md font-medium mb-3 text-gray-700">New Images to Upload</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {newImages.map((image, index) => (
-              <div key={index} className="relative group">
-                <img
-                  src={URL.createObjectURL(image)}
-                  alt={`New image ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => onRemoveNewImage(index)}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                >
-                  <FaTimes className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Add New Images */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Add More Images</label>
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={onImageUpload}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-        />
-        <p className="text-sm text-gray-500 mt-2">You can select multiple images. New images will be added to existing ones.</p>
-      </div>
-    </div>
-  </div>
-)
-
+  )
+}
 
 const DetailRow = ({ label, value }) => (
   <div className="flex justify-between py-2 border-b border-gray-200 last:border-b-0">

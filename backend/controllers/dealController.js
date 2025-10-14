@@ -24,17 +24,6 @@ const addDeal = async (req, res) => {
       dealType 
     } = req.body;
     
-  console.log("=== POSTMAN TEST DEBUG ===");
-    console.log("Complete req.body:", JSON.stringify(req.body, null, 2));
-    console.log("All keys in req.body:", Object.keys(req.body));
-    
-    // Check if dealType exists
-    if (!req.body.dealType) {
-      console.log("❌ dealType is MISSING from request body");
-    } else {
-      console.log("✅ dealType found:", req.body.dealType);
-    }
-
     // Get deal images from req.files
     const dealImage1 = req.files.dealImage1 && req.files.dealImage1[0];
     const dealImage2 = req.files.dealImage2 && req.files.dealImage2[0];
@@ -42,8 +31,6 @@ const addDeal = async (req, res) => {
     const dealImage4 = req.files.dealImage4 && req.files.dealImage4[0];
 
     const dealImages = [dealImage1, dealImage2, dealImage3, dealImage4].filter((item) => item !== undefined);
-
-    console.log("Deal images to upload:", dealImages.length);
 
     // Upload deal images to Cloudinary
     let dealImagesUrl = await Promise.all(
