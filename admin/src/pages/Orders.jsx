@@ -4,19 +4,13 @@ import axios from 'axios';
 import { backendUrl, currency } from '../App';
 import { assets } from '../assets/assets';
 import { toast } from 'react-toastify';
+import { useAuth } from '../context/AuthContext'; // Import useAuth
 
-const Orders = ({ token, setToken }) => {
+const Orders = () => {
   const navigate = useNavigate();
+  const { token, logout } = useAuth(); // Get token and logout from context
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // ✅ Load token from localStorage if missing (helps on refresh)
-  useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    if (savedToken && !token) {
-      setToken(savedToken);
-    }
-  }, [token, setToken]);
 
   // 🔒 Central unauthorized handler
   const handleUnauthorized = (endpoint) => {
@@ -25,8 +19,7 @@ const Orders = ({ token, setToken }) => {
       token ? token.substring(0, 15) + '...' : 'EMPTY'
     );
     toast.error('Session expired. Please login again.');
-    setToken('');
-    localStorage.removeItem('token');
+    logout(); // Use logout from context instead of setToken
     navigate('/');
   };
 
@@ -40,7 +33,7 @@ const Orders = ({ token, setToken }) => {
 
     try {
       const response = await axios.get(`${backendUrl}/api/order/list`, {
-        headers: { token }, // ✅ FIXED: match backend middleware
+        headers: { token },
       });
 
       if (response.data.success) {
@@ -81,7 +74,7 @@ const Orders = ({ token, setToken }) => {
       const response = await axios.post(
         `${backendUrl}/api/order/status`,
         { orderId, status: newStatus },
-        { headers: { token } } // ✅ FIXED: match backend middleware
+        { headers: { token } }
       );
 
       if (response.data.success) {
@@ -110,8 +103,11 @@ const Orders = ({ token, setToken }) => {
 
   // 🧭 Load orders when token changes
   useEffect(() => {
-    if (token) fetchAllOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (token) {
+      fetchAllOrders();
+    } else {
+      setLoading(false);
+    }
   }, [token]);
 
   // 🌀 Loading spinner
@@ -121,6 +117,26 @@ const Orders = ({ token, setToken }) => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading orders...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If no token and not loading, show message
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
+            <img src={assets.parcel_icon} alt="No access" className="opacity-50" />
+          </div>
+          <p className="text-gray-500 text-lg mb-4">Please login to view orders</p>
+          <button 
+            onClick={() => navigate('/')}
+            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+          >
+            Go to Login
+          </button>
         </div>
       </div>
     );

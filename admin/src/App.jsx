@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
+import { useAuth } from './context/AuthContext';
 
-import Sidebar from './components/Sidebar.jsx'
+import Navbar from './components/Navbar.jsx'
 import Login from './components/Login.jsx'
 import Footer from './components/Footer.jsx'
 
@@ -14,32 +15,52 @@ import Setting from './pages/Setting.jsx';
 import ContentManagement from './components/ContentManagement/ContentManagement.jsx';
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
-export const currency ='Rs.'
+export const currency = 'Rs.'
 
 const App = () => {
-    const [token, setToken] = useState(localStorage.getItem('token')?localStorage.getItem('token'):'');
-    useEffect(()=>{
-        localStorage.setItem('token',token)
-    },[token])
-    
+    const { token, loading } = useAuth();
+
+    // Show loading while checking authentication
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="flex flex-col items-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mb-4"></div>
+                    <p className="text-gray-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className='bg-gray-50 min-h-screen'>
-            <ToastContainer/>
-            {token === "" ? <Login setToken={setToken} /> : <>
-                <hr />
-                    <Sidebar />
+            <ToastContainer />
+            
+            {/* Simple conditional rendering - no protected routes */}
+            {!token ? (
+                // Show only login page if not authenticated
+                <Login />
+            ) : (
+                // Show full app if authenticated
+                <>
+                    <hr />
+                    <Navbar />
                     <div className='p-4 text-gray-600 text-base'>
                         <Routes>
-                            <Route path='/' element={<Dashboard token={token} />} />
-                            <Route path='/content-management' element={<ContentManagement token={token} />} />
-                            <Route path='/add' element={<Add token={token}  setToken={setToken} />} />
-                            <Route path='/list' element={<List token={token}  setToken={setToken}  />} />
-                            <Route path='/orders' element={<Orders token={token}  setToken={setToken}  />} />
-                            <Route path='/settings' element={<Setting token={token} setToken={setToken} />} />
+                            <Route path='/' element={<Dashboard />} />
+                            <Route path='/content-management' element={<ContentManagement />} />
+                            <Route path='/add' element={<Add />} />
+                            <Route path='/list' element={<List />} />
+                            <Route path='/orders' element={<Orders />} />
+                            <Route path='/settings' element={<Setting />} />
+                            
+                            {/* Redirect any unknown route to home */}
+                            <Route path='*' element={<Dashboard />} />
                         </Routes>
                     </div>
-            </>}
-            <Footer />
+                    <Footer />
+                </>
+            )}
         </div>
     )
 }

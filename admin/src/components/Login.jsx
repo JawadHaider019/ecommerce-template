@@ -2,17 +2,22 @@ import { useState } from 'react'
 import { backendUrl } from '../App'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEnvelope, faLock, faSignInAlt } from '@fortawesome/free-solid-svg-icons'
+import { useAuth } from '../context/AuthContext'
 
 const Login = () => {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
-    const navigate = useNavigate()
-    const { login } = useAuth()
+    const { login, token } = useAuth()
+
+    // If already logged in, don't show login page
+    // The App component will handle redirect automatically
+    if (token) {
+        return null;
+    }
 
     const onSubmitHandler = async (e) => {
         try {
@@ -22,9 +27,9 @@ const Login = () => {
             const response = await axios.post(backendUrl + '/api/user/admin', { email, password })
             
             if(response.data.success){
-                login(response.data.token, response.data.admin) // Use context login
-                toast.success('Login successful! Redirecting...')
-                navigate('/') // Redirect to dashboard
+                login(response.data.token, response.data.admin)
+                toast.success('Login successful!')
+                // No need to navigate - App will re-render and show the main app
             } else {
                 toast.error(response.data.message)
             }

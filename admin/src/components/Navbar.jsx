@@ -9,10 +9,11 @@ import {
   faTachometerAlt,
   faBars,
   faTimes,
+    faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
 import { assets } from "../assets/assets";
 
-const Sidebar = () => {
+const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -20,7 +21,7 @@ const Sidebar = () => {
       {/* Mobile Header with Logo + Settings + Hamburger */}
       <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50 p-3 shadow-sm">
         <div className="flex justify-between items-center">
-          {/* Logo (use Link, not NavLink) */}
+          {/* Logo links to login by default */}
           <Link to="/" className="p-1">
             <img
               src={assets.logo}
@@ -31,13 +32,12 @@ const Sidebar = () => {
 
           <div className="flex items-center gap-4">
             {/* Settings (Mobile) */}
-            {/* Settings (Mobile, plain Link) */}
-<Link to="/settings" className="p-2">
-  <FontAwesomeIcon
-    icon={faCog}
-    className="text-gray-600 text-xl hover:text-black-600 transition"
-  />
-</Link>
+            <Link to="/settings" className="p-2">
+              <FontAwesomeIcon
+                icon={faCog}
+                className="text-gray-600 text-xl hover:text-black-600 transition"
+              />
+            </Link>
 
             {/* Hamburger Menu */}
             <button
@@ -59,7 +59,7 @@ const Sidebar = () => {
         <div className="md:hidden fixed top-14 left-0 right-0 bg-white border-b border-gray-200 z-40 shadow-lg animate-slideDown">
           <div className="flex flex-col p-4 space-y-2">
             <NavLink
-              to="/"
+              to="/content-management"
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
@@ -69,8 +69,8 @@ const Sidebar = () => {
               }
               onClick={() => setIsMenuOpen(false)}
             >
-              <FontAwesomeIcon icon={faTachometerAlt} />
-              <span className="font-medium">Dashboard</span>
+              <FontAwesomeIcon icon={faLayerGroup} />
+              <span className="font-medium"> Content Management</span>
             </NavLink>
 
             <NavLink
@@ -125,9 +125,9 @@ const Sidebar = () => {
       <div className="hidden md:block w-full bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-4">
-            {/* Logo (no active) */}
+            {/* Logo links to login by default */}
             <div className="flex-shrink-0">
-              <Link to="/dashboard" className="p-2 block">
+              <Link to="/" className="p-2 block">
                 <img
                   src={assets.logo}
                   alt="Logo"
@@ -139,7 +139,7 @@ const Sidebar = () => {
             {/* Navigation Tabs */}
             <nav className="flex space-x-1">
               <NavLink
-                to="/"
+                to="/content-management"
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-6 py-3 border-b-2 transition ${
                     isActive
@@ -148,8 +148,8 @@ const Sidebar = () => {
                   }`
                 }
               >
-                <FontAwesomeIcon icon={faTachometerAlt} />
-                <span className="font-medium">Dashboard</span>
+                <FontAwesomeIcon icon={ faLayerGroup} />
+                <span className="font-medium"> Content Management</span>
               </NavLink>
 
               <NavLink
@@ -195,38 +195,20 @@ const Sidebar = () => {
               </NavLink>
             </nav>
 
-<Link to="/settings" className="flex-shrink-0 p-2">
-  <FontAwesomeIcon
-    icon={faCog}
-    className="text-gray-500 text-xl hover:text-black transition"
-  />
-</Link>
-
+            <Link to="/settings" className="flex-shrink-0 p-2">
+              <FontAwesomeIcon
+                icon={faCog}
+                className="text-gray-500 text-xl hover:text-black transition"
+              />
+            </Link>
           </div>
         </div>
       </div>
 
       {/* Add padding for mobile header */}
       <div className="md:hidden h-14"></div>
-
-      {/* Animation */}
-      {/* <style jsx>{`
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-slideDown {
-          animation: slideDown 0.3s ease-out;
-        }
-      `}</style> */}
     </>
   );
 };
 
-export default Sidebar;
+export default Navbar;

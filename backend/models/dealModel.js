@@ -19,7 +19,7 @@ const dealSchema = new mongoose.Schema({
     dealEndDate: { type: Date },
     dealType: {
         type: String,
-        enum: ['flash_sale', 'seasonal', 'clearance', 'bundle', 'featured'],
+        enum: ['flash_sale', 'seasonal', 'clearance', 'bundle', 'featured','buyonegetone'],
         default: 'flash_sale'
     },
     status: {

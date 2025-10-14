@@ -13,9 +13,26 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Safe function to get user from localStorage
+  const getStoredUser = () => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      // Check if savedUser exists and is not 'undefined' string
+      if (savedUser && savedUser !== 'undefined' && savedUser !== 'null') {
+        return JSON.parse(savedUser);
+      }
+      return null;
+    } catch (error) {
+      console.error('Error parsing stored user data:', error);
+      // Clear corrupted data
+      localStorage.removeItem('user');
+      return null;
+    }
+  };
 
   // Set up axios interceptor for token expiration
   useEffect(() => {
@@ -36,35 +53,57 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (newToken, userData) => {
-    localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setToken(newToken);
-    setUser(userData);
-    axios.defaults.headers.common['token'] = newToken;
+    try {
+      localStorage.setItem('token', newToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setToken(newToken);
+      setUser(userData);
+      axios.defaults.headers.common['token'] = newToken;
+    } catch (error) {
+      console.error('Error saving auth data:', error);
+      toast.error('Failed to save login information.');
+    }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
-    delete axios.defaults.headers.common['token'];
-    // Use window.location for redirect instead of useNavigate
-    window.location.href = '/login';
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setToken(null);
+      setUser(null);
+      delete axios.defaults.headers.common['token'];
+      // Use window.location for redirect instead of useNavigate
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Force redirect even if localStorage fails
+      window.location.href = '/login';
+    }
   };
 
   // Check if user is logged in on app start
   useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      axios.defaults.headers.common['token'] = savedToken;
-    }
-    
-    setLoading(false);
+    const initializeAuth = async () => {
+      try {
+        const savedToken = localStorage.getItem('token');
+        const savedUser = getStoredUser();
+        
+        if (savedToken && savedUser) {
+          setToken(savedToken);
+          setUser(savedUser);
+          axios.defaults.headers.common['token'] = savedToken;
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        // Clear any corrupted data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const value = {

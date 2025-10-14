@@ -30,6 +30,7 @@ const Add = () => {
   // --- Deal State ---
   const [isDeal, setIsDeal] = useState(false);
   const [dealProducts, setDealProducts] = useState([]);
+  const [dealType, setDealType] = useState("flash_sale"); // Added dealType
   const [dealDiscountType, setDealDiscountType] = useState("percentage");
   const [dealDiscountValue, setDealDiscountValue] = useState(0);
   const [dealName, setDealName] = useState("");
@@ -54,8 +55,35 @@ const Add = () => {
     }
   }, [calculateDealTotal, dealDiscountType, dealDiscountValue]);
 
+  // Product calculations
+  const calculateProductSavings = useCallback(() => {
+    if (!discountprice || !price) return 0;
+    return Number(price) - Number(discountprice);
+  }, [price, discountprice]);
+
+  const calculateProductDiscountPercentage = useCallback(() => {
+    if (!discountprice || !price || price === 0) return 0;
+    return ((Number(price) - Number(discountprice)) / Number(price)) * 100;
+  }, [price, discountprice]);
+
+  const calculateProductProfit = useCallback(() => {
+    if (!cost) return 0;
+    const sellingPrice = discountprice && discountprice > 0 ? Number(discountprice) : Number(price);
+    return sellingPrice - Number(cost);
+  }, [cost, price, discountprice]);
+
+  const calculateProductProfitPercentage = useCallback(() => {
+    if (!cost || cost === 0) return 0;
+    const profit = calculateProductProfit();
+    return (profit / Number(cost)) * 100;
+  }, [cost, calculateProductProfit]);
+
   const dealTotal = useMemo(() => calculateDealTotal(), [calculateDealTotal]);
   const finalPrice = useMemo(() => calculateFinalPrice(), [calculateFinalPrice]);
+  const productSavings = useMemo(() => calculateProductSavings(), [calculateProductSavings]);
+  const productDiscountPercentage = useMemo(() => calculateProductDiscountPercentage(), [calculateProductDiscountPercentage]);
+  const productProfit = useMemo(() => calculateProductProfit(), [calculateProductProfit]);
+  const productProfitPercentage = useMemo(() => calculateProductProfitPercentage(), [calculateProductProfitPercentage]);
 
   // --- Handlers ---
   const handleImageChange = useCallback((e, index) => {
@@ -111,6 +139,7 @@ const Add = () => {
     setBestseller(false);
     setDealProducts([]);
     setIsDeal(false);
+    setDealType("flash_sale"); 
     setDealDiscountValue(0);
     setDealName("");
     setDealDescription("");
@@ -180,6 +209,7 @@ const Add = () => {
         // Deal basic data
         formData.append("dealName", dealName);
         formData.append("dealDescription", dealDescription);
+        formData.append("dealType", dealType); // Added dealType
         formData.append("dealDiscountType", dealDiscountType);
         formData.append("dealDiscountValue", Number(dealDiscountValue));
         formData.append("dealTotal", dealTotal);
@@ -240,7 +270,7 @@ const Add = () => {
     }
   }, [
     isDeal, name, description, category, subCategory, quantity, bestseller, cost, price, discountprice, images,
-    dealName, dealDescription, dealDiscountType, dealDiscountValue, dealTotal, finalPrice, dealStartDate,
+    dealName, dealDescription, dealType, dealDiscountType, dealDiscountValue, dealTotal, finalPrice, dealStartDate,
     dealEndDate, dealProducts, dealImages, token, resetForm, backendUrl, logout
   ]);
 
@@ -274,8 +304,12 @@ const Add = () => {
       setQuantity={setQuantity}
       bestseller={bestseller}
       setBestseller={setBestseller}
+      productSavings={productSavings}
+      productDiscountPercentage={productDiscountPercentage}
+      productProfit={productProfit}
+      productProfitPercentage={productProfitPercentage}
     />
-  ), [categories, category, subCategory, name, description, cost, price, discountprice, quantity, bestseller]);
+  ), [categories, category, subCategory, name, description, cost, price, discountprice, quantity, bestseller, productSavings, productDiscountPercentage, productProfit, productProfitPercentage]);
 
   const dealSection = useMemo(() => (
     <DealSection
@@ -283,6 +317,8 @@ const Add = () => {
       setDealName={setDealName}
       dealDescription={dealDescription}
       setDealDescription={setDealDescription}
+      dealType={dealType}
+      setDealType={setDealType}
       dealStartDate={dealStartDate}
       setDealStartDate={setDealStartDate}
       dealEndDate={dealEndDate}
@@ -299,7 +335,7 @@ const Add = () => {
       finalPrice={finalPrice}
     />
   ), [
-    dealName, dealDescription, dealStartDate, dealEndDate, dealProducts, handleDealProductChange,
+    dealName, dealDescription, dealType, dealStartDate, dealEndDate, dealProducts, handleDealProductChange,
     handleRemoveDealProduct, handleAddDealProduct, dealDiscountType,
     dealDiscountValue, dealTotal, finalPrice
   ]);
@@ -457,8 +493,16 @@ const ProductSection = memo(({
   quantity,
   setQuantity,
   bestseller,
-  setBestseller
+  setBestseller,
+  productSavings,
+  productDiscountPercentage,
+  productProfit,
+  productProfitPercentage
 }) => {
+  const finalPrice = discountprice && discountprice > 0 ? Number(discountprice) : Number(price);
+  const hasDiscount = discountprice && discountprice > 0 && discountprice < price;
+  const hasCost = cost && cost > 0;
+
   return (
     <>
       {/* Product Name & Description */}
@@ -527,6 +571,72 @@ const ProductSection = memo(({
         <InputField label="Quantity *" value={quantity} onChange={setQuantity} required />
       </div>
 
+      {/* Product Summary - Always visible when price is entered */}
+      {price && (
+        <div className="bg-blue-50 p-5 rounded-lg mb-6 border border-blue-200">
+          <h4 className="text-md font-medium mb-4 flex items-center">
+            <i className="fas fa-chart-line mr-2 text-blue-600"></i> Product Pricing Summary
+          </h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="text-center p-3 bg-white rounded-lg">
+              <div className="text-gray-600">Original Price</div>
+              <div className="text-lg font-bold text-gray-800">{Number(price).toFixed(2)}</div>
+            </div>
+            
+            {hasDiscount ? (
+              <>
+                <div className="text-center p-3 bg-white rounded-lg">
+                  <div className="text-gray-600">Discount</div>
+                  <div className="text-lg font-bold text-red-600">
+                    {productDiscountPercentage.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-gray-500">Save {productSavings.toFixed(2)}</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg">
+                  <div className="text-gray-600">Final Price</div>
+                  <div className="text-lg font-bold text-green-600">{finalPrice.toFixed(2)}</div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center p-3 bg-white rounded-lg col-span-2">
+                <div className="text-gray-600">Current Price</div>
+                <div className="text-lg font-bold text-green-600">{finalPrice.toFixed(2)}</div>
+                <div className="text-xs text-gray-500">No discount applied</div>
+              </div>
+            )}
+            
+            {hasCost && (
+              <div className="text-center p-3 bg-white rounded-lg">
+                <div className="text-gray-600">Profit</div>
+                <div className={`text-lg font-bold ${productProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {productProfit.toFixed(2)}
+                </div>
+                <div className="text-xs text-gray-500">{productProfitPercentage.toFixed(1)}% margin</div>
+              </div>
+            )}
+          </div>
+          
+          {/* Additional summary info */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {hasDiscount && (
+              <div className="text-center p-2 bg-yellow-50 rounded border border-yellow-200">
+                <span className="font-medium">Discounted Product:</span> Customers save {productDiscountPercentage.toFixed(1)}%
+              </div>
+            )}
+            {hasCost && productProfit >= 0 && (
+              <div className="text-center p-2 bg-green-50 rounded border border-green-200">
+                <span className="font-medium">Profit Margin:</span> {productProfitPercentage.toFixed(1)}% ({productProfit.toFixed(2)} per unit)
+              </div>
+            )}
+            {hasCost && productProfit < 0 && (
+              <div className="text-center p-2 bg-red-50 rounded border border-red-200">
+                <span className="font-medium">Warning:</span> Selling at a loss of {Math.abs(productProfit).toFixed(2)} per unit
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Bestseller */}
       <div className="mb-6">
         <label className="flex items-center cursor-pointer">
@@ -548,6 +658,8 @@ const DealSection = memo(({
   setDealName,
   dealDescription,
   setDealDescription,
+  dealType,
+  setDealType,
   dealStartDate,
   setDealStartDate,
   dealEndDate,
@@ -587,6 +699,31 @@ const DealSection = memo(({
             placeholder="Describe this deal and its benefits..."
           />
         </div>
+      </div>
+
+      {/* Deal Type - Dropdown */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Deal Type *</label>
+        <select
+          value={dealType}
+          onChange={(e) => setDealType(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
+        >
+          <option value="bundle">Product Bundle</option>
+          <option value="featured">Featured Package</option>
+          <option value="seasonal">Seasonal Offer</option>
+          <option value="flash_sale">Flash Sale</option>
+          <option value="clearance">Clearance Deal</option>
+          <option value="buyonegetone">Buy One Get One</option>
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          {dealType === "bundle" && "Multiple products bundled together at a special price"}
+          {dealType === "featured" && "Complementary products packaged together"}
+          {dealType === "seasonal" && "Limited time seasonal or holiday offer"}
+          {dealType === "flash_sale" && "Short-term sale with significant discounts"}
+          {dealType === "clearance" && "Clearance items with deep discounts"}
+          {dealType === "buyonegetone" && "Buy one get one free or at discount"}
+        </p>
       </div>
 
       {/* Deal Dates */}
@@ -699,17 +836,17 @@ const DealSection = memo(({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="text-center p-3 bg-white rounded-lg">
             <div className="text-gray-600">Total Value</div>
-            <div className="text-lg font-bold text-gray-800">${dealTotal.toFixed(2)}</div>
+            <div className="text-lg font-bold text-gray-800">{dealTotal.toFixed(2)}</div>
           </div>
           <div className="text-center p-3 bg-white rounded-lg">
             <div className="text-gray-600">Discount</div>
             <div className="text-lg font-bold text-red-600">
-              {dealDiscountType === "percentage" ? `${dealDiscountValue}%` : `$${dealDiscountValue}`}
+              {dealDiscountType === "percentage" ? `${dealDiscountValue}%` : `${dealDiscountValue}`}
             </div>
           </div>
           <div className="text-center p-3 bg-white rounded-lg">
             <div className="text-gray-600">Final Price</div>
-            <div className="text-lg font-bold text-green-600">${finalPrice.toFixed(2)}</div>
+            <div className="text-lg font-bold text-green-600">{finalPrice.toFixed(2)}</div>
           </div>
         </div>
       </div>
