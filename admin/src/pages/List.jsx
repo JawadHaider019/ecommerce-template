@@ -4,6 +4,19 @@ import { backendUrl, currency } from '../App'
 import { toast } from 'react-toastify'
 import ProductDetails from '../components/ProductDetails'
 import DealDetails from '../components/DealDetails'
+import { 
+  FaBox, 
+  FaTags, 
+  FaEye, 
+  FaEdit, 
+  FaTrash, 
+  FaCalendarAlt,
+  FaShoppingBag,
+  FaPercentage,
+  FaDollarSign,
+  FaCube,
+  FaFire
+} from 'react-icons/fa'
 
 const List = ({ token }) => {
   const [activeTab, setActiveTab] = useState('products')
@@ -12,7 +25,7 @@ const List = ({ token }) => {
   const [loading, setLoading] = useState(true)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [selectedDeal, setSelectedDeal] = useState(null)
-  const [viewMode, setViewMode] = useState('list') // 'list', 'view', 'edit'
+  const [viewMode, setViewMode] = useState('list')
 
   const fetchProducts = async () => {
     try {
@@ -96,15 +109,19 @@ const List = ({ token }) => {
 
 const updateProductStatus = async (id, status) => {
   try {
-    console.log('Updating product status:', { id, status });
+   
+    setProducts(prev =>
+      prev.map(p => (p._id === id ? { ...p, status } : p))
+    )
+
     const response = await axios.post(
       backendUrl + '/api/product/update-status',
       { id, status },
       { headers: { token } }
     )
+
     if (response.data.success) {
       toast.success('Product status updated successfully')
-      await fetchProducts()
     } else {
       toast.error(response.data.message)
     }
@@ -114,25 +131,26 @@ const updateProductStatus = async (id, status) => {
   }
 }
 
-const updateDealStatus = async (id, status) => {
-  try {
-    console.log('Updating deal status:', { id, status });
-    const response = await axios.post(
-      backendUrl + '/api/deal/update-status',
-      { id, status },
-      { headers: { token } }
-    )
-    if (response.data.success) {
-      toast.success('Deal status updated successfully')
-      await fetchDeals()
-    } else {
-      toast.error(response.data.message)
+
+  const updateDealStatus = async (id, status) => {
+    try {
+      const response = await axios.post(
+        backendUrl + '/api/deal/update-status',
+        { id, status },
+        { headers: { token } }
+      )
+      if (response.data.success) {
+        toast.success('Deal status updated successfully')
+        await fetchDeals()
+      } else {
+        toast.error(response.data.message)
+      }
+    } catch (error) {
+      console.log('Deal status update error:', error)
+      toast.error(error.response?.data?.message || error.message)
     }
-  } catch (error) {
-    console.log('Deal status update error:', error)
-    toast.error(error.response?.data?.message || error.message)
   }
-}
+
   const handleViewProduct = (product) => {
     setSelectedProduct(product)
     setViewMode('view')
@@ -200,13 +218,21 @@ const updateDealStatus = async (id, status) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded mb-2"></div>
-            ))}
+            <div className="h-8 bg-gray-200 rounded-lg w-64 mb-8"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-white rounded-xl shadow-sm p-6 space-y-4">
+                  <div className="h-40 bg-gray-200 rounded-lg"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -214,39 +240,64 @@ const updateDealStatus = async (id, status) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-2 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Management Dashboard</h2>
-          
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Management Dashboard</h1>
+              <p className="text-gray-600 mt-2">Manage your products and deals efficiently</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">
+                {activeTab === 'products' ? `${products.length} products` : `${deals.length} deals`}
+              </span>
+            </div>
+          </div>
+
           {/* Tabs */}
-          <div className="border-b border-gray-200 mt-4">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('products')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'products'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Products ({products.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('deals')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'deals'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Deals ({deals.length})
-              </button>
-            </nav>
+          <div className="mt-8">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8 overflow-x-auto">
+                <button
+                  onClick={() => setActiveTab('products')}
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'products'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <FaBox className="w-5 h-5" />
+                    <span>Products</span>
+                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+                      {products.length}
+                    </span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('deals')}
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'deals'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <FaTags className="w-5 h-5" />
+                    <span>Deals</span>
+                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+                      {deals.length}
+                    </span>
+                  </div>
+                </button>
+              </nav>
+            </div>
           </div>
         </div>
 
-        {/* Products Tab Content */}
+        {/* Content */}
         {activeTab === 'products' && (
           <ProductListView
             products={products}
@@ -257,7 +308,6 @@ const updateDealStatus = async (id, status) => {
           />
         )}
 
-        {/* Deals Tab Content */}
         {activeTab === 'deals' && (
           <DealListView
             deals={deals}
@@ -276,192 +326,193 @@ const updateDealStatus = async (id, status) => {
 const ProductListView = ({ products, onView, onEdit, onDelete, onStatusChange }) => {
   return (
     <div>
-      <div className="mb-4">
-        <p className="text-gray-600">All Products List ({products.length} products)</p>
-      </div>
-
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-4">
+      {/* Mobile & Tablet Grid View */}
+      <div className="lg:hidden">
         {products.length === 0 ? (
           <EmptyState type="products" />
         ) : (
-          products.map((item) => (
-            <div key={item._id} className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex flex-col items-center gap-4">
-                <img 
-                  className="w-24 h-24 object-cover rounded-lg border border-gray-200" 
-                  src={item.image[0]} 
-                  alt={item.name} 
-                />
-                
-                <div className="w-full text-center">
-                  <h3 className="font-medium text-gray-900 text-base mb-3">{item.name}</h3>
-                  
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex flex-col items-center">
-                      <span className="text-gray-500 text-xs mb-1">Category</span>
-                      <span className="text-xs font-medium capitalize bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                        {item.category}
-                      </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {products.map((item) => (
+              <div key={item._id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
+                <div className="p-4">
+                  <div className="flex items-start space-x-4">
+                    <img 
+                      className="w-20 h-20 object-cover rounded-lg border border-gray-200 flex-shrink-0" 
+                      src={item.image[0]} 
+                      alt={item.name} 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-sm truncate mb-1">{item.name}</h3>
+                      <p className="text-gray-500 text-xs mb-2 line-clamp-2">
+                        {item.description || 'No description available'}
+                      </p>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Category</span>
+                          <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-full capitalize">
+                            {item.category}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Price</span>
+                          <div className="flex items-center space-x-1">
+                            <span className="font-semibold text-green-600 text-sm">{currency}{item.discountprice}</span>
+                            {item.price > item.discountprice && (
+                              <span className="text-gray-400 line-through text-xs">{currency}{item.price}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Stock</span>
+                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                            item.quantity > 10 ? 'bg-green-100 text-green-700' :
+                            item.quantity > 0 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {item.quantity} left
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="flex flex-col items-center">
-                      <span className="text-gray-500 text-xs mb-1">Stock</span>
-                      <span className={`text-xs font-medium ${
-                        item.quantity > 10 ? 'text-green-600' :
-                        item.quantity > 0 ? 'text-yellow-600' :
-                        'text-red-600'
-                      }`}>
-                        {item.quantity} left
-                      </span>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-3">
+                     
+                      <StatusDropdown 
+                        currentStatus={item.status || 'draft'} 
+                        onStatusChange={(status) => onStatusChange(item._id, status)}
+                      />
                     </div>
-                    
-                    <div className="flex flex-col items-center">
-                      <span className="text-gray-500 text-xs mb-1">Price</span>
-                      <span className="font-semibold text-green-600 text-sm">{currency}{item.discountprice}</span>
-                    </div>
-                    
-                    <div className="flex flex-col items-center">
-                      <span className="text-gray-500 text-xs mb-1">Status</span>
-                      <StatusBadge status={item.status || 'draft'} />
+                    <div className="flex space-x-2">
+                      <ActionButton
+                        onClick={() => onView(item)}
+                        variant="primary"
+                        icon="view"
+                        label="View"
+                        fullWidth
+                      />
+                      <ActionButton
+                        onClick={() => onEdit(item)}
+                        variant="secondary"
+                        icon="edit"
+                        label="Edit"
+                        fullWidth
+                      />
+                      <ActionButton
+                        onClick={() => onDelete(item._id)}
+                        variant="danger"
+                        icon="delete"
+                        
+                        fullWidth
+                      />
                     </div>
                   </div>
                 </div>
               </div>
-              
-              <div className="mt-4 pt-3 border-t border-gray-100 flex justify-center space-x-2">
-                <button
-                  onClick={() => onView(item)}
-                  className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => onEdit(item)}
-                  className="px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => onDelete(item._id)}
-                  className="px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
-                >
-                  Delete
-                </button>
-              </div>
-
-              <div className="mt-3 flex justify-center">
-                <StatusDropdown 
-                  currentStatus={item.status || 'draft'} 
-                  onStatusChange={(status) => onStatusChange(item._id, status)}
-                />
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-        <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1.5fr] items-center py-4 px-6 bg-gray-50 text-sm font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-          <span className="text-center">Image</span>
-          <span>Name</span>
-          <span>Category</span>
-          <span>Price</span>
-          <span>Original</span>
-          <span>Quantity</span>
-          <span>Status</span>
-          <span className="text-center">Actions</span>
-        </div>
-
-        <div className="divide-y divide-gray-200">
-          {products.length === 0 ? (
-            <EmptyState type="products" />
-          ) : (
-            products.map((item) => (
-              <div 
-                key={item._id} 
-                className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1.5fr] items-center gap-4 py-4 px-6 hover:bg-gray-50 transition-colors duration-200"
-              >
-                <div className="flex justify-center">
-                  <img 
-                    className="w-12 h-12 object-cover rounded-lg border border-gray-200" 
-                    src={item.image[0]} 
-                    alt={item.name} 
-                  />
-                </div>
-                
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900 text-sm truncate">{item.name}</p>
-                </div>
-                
-                <div>
-                  <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full capitalize">
-                    {item.category}
-                  </span>
-                </div>
-                
-                <div>
-                  <p className="font-semibold text-green-600 text-sm">{currency}{item.discountprice}</p>
-                </div>
-                
-                <div>
-                  <p className="text-gray-400 line-through text-sm">{currency}{item.price}</p>
-                </div>
-                
-                <div>
-                  <div className="flex items-center">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      item.quantity > 10 ? 'bg-green-100 text-green-800' :
-                      item.quantity > 0 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {item.quantity}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <StatusBadge status={item.status || 'draft'} />
-                </div>
-                
-                <div className="flex justify-center space-x-2">
-                  <button
-                    onClick={() => onView(item)}
-                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors duration-200"
-                    title="View product"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => onEdit(item)}
-                    className="p-2 text-green-500 hover:bg-green-50 rounded-full transition-colors duration-200"
-                    title="Edit product"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => onDelete(item._id)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors duration-200"
-                    title="Delete product"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                  </button>
-                  <StatusDropdown 
-                    currentStatus={item.status || 'draft'} 
-                    onStatusChange={(status) => onStatusChange(item._id, status)}
-                  />
-                </div>
-              </div>
-            ))
-          )}
+      <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Category</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Price</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Stock</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {products.length === 0 ? (
+                <tr>
+                  <td colSpan="6">
+                    <EmptyState type="products" />
+                  </td>
+                </tr>
+              ) : (
+                products.map((item) => (
+                  <tr key={item._id} className="hover:bg-gray-50 transition-colors duration-150">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-4">
+                        <img 
+                          className="w-12 h-12 object-cover rounded-lg border border-gray-200" 
+                          src={item.image[0]} 
+                          alt={item.name} 
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-gray-900 text-sm truncate">{item.name}</p>
+                          <p className="text-gray-500 text-xs line-clamp-2 mt-1">
+                            {item.description || 'No description available'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-block bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full capitalize">
+                        {item.category}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-green-600 text-sm">{currency}{item.discountprice}</span>
+                        {item.price > item.discountprice && (
+                          <span className="text-gray-400 line-through text-xs">{currency}{item.price}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          item.quantity > 10 ? 'bg-green-400' :
+                          item.quantity > 0 ? 'bg-yellow-400' :
+                          'bg-red-400'
+                        }`}></div>
+                        <span className="text-sm text-gray-600">{item.quantity}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-2">
+                       
+                        <StatusDropdown 
+                          currentStatus={item.status || 'draft'} 
+                          onStatusChange={(status) => onStatusChange(item._id, status)}
+                        />
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-2">
+                        <ActionButton
+                          onClick={() => onView(item)}
+                          variant="primary"
+                          icon="view"
+                          size="sm"
+                        />
+                        <ActionButton
+                          onClick={() => onEdit(item)}
+                          variant="secondary"
+                          icon="edit"
+                          size="sm"
+                        />
+                        <ActionButton
+                          onClick={() => onDelete(item._id)}
+                          variant="danger"
+                          icon="delete"
+                          size="sm"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -472,189 +523,203 @@ const ProductListView = ({ products, onView, onEdit, onDelete, onStatusChange })
 const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
   return (
     <div>
-      <div className="mb-4">
-        <p className="text-gray-600">All Deals List ({deals.length} deals)</p>
-      </div>
-
-      {/* Mobile Card View for Deals */}
-      <div className="md:hidden space-y-4">
+      {/* Mobile & Tablet Grid View */}
+      <div className="lg:hidden">
         {deals.length === 0 ? (
           <EmptyState type="deals" />
         ) : (
-          deals.map((item) => (
-            <div key={item._id} className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex flex-col items-center gap-4">
-                <img 
-                  className="w-24 h-24 object-cover rounded-lg border border-gray-200" 
-                  src={item.dealImages[0]} 
-                  alt={item.dealName} 
-                />
-                
-                <div className="w-full text-center">
-                  <h3 className="font-medium text-gray-900 text-base mb-3">{item.dealName}</h3>
-                  
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex flex-col items-center">
-                      <span className="text-gray-500 text-xs mb-1">Discount</span>
-                      <span className="font-semibold text-green-600 text-sm">
-                        {item.dealDiscountType === 'percentage' ? `${item.dealDiscountValue}%` : `${currency}${item.dealDiscountValue}`}
-                      </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {deals.map((item) => (
+              <div key={item._id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
+                <div className="p-4">
+                  <div className="flex items-start space-x-4">
+                    <img 
+                      className="w-20 h-20 object-cover rounded-lg border border-gray-200 flex-shrink-0" 
+                      src={item.dealImages[0]} 
+                      alt={item.dealName} 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-sm truncate mb-1">{item.dealName}</h3>
+                      <p className="text-gray-500 text-xs truncate mb-2">{item.dealDescription}</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Type</span>
+                          <span className="text-xs font-medium bg-purple-50 text-purple-700 px-2 py-1 rounded-full capitalize">
+                            {item.dealType || 'standard'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Discount</span>
+                          <span className="font-semibold text-green-600 text-sm">
+                            {item.dealDiscountType === 'percentage' ? `${item.dealDiscountValue}%` : `${currency}${item.dealDiscountValue}`}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Products</span>
+                          <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                            {item.dealProducts?.length || 0} items
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Period</span>
+                          <span className="text-xs text-gray-600">
+                            {new Date(item.dealStartDate).toLocaleDateString()}
+                            {item.dealEndDate && ` - ${new Date(item.dealEndDate).toLocaleDateString()}`}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="flex flex-col items-center">
-                      <span className="text-gray-500 text-xs mb-1">Products</span>
-                      <span className="text-xs font-medium">
-                        {item.dealProducts?.length || 0}
-                      </span>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-3">
+                     
+                      <StatusDropdown 
+                        currentStatus={item.status || 'draft'} 
+                        onStatusChange={(status) => onStatusChange(item._id, status)}
+                      />
                     </div>
-                    
-                    <div className="flex flex-col items-center">
-                      <span className="text-gray-500 text-xs mb-1">Start Date</span>
-                      <span className="text-xs font-medium">
-                        {new Date(item.dealStartDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                    
-                    <div className="flex flex-col items-center">
-                      <span className="text-gray-500 text-xs mb-1">Status</span>
-                      <StatusBadge status={item.status || 'draft'} />
+                    <div className="flex space-x-2">
+                      <ActionButton
+                        onClick={() => onView(item)}
+                        variant="primary"
+                        icon="view"
+                                              fullWidth
+                      />
+                      <ActionButton
+                        onClick={() => onEdit(item)}
+                        variant="secondary"
+                        icon="edit"
+                                                fullWidth
+                      />
+                      <ActionButton
+                        onClick={() => onDelete(item._id)}
+                        variant="danger"
+                        icon="delete"
+                        
+                        fullWidth
+                      />
                     </div>
                   </div>
                 </div>
               </div>
-              
-              <div className="mt-4 pt-3 border-t border-gray-100 flex justify-center space-x-2">
-                <button
-                  onClick={() => onView(item)}
-                  className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => onEdit(item)}
-                  className="px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => onDelete(item._id)}
-                  className="px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
-                >
-                  Delete
-                </button>
-              </div>
-
-              <div className="mt-3 flex justify-center">
-                <StatusDropdown 
-                  currentStatus={item.status || 'draft'} 
-                  onStatusChange={(status) => onStatusChange(item._id, status)}
-                />
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Desktop Table View for Deals */}
-      <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-        <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1.5fr] items-center py-4 px-6 bg-gray-50 text-sm font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-          <span className="text-center">Image</span>
-          <span>Deal Name</span>
-          <span>Discount</span>
-          <span>Products</span>
-          <span>Start Date</span>
-          <span>End Date</span>
-          <span>Status</span>
-          <span className="text-center">Actions</span>
-        </div>
-
-        <div className="divide-y divide-gray-200">
-          {deals.length === 0 ? (
-            <EmptyState type="deals" />
-          ) : (
-            deals.map((item) => (
-              <div 
-                key={item._id} 
-                className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1fr_1fr_1.5fr] items-center gap-4 py-4 px-6 hover:bg-gray-50 transition-colors duration-200"
-              >
-                <div className="flex justify-center">
-                  <img 
-                    className="w-12 h-12 object-cover rounded-lg border border-gray-200" 
-                    src={item.dealImages[0]} 
-                    alt={item.dealName} 
-                  />
-                </div>
-                
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900 text-sm truncate">{item.dealName}</p>
-                  <p className="text-gray-500 text-xs truncate">{item.dealDescription}</p>
-                </div>
-                
-                <div>
-                  <p className="font-semibold text-green-600 text-sm">
-                    {item.dealDiscountType === 'percentage' ? `${item.dealDiscountValue}%` : `${currency}${item.dealDiscountValue}`}
-                  </p>
-                </div>
-                
-                <div>
-                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                    {item.dealProducts?.length || 0} products
-                  </span>
-                </div>
-                
-                <div>
-                  <p className="text-gray-600 text-sm">
-                    {new Date(item.dealStartDate).toLocaleDateString()}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-gray-600 text-sm">
-                    {item.dealEndDate ? new Date(item.dealEndDate).toLocaleDateString() : 'No end date'}
-                  </p>
-                </div>
-
-                <div>
-                  <StatusBadge status={item.status || 'draft'} />
-                </div>
-                
-                <div className="flex justify-center space-x-2">
-                  <button
-                    onClick={() => onView(item)}
-                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors duration-200"
-                    title="View deal"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => onEdit(item)}
-                    className="p-2 text-green-500 hover:bg-green-50 rounded-full transition-colors duration-200"
-                    title="Edit deal"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => onDelete(item._id)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors duration-200"
-                    title="Delete deal"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                  </button>
-                  <StatusDropdown 
-                    currentStatus={item.status || 'draft'} 
-                    onStatusChange={(status) => onStatusChange(item._id, status)}
-                  />
-                </div>
-              </div>
-            ))
-          )}
+      {/* Desktop Table View */}
+      <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Deal</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Discount</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Products</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Period</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {deals.length === 0 ? (
+                <tr>
+                  <td colSpan="7">
+                    <EmptyState type="deals" />
+                  </td>
+                </tr>
+              ) : (
+                deals.map((item) => (
+                  <tr key={item._id} className="hover:bg-gray-50 transition-colors duration-150">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-4">
+                        <img 
+                          className="w-12 h-12 object-cover rounded-lg border border-gray-200" 
+                          src={item.dealImages[0]} 
+                          alt={item.dealName} 
+                        />
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 text-sm truncate">{item.dealName}</p>
+                          <p className="text-gray-500 text-xs truncate">{item.dealDescription}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium capitalize">
+                        <FaFire className="w-3 h-3 mr-1" />
+                        {item.dealType || 'standard'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-1">
+                        {item.dealDiscountType === 'percentage' ? (
+                          <FaPercentage className="w-3 h-3 text-green-500" />
+                        ) : (
+                          <FaDollarSign className="w-3 h-3 text-green-500" />
+                        )}
+                        <span className="font-semibold text-green-600 text-sm">
+                          {item.dealDiscountType === 'percentage' ? `${item.dealDiscountValue}%` : `${currency}${item.dealDiscountValue}`}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                        <FaCube className="w-3 h-3 mr-1" />
+                        {item.dealProducts?.length || 0} products
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <div className="flex items-center space-x-1">
+                          <FaCalendarAlt className="w-3 h-3 text-gray-400" />
+                          <span>{new Date(item.dealStartDate).toLocaleDateString()}</span>
+                        </div>
+                        {item.dealEndDate && (
+                          <div className="flex items-center space-x-1">
+                            <FaCalendarAlt className="w-3 h-3 text-gray-400" />
+                            <span>{new Date(item.dealEndDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-2">
+                       
+                        <StatusDropdown 
+                          currentStatus={item.status || 'draft'} 
+                          onStatusChange={(status) => onStatusChange(item._id, status)}
+                        />
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-2">
+                        <ActionButton
+                          onClick={() => onView(item)}
+                          variant="primary"
+                          icon="view"
+                          size="sm"
+                        />
+                        <ActionButton
+                          onClick={() => onEdit(item)}
+                          variant="secondary"
+                          icon="edit"
+                          size="sm"
+                        />
+                        <ActionButton
+                          onClick={() => onDelete(item._id)}
+                          variant="danger"
+                          icon="delete"
+                          size="sm"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -664,16 +729,17 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
 // Status Badge Component
 const StatusBadge = ({ status }) => {
   const statusConfig = {
-    draft: { color: 'bg-gray-100 text-gray-800', label: 'Draft' },
-    published: { color: 'bg-green-100 text-green-800', label: 'Published' },
-    archived: { color: 'bg-yellow-100 text-yellow-800', label: 'Archived' },
-    scheduled: { color: 'bg-blue-100 text-blue-800', label: 'Scheduled' }
+    draft: { color: 'bg-gray-100 text-gray-800', label: 'Draft', icon: '✏️' },
+    published: { color: 'bg-green-100 text-green-800', label: 'Published', icon: '✅' },
+    archived: { color: 'bg-yellow-100 text-yellow-800', label: 'Archived', icon: '📁' },
+    scheduled: { color: 'bg-blue-100 text-blue-800', label: 'Scheduled', icon: '⏰' }
   }
 
   const config = statusConfig[status] || statusConfig.draft
 
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${config.color}`}>
+      <span className="mr-1">{config.icon}</span>
       {config.label}
     </span>
   )
@@ -692,7 +758,7 @@ const StatusDropdown = ({ currentStatus, onStatusChange }) => {
     <select
       value={currentStatus}
       onChange={(e) => onStatusChange(e.target.value)}
-      className="text-xs border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      className="text-xs border border-gray-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
     >
       {statusOptions.map((option) => (
         <option key={option.value} value={option.value} className={option.color}>
@@ -703,16 +769,59 @@ const StatusDropdown = ({ currentStatus, onStatusChange }) => {
   )
 }
 
+// Action Button Component
+const ActionButton = ({ onClick, variant, icon, label, size = 'md', fullWidth = false }) => {
+  const baseClasses = "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2"
+  
+  const variants = {
+    primary: "bg-blue-500 text-white hover:bg-blue-600 focus:ring-blue-500",
+    secondary: "bg-green-500 text-white hover:bg-green-600 focus:ring-green-500",
+    danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-red-500",
+    ghost: "bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500"
+  }
+
+  const sizes = {
+    sm: "px-3 py-2 text-sm",
+    md: "px-4 py-2 text-sm",
+    lg: "px-6 py-3 text-base"
+  }
+
+  const widthClass = fullWidth ? "w-full" : ""
+
+  const icons = {
+    view: <FaEye className="w-4 h-4 mr-2" />,
+    edit: <FaEdit className="w-4 h-4 mr-2" />,
+    delete: <FaTrash className="w-4 h-4 mr-2" />
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${widthClass}`}
+    >
+      {icons[icon]}
+      {label}
+    </button>
+  )
+}
+
 // Empty State Component
 const EmptyState = ({ type }) => (
-  <div className="py-12 text-center">
-    <div className="text-gray-400 mb-4">
-      <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-16"></path>
-      </svg>
+  <div className="py-16 text-center">
+    <div className="max-w-md mx-auto">
+      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        {type === 'products' ? (
+          <FaShoppingBag className="w-8 h-8 text-gray-400" />
+        ) : (
+          <FaTags className="w-8 h-8 text-gray-400" />
+        )}
+      </div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">No {type} found</h3>
+      <p className="text-gray-500 mb-6">Get started by creating your first {type.slice(0, -1)}</p>
+      <button className="bg-blue-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200">
+        Create {type.slice(0, -1)}
+      </button>
     </div>
-    <p className="text-gray-500 text-lg">No {type} found</p>
-    <p className="text-gray-400 mt-1">Add your first {type.slice(0, -1)} to get started</p>
   </div>
 )
 

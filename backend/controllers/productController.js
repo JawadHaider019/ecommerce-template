@@ -1,5 +1,5 @@
-import {v2 as cloudinary} from 'cloudinary'
-import productModel from '../models/productModel.js'
+import { v2 as cloudinary } from 'cloudinary';
+import productModel from '../models/productModel.js';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -8,24 +8,21 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Function to add product
+// ------------------- ADD PRODUCT -------------------
 const addProduct = async (req, res) => {
   try {
-    const { name, description, cost, price, discountprice, quantity, category, subcategory, bestseller } = req.body;
-    
-    const image1 = req.files.image1 && req.files.image1[0];
-    const image2 = req.files.image2 && req.files.image2[0];
-    const image3 = req.files.image3 && req.files.image3[0];
-    const image4 = req.files.image4 && req.files.image4[0];
+    const { name, description, cost, price, discountprice, quantity, category, subcategory, bestseller, status } = req.body;
 
-    const images = [image1, image2, image3, image4].filter((item) => item !== undefined)
+    const imagesFiles = ['image1', 'image2', 'image3', 'image4']
+      .map(key => req.files[key]?.[0])
+      .filter(Boolean);
 
-    let imagesUrl = await Promise.all(
-      images.map(async (item) => {
-        let result = await cloudinary.uploader.upload(item.path, { resource_type: 'image' });
-        return result.secure_url
+    const imagesUrl = await Promise.all(
+      imagesFiles.map(async file => {
+        const result = await cloudinary.uploader.upload(file.path, { resource_type: 'image' });
+        return result.secure_url;
       })
-    )
+    );
 
     const productData = {
       name,
@@ -36,74 +33,81 @@ const addProduct = async (req, res) => {
       price: Number(price),
       discountprice: Number(discountprice),
       quantity: Number(quantity),
-      bestseller: bestseller === 'true' ? true : false,
+      bestseller: bestseller === 'true' || bestseller === true,
       image: imagesUrl,
-      status: 'draft', // Add default status
-      date: Date.now()
-    }
-
-    console.log(productData)
+      status: status || 'draft',
+      date: Date.now(),
+    };
 
     const product = new productModel(productData);
-    await product.save()
+    await product.save();
 
-    res.json({ success: true, message: 'Product Added' })
-
+    res.json({ success: true, message: 'Product added successfully', product });
   } catch (error) {
-    console.log(error)
-    res.json({ success: false, message: error.message })
+    console.error("Add Product Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
-}
+};
 
-// Function to list products
+// ------------------- LIST PRODUCTS -------------------
 const listProducts = async (req, res) => {
   try {
     const products = await productModel.find({});
     res.json({ success: true, products });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("List Products Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
-}
+};
 
-// Function to remove product
+// ------------------- REMOVE PRODUCT -------------------
 const removeProduct = async (req, res) => {
   try {
     await productModel.findByIdAndDelete(req.body.id);
-    res.json({ success: true, message: "Product Removed Successfully" });
+    res.json({ success: true, message: "Product removed successfully" });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("Remove Product Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
-}
+};
 
-// Function to get single product
+// ------------------- SINGLE PRODUCT -------------------
 const singleProduct = async (req, res) => {
   try {
     const { productId } = req.body;
     const product = await productModel.findById(productId);
+    if (!product) return res.status(404).json({ success: false, message: "Product not found" });
     res.json({ success: true, product });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("Single Product Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
-}
+};
 
-
+// ------------------- UPDATE PRODUCT -------------------
 const updateProduct = async (req, res) => {
   try {
-    const { id, name, description, cost, price, discountprice, quantity, category, subcategory, bestseller, status } = req.body;
-    
-    console.log("=== UPDATE PRODUCT ===");
-    console.log("Request body:", req.body);
-    
-    if (!id) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Product ID is required" 
-      });
-    }
+    const {
+      id,
+      name,
+      description,
+      cost,
+      price,
+      discountprice,
+      quantity,
+      category,
+      subcategory,
+      bestseller,
+      status,
+      removedImages
+    } = req.body;
 
+    if (!id) return res.status(400).json({ success: false, message: "Product ID is required" });
+
+    const existingProduct = await productModel.findById(id);
+    if (!existingProduct) return res.status(404).json({ success: false, message: "Product not found" });
+
+    // Base update data
     const updateData = {
       name,
       description,
@@ -117,102 +121,91 @@ const updateProduct = async (req, res) => {
       status: status || 'draft'
     };
 
-    // Note: Removed file upload logic since we're not handling image updates via this endpoint
-    // If you need to update images, create a separate endpoint
+    // ------------------- IMAGE HANDLING -------------------
+    let finalImages = [...existingProduct.image];
 
-    const updatedProduct = await productModel.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedProduct) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Product not found" 
-      });
+    // Handle removed images
+    let removedImageUrls = [];
+    try {
+      removedImageUrls = typeof removedImages === "string" ? JSON.parse(removedImages) : removedImages || [];
+    } catch (e) {
+      console.error("Error parsing removedImages:", e);
     }
 
-    console.log("Product updated successfully:", updatedProduct);
+    if (removedImageUrls.length > 0) {
+      const normalizeUrl = url => url.replace(/^https?:/, "").trim();
+      finalImages = finalImages.filter(img => !removedImageUrls.some(removed => normalizeUrl(removed) === normalizeUrl(img)));
 
-    res.json({ 
-      success: true, 
-      message: "Product Updated Successfully", 
-      product: updatedProduct 
-    });
+      // Delete removed images from Cloudinary
+      for (const imgUrl of removedImageUrls) {
+        try {
+          const match = imgUrl.match(/upload\/(?:v\d+\/)?(.+)\.\w+$/);
+          const publicId = match ? match[1] : null;
+          if (publicId) await cloudinary.uploader.destroy(publicId);
+        } catch (err) {
+          console.error("Cloudinary deletion error:", err);
+        }
+      }
+    }
 
+    // Handle new image uploads
+    if (req.files && Object.keys(req.files).length > 0) {
+      const newImages = [];
+      let index = 1;
+      while (req.files[`image${index}`]) {
+        newImages.push(req.files[`image${index}`][0]);
+        index++;
+      }
+
+      if (newImages.length > 0) {
+        const newImageUrls = await Promise.all(
+          newImages.map(file => cloudinary.uploader.upload(file.path, { resource_type: "image", folder: "products" }).then(res => res.secure_url))
+        );
+        finalImages = [...finalImages, ...newImageUrls];
+      }
+    }
+
+    updateData.image = finalImages;
+
+    const updatedProduct = await productModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+
+    res.json({ success: true, message: "Product updated successfully", product: updatedProduct });
   } catch (error) {
     console.error("Update Product Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
-}
-// ADD THIS FUNCTION - Update Product Status
+};
+
+// ------------------- UPDATE PRODUCT STATUS -------------------
 const updateProductStatus = async (req, res) => {
   try {
     const { id, status } = req.body;
-
-    console.log("=== UPDATE PRODUCT STATUS ===");
-    console.log("Request body:", req.body);
-
-    if (!id || !status) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Product ID and status are required" 
-      });
-    }
+    if (!id || !status) return res.status(400).json({ success: false, message: "Product ID and status are required" });
 
     const validStatuses = ['draft', 'published', 'archived', 'scheduled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid status. Must be: draft, published, archived, or scheduled" 
-      });
-    }
+    if (!validStatuses.includes(status)) return res.status(400).json({ success: false, message: `Invalid status. Must be: ${validStatuses.join(', ')}` });
 
-    const updatedProduct = await productModel.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
+    const updatedProduct = await productModel.findByIdAndUpdate(id, { status }, { new: true });
+    if (!updatedProduct) return res.status(404).json({ success: false, message: "Product not found" });
 
-    if (!updatedProduct) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Product not found" 
-      });
-    }
-
-    console.log("Product status updated successfully:", updatedProduct);
-
-    res.json({ 
-      success: true, 
-      message: "Product status updated successfully",
-      product: updatedProduct
-    });
-
+    res.json({ success: true, message: "Product status updated successfully", product: updatedProduct });
   } catch (error) {
     console.error("Update Product Status Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
-}
+};
 
-// Function to get products by status
+// ------------------- GET PRODUCTS BY STATUS -------------------
 const getProductsByStatus = async (req, res) => {
   try {
     const { status } = req.params;
     const products = await productModel.find({ status });
     res.json({ success: true, products });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("Get Products By Status Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
-}
+};
 
 export {
   addProduct,
@@ -222,4 +215,4 @@ export {
   updateProduct,
   updateProductStatus,
   getProductsByStatus
-}
+};

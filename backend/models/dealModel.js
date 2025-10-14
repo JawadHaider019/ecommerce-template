@@ -17,7 +17,7 @@ const dealSchema = new mongoose.Schema({
     dealFinalPrice: { type: Number },
     dealStartDate: { type: Date, default: Date.now },
     dealEndDate: { type: Date },
-    dealType: { // MAKE SURE THIS FIELD EXISTS
+    dealType: {
         type: String,
         enum: ['flash_sale', 'seasonal', 'clearance', 'bundle', 'featured'],
         default: 'flash_sale'

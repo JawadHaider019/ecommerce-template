@@ -23,8 +23,17 @@ const addDeal = async (req, res) => {
       dealEndDate,
       dealType 
     } = req.body;
-
-
+    
+  console.log("=== POSTMAN TEST DEBUG ===");
+    console.log("Complete req.body:", JSON.stringify(req.body, null, 2));
+    console.log("All keys in req.body:", Object.keys(req.body));
+    
+    // Check if dealType exists
+    if (!req.body.dealType) {
+      console.log("❌ dealType is MISSING from request body");
+    } else {
+      console.log("✅ dealType found:", req.body.dealType);
+    }
 
     // Get deal images from req.files
     const dealImage1 = req.files.dealImage1 && req.files.dealImage1[0];
@@ -104,7 +113,9 @@ const addDeal = async (req, res) => {
     });
   }
 };
+
 // ---------------- Update Deal ----------------
+
 const updateDeal = async (req, res) => {
   try {
     const {
@@ -113,33 +124,36 @@ const updateDeal = async (req, res) => {
       dealDescription,
       dealDiscountType,
       dealDiscountValue,
+      dealProducts,
       dealTotal,
       dealFinalPrice,
       dealStartDate,
       dealEndDate,
-      dealType, // ADD dealType
-      status
+      dealType,
+      status,
+      removedImages
     } = req.body;
 
     console.log("=== UPDATE DEAL ===");
     console.log("Request body:", req.body);
 
     if (!id) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Deal ID is required" 
+      return res.status(400).json({
+        success: false,
+        message: "Deal ID is required",
       });
     }
 
-    // Find the deal first to preserve existing images if no new ones are uploaded
+    // Get the existing deal
     const existingDeal = await dealModel.findById(id);
     if (!existingDeal) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Deal not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Deal not found",
       });
     }
 
+    // ====== BASIC FIELD UPDATES ======
     const updateData = {
       dealName,
       dealDescription: dealDescription || "",
@@ -149,56 +163,111 @@ const updateDeal = async (req, res) => {
       dealFinalPrice: Number(dealFinalPrice || 0),
       dealStartDate: dealStartDate ? new Date(dealStartDate) : new Date(),
       dealEndDate: dealEndDate ? new Date(dealEndDate) : null,
-      dealType: dealType || 'flash_sale', // ADD dealType
-      status: status || 'draft'
+      dealType: dealType || "flash_sale",
+      status: status || "draft",
     };
 
-    // Handle image updates if new images are provided
+    // ====== DEAL PRODUCTS ======
+    if (dealProducts) {
+      let parsedProducts = [];
+      try {
+        parsedProducts =
+          typeof dealProducts === "string"
+            ? JSON.parse(dealProducts)
+            : dealProducts;
+      } catch (err) {
+        console.error("Error parsing dealProducts:", err);
+        return res.status(400).json({
+          success: false,
+          message: "Invalid dealProducts format",
+        });
+      }
+      updateData.dealProducts = parsedProducts;
+    }
+
+    // ====== IMAGE HANDLING ======
+    let finalImages = [...(existingDeal.dealImages || [])];
+
+    // --- Step 1: Remove selected images ---
+    let removedImageUrls = [];
+    try {
+      removedImageUrls =
+        typeof removedImages === "string"
+          ? JSON.parse(removedImages)
+          : removedImages || [];
+    } catch (err) {
+      console.error("Error parsing removedImages:", err);
+    }
+
+    if (removedImageUrls.length > 0) {
+      console.log("🔸 Removing deal images:", removedImageUrls);
+
+      const getPublicId = (url) => {
+        const match = url.match(/\/upload\/(?:v\d+\/)?([^\.]+)\.\w+$/);
+        return match ? match[1] : null;
+      };
+
+      const removedPublicIds = removedImageUrls.map(getPublicId).filter(Boolean);
+
+      finalImages = finalImages.filter((url) => {
+        const publicId = getPublicId(url);
+        return !removedPublicIds.includes(publicId);
+      });
+
+      // Delete removed images from Cloudinary
+      for (const publicId of removedPublicIds) {
+        try {
+          const result = await cloudinary.uploader.destroy(publicId);
+          console.log("✅ Deleted from Cloudinary:", publicId, result.result);
+        } catch (err) {
+          console.error("❌ Error deleting from Cloudinary:", err);
+        }
+      }
+    }
+
+    // --- Step 2: Add new images (append, not replace) ---
     if (req.files && Object.keys(req.files).length > 0) {
-      const dealImage1 = req.files.dealImage1 && req.files.dealImage1[0];
-      const dealImage2 = req.files.dealImage2 && req.files.dealImage2[0];
-      const dealImage3 = req.files.dealImage3 && req.files.dealImage3[0];
-      const dealImage4 = req.files.dealImage4 && req.files.dealImage4[0];
+      const newImages = Object.keys(req.files)
+        .filter((key) => key.startsWith("dealImage"))
+        .map((key) => req.files[key][0])
+        .filter(Boolean);
 
-      const dealImages = [dealImage1, dealImage2, dealImage3, dealImage4].filter((item) => item !== undefined);
-
-      if (dealImages.length > 0) {
-        console.log("Uploading new deal images...");
-        let dealImagesUrl = await Promise.all(
-          dealImages.map(async (item) => {
-            let result = await cloudinary.uploader.upload(item.path, {
-              resource_type: 'image',
-              folder: "deals"
+      if (newImages.length > 0) {
+        console.log("📤 Uploading new deal images:", newImages.length);
+        const newImageUrls = await Promise.all(
+          newImages.map(async (file) => {
+            const result = await cloudinary.uploader.upload(file.path, {
+              resource_type: "image",
+              folder: "deals",
             });
             return result.secure_url;
           })
         );
-        updateData.dealImages = dealImagesUrl;
+        finalImages = [...finalImages, ...newImageUrls];
       }
-    } else {
-      // Keep existing images if no new images are uploaded
-      updateData.dealImages = existingDeal.dealImages;
     }
 
-    const updatedDeal = await dealModel.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    updateData.dealImages = finalImages;
 
-    console.log("Deal updated successfully with dealType:", updatedDeal);
-
-    res.json({ 
-      success: true, 
-      message: "Deal Updated Successfully", 
-      deal: updatedDeal 
+    // ====== UPDATE IN DATABASE ======
+    const updatedDeal = await dealModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
     });
 
+    console.log("✅ DEAL UPDATED SUCCESSFULLY");
+    console.log("Final image count:", finalImages.length);
+
+    res.json({
+      success: true,
+      message: "Deal Updated Successfully",
+      deal: updatedDeal,
+    });
   } catch (error) {
     console.error("Update Deal Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };

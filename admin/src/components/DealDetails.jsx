@@ -14,9 +14,14 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
     dealFinalPrice: deal.dealFinalPrice || 0,
     dealStartDate: deal.dealStartDate ? new Date(deal.dealStartDate).toISOString().split('T')[0] : '',
     dealEndDate: deal.dealEndDate ? new Date(deal.dealEndDate).toISOString().split('T')[0] : '',
+    dealType: deal.dealType || 'flash_sale',
     status: deal.status || 'draft'
   })
+  
   const [loading, setLoading] = useState(false)
+  const [newImages, setNewImages] = useState([])
+  const [removedImages, setRemovedImages] = useState([])
+  const [dealProducts, setDealProducts] = useState(deal.dealProducts || [])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -26,40 +31,130 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
     }))
   }
 
+  // Handle image uploads
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files)
+    setNewImages(prev => [...prev, ...files])
+  }
+
+  // Remove existing image
+  const removeExistingImage = (index) => {
+    setRemovedImages(prev => [...prev, formData.dealImages[index]])
+    setFormData(prev => ({
+      ...prev,
+      dealImages: prev.dealImages.filter((_, i) => i !== index)
+    }))
+  }
+
+  // Remove new image (before upload)
+  const removeNewImage = (index) => {
+    setNewImages(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Add new product to deal
+  const addNewProduct = () => {
+    setDealProducts(prev => [...prev, {
+      name: '',
+      price: 0,
+      cost: 0,
+      quantity: 1,
+      total: 0
+    }])
+  }
+
+  // Remove product from deal
+  const removeProduct = (index) => {
+    setDealProducts(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Update product field
+  const updateProduct = (index, field, value) => {
+    const updatedProducts = [...dealProducts]
+    updatedProducts[index][field] = value
+    
+    // Calculate total if price or quantity changes
+    if (field === 'price' || field === 'quantity') {
+      updatedProducts[index].total = updatedProducts[index].price * updatedProducts[index].quantity
+    }
+    
+    setDealProducts(updatedProducts)
+  }
+
   const handleSave = async () => {
     try {
       setLoading(true)
       
-      // Prepare data for API - match backend field names exactly
-      const updateData = {
-        id: deal._id,
-        dealName: formData.dealName,
-        dealDescription: formData.dealDescription,
-        dealDiscountType: formData.dealDiscountType,
-        dealDiscountValue: Number(formData.dealDiscountValue),
-        dealTotal: Number(formData.dealTotal),
-        dealFinalPrice: Number(formData.dealFinalPrice),
-        dealStartDate: formData.dealStartDate,
-        dealEndDate: formData.dealEndDate,
-        status: formData.status
-      }
+      console.log("=== DEBUG: Saving Deal ===");
+      console.log("Deal ID:", deal._id);
+      console.log("New images to upload:", newImages.length);
+      console.log("Removed images:", removedImages);
+      console.log("Products to save:", dealProducts);
 
-      console.log('Sending deal update data:', updateData)
+      // Create FormData
+      const formDataToSend = new FormData()
+      
+      // Add basic fields
+      formDataToSend.append('id', deal._id)
+      formDataToSend.append('dealName', formData.dealName)
+      formDataToSend.append('dealDescription', formData.dealDescription)
+      formDataToSend.append('dealDiscountType', formData.dealDiscountType)
+      formDataToSend.append('dealDiscountValue', formData.dealDiscountValue)
+      formDataToSend.append('dealTotal', formData.dealTotal)
+      formDataToSend.append('dealFinalPrice', formData.dealFinalPrice)
+      formDataToSend.append('dealStartDate', formData.dealStartDate)
+      formDataToSend.append('dealEndDate', formData.dealEndDate || '')
+      formDataToSend.append('dealType', formData.dealType)
+      formDataToSend.append('status', formData.status)
+      
+      // Add products as JSON string
+      formDataToSend.append('dealProducts', JSON.stringify(dealProducts))
+      
+      // Add removed images as JSON string - THIS IS THE KEY FIX
+      formDataToSend.append('removedImages', JSON.stringify(removedImages))
+      
+      // Add new images with proper field names
+      newImages.forEach((image, index) => {
+        formDataToSend.append(`dealImage${index + 1}`, image)
+      })
+
+      // Debug: Log what's being sent
+      console.log("FormData contents:");
+      for (let pair of formDataToSend.entries()) {
+        if (pair[0].includes('dealImage')) {
+          console.log(pair[0] + ': [FILE]');
+        } else if (pair[0] === 'removedImages') {
+          console.log(pair[0] + ': ' + JSON.parse(pair[1]));
+        } else {
+          console.log(pair[0] + ': ' + pair[1]);
+        }
+      }
 
       const response = await axios.post(
         backendUrl + '/api/deal/update',
-        updateData,
-        { headers: { token } }
+        formDataToSend,
+        { 
+          headers: { 
+            token,
+            'Content-Type': 'multipart/form-data'
+          } 
+        }
       )
       
       if (response.data.success) {
         toast.success('Deal updated successfully')
+        console.log("Updated deal response:", response.data.deal);
+        
+        // Clear the image states after successful save
+        setNewImages([])
+        setRemovedImages([])
+        
         onSave()
       } else {
         toast.error(response.data.message)
       }
     } catch (error) {
       console.log('Deal update error:', error)
+      console.log('Error details:', error.response?.data)
       toast.error(error.response?.data?.message || error.message)
     } finally {
       setLoading(false)
@@ -91,7 +186,7 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -142,9 +237,20 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
               <ViewMode deal={deal} />
             ) : (
               <EditMode 
-                formData={formData} 
-                onChange={handleChange} 
+                formData={formData}
+                onChange={handleChange}
                 loading={loading}
+                // Image management props
+                newImages={newImages}
+                removedImages={removedImages}
+                onImageUpload={handleImageUpload}
+                onRemoveExistingImage={removeExistingImage}
+                onRemoveNewImage={removeNewImage}
+                // Product management props
+                dealProducts={dealProducts}
+                onAddProduct={addNewProduct}
+                onRemoveProduct={removeProduct}
+                onUpdateProduct={updateProduct}
               />
             )}
           </div>
@@ -161,12 +267,13 @@ const ViewMode = ({ deal }) => (
       <h3 className="text-lg font-semibold mb-4">Deal Images</h3>
       <div className="grid grid-cols-2 gap-4">
         {deal.dealImages && deal.dealImages.map((img, index) => (
-          <img
-            key={index}
-            src={img}
-            alt={`${deal.dealName} ${index + 1}`}
-            className="w-full h-48 object-cover rounded-lg border border-gray-200"
-          />
+          <div key={index} className="relative">
+            <img
+              src={img}
+              alt={`${deal.dealName} ${index + 1}`}
+              className="w-full h-48 object-cover rounded-lg border border-gray-200"
+            />
+          </div>
         ))}
       </div>
     </div>
@@ -178,6 +285,13 @@ const ViewMode = ({ deal }) => (
         <div className="space-y-3">
           <DetailRow label="Deal Name" value={deal.dealName} />
           <DetailRow label="Description" value={deal.dealDescription} />
+          <DetailRow label="Deal Type" value={
+            deal.dealType === 'flash_sale' ? 'Flash Sale' :
+            deal.dealType === 'seasonal' ? 'Seasonal' :
+            deal.dealType === 'clearance' ? 'Clearance' :
+            deal.dealType === 'bundle' ? 'Bundle Deal' :
+            deal.dealType === 'featured' ? 'Featured' : 'Not specified'
+          } />
           <DetailRow label="Discount Type" value={deal.dealDiscountType} />
           <DetailRow 
             label="Discount Value" 
@@ -204,8 +318,13 @@ const ViewMode = ({ deal }) => (
           <div className="space-y-2">
             {deal.dealProducts.map((product, index) => (
               <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-700">{product.name || `Product ${index + 1}`}</span>
-                <span className="text-gray-900 font-medium">{currency}{product.price}</span>
+                <div>
+                  <span className="text-gray-700 font-medium">{product.name}</span>
+                  <div className="text-sm text-gray-500">
+                    {product.quantity} × {currency}{product.price} = {currency}{product.total}
+                  </div>
+                </div>
+                <span className="text-gray-900 font-medium">{currency}{product.total}</span>
               </div>
             ))}
           </div>
@@ -215,115 +334,320 @@ const ViewMode = ({ deal }) => (
   </div>
 )
 
-const EditMode = ({ formData, onChange, loading }) => (
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Deal Name</label>
-        <input
-          type="text"
-          name="dealName"
-          value={formData.dealName}
-          onChange={onChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+const EditMode = ({ 
+  formData, 
+  onChange, 
+  loading,
+  newImages,
+  removedImages,
+  onImageUpload,
+  onRemoveExistingImage,
+  onRemoveNewImage,
+  dealProducts,
+  onAddProduct,
+  onRemoveProduct,
+  onUpdateProduct
+}) => (
+  <div className="space-y-8">
+    {/* Deal Information */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Deal Name</label>
+          <input
+            type="text"
+            name="dealName"
+            value={formData.dealName}
+            onChange={onChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Deal Type</label>
+          <select
+            name="dealType"
+            value={formData.dealType}
+            onChange={onChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="flash_sale">Flash Sale</option>
+            <option value="seasonal">Seasonal</option>
+            <option value="clearance">Clearance</option>
+            <option value="bundle">Bundle Deal</option>
+            <option value="featured">Featured</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Discount Type</label>
+          <select
+            name="dealDiscountType"
+            value={formData.dealDiscountType}
+            onChange={onChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="percentage">Percentage</option>
+            <option value="fixed">Fixed Amount</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Discount Value</label>
+          <input
+            type="number"
+            name="dealDiscountValue"
+            value={formData.dealDiscountValue}
+            onChange={onChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Discount Type</label>
-        <select
-          name="dealDiscountType"
-          value={formData.dealDiscountType}
-          onChange={onChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="percentage">Percentage</option>
-          <option value="fixed">Fixed Amount</option>
-        </select>
-      </div>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Total Price ({currency})</label>
+          <input
+            type="number"
+            name="dealTotal"
+            value={formData.dealTotal}
+            onChange={onChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Discount Value</label>
-        <input
-          type="number"
-          name="dealDiscountValue"
-          value={formData.dealDiscountValue}
-          onChange={onChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-      </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Final Price ({currency})</label>
+          <input
+            type="number"
+            name="dealFinalPrice"
+            value={formData.dealFinalPrice}
+            onChange={onChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Total Price ({currency})</label>
-        <input
-          type="number"
-          name="dealTotal"
-          value={formData.dealTotal}
-          onChange={onChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+          <input
+            type="date"
+            name="dealStartDate"
+            value={formData.dealStartDate}
+            onChange={onChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+          <input
+            type="date"
+            name="dealEndDate"
+            value={formData.dealEndDate}
+            onChange={onChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+          <select
+            name="status"
+            value={formData.status}
+            onChange={onChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+            <option value="archived">Archived</option>
+            <option value="scheduled">Scheduled</option>
+          </select>
+        </div>
       </div>
     </div>
 
-    <div className="space-y-4">
+    {/* Image Management */}
+    <div className="border-t pt-6">
+      <h3 className="text-lg font-semibold mb-4">Deal Images</h3>
+      
+      {/* Removed Images Info */}
+      {removedImages.length > 0 && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-sm text-yellow-700">
+            <span className="font-medium">{removedImages.length} image(s)</span> will be removed when you save changes.
+          </p>
+        </div>
+      )}
+      
+      {/* Existing Images */}
+      {formData.dealImages && formData.dealImages.length > 0 && (
+        <div className="mb-6">
+          <h4 className="text-md font-medium mb-3">Current Images</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {formData.dealImages.map((img, index) => (
+              <div key={index} className="relative group">
+                <img
+                  src={img}
+                  alt={`Deal image ${index + 1}`}
+                  className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => onRemoveExistingImage(index)}
+                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* New Images */}
+      {newImages.length > 0 && (
+        <div className="mb-6">
+          <h4 className="text-md font-medium mb-3">New Images to Upload</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {newImages.map((image, index) => (
+              <div key={index} className="relative group">
+                <img
+                  src={URL.createObjectURL(image)}
+                  alt={`New image ${index + 1}`}
+                  className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => onRemoveNewImage(index)}
+                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Add New Images */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Final Price ({currency})</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Add More Images</label>
         <input
-          type="number"
-          name="dealFinalPrice"
-          value={formData.dealFinalPrice}
-          onChange={onChange}
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={onImageUpload}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
+        <p className="text-sm text-gray-500 mt-1">You can select multiple images. New images will be added to existing ones.</p>
       </div>
+    </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-        <input
-          type="date"
-          name="dealStartDate"
-          value={formData.dealStartDate}
-          onChange={onChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-        <input
-          type="date"
-          name="dealEndDate"
-          value={formData.dealEndDate}
-          onChange={onChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-        <select
-          name="status"
-          value={formData.status}
-          onChange={onChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+    {/* Product Management */}
+    <div className="border-t pt-6">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold">Deal Products</h3>
+        <button
+          type="button"
+          onClick={onAddProduct}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-          <option value="archived">Archived</option>
-          <option value="scheduled">Scheduled</option>
-        </select>
+          Add Product
+        </button>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-        <textarea
-          name="dealDescription"
-          value={formData.dealDescription}
-          onChange={onChange}
-          rows="4"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-      </div>
+      {dealProducts.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          No products added to this deal
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {dealProducts.map((product, index) => (
+            <div key={index} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-start mb-3">
+                <h4 className="font-medium">Product {index + 1}</h4>
+                <button
+                  type="button"
+                  onClick={() => onRemoveProduct(index)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  Remove
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={product.name}
+                    onChange={(e) => onUpdateProduct(index, 'name', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Product name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cost ({currency})</label>
+                  <input
+                    type="number"
+                    value={product.cost}
+                    onChange={(e) => onUpdateProduct(index, 'cost', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price ({currency})</label>
+                  <input
+                    type="number"
+                    value={product.price}
+                    onChange={(e) => onUpdateProduct(index, 'price', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                  <input
+                    type="number"
+                    value={product.quantity}
+                    onChange={(e) => onUpdateProduct(index, 'quantity', parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    min="1"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Total ({currency})</label>
+                  <input
+                    type="number"
+                    value={product.total}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* Description */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+      <textarea
+        name="dealDescription"
+        value={formData.dealDescription}
+        onChange={onChange}
+        rows="4"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+      />
     </div>
   </div>
 )
