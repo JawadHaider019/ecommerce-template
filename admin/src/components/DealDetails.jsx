@@ -225,8 +225,38 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
             </button>
             <h2 className="text-2xl font-bold text-gray-900">
               {mode === 'view' ? 'Deal Details' : 'Edit Deal'}
+          
             </h2>
+            
           </div>
+     <div className="flex flex-wrap gap-3">
+  {mode === 'edit' && (
+    <div className="flex flex-wrap gap-3">
+      <button
+        onClick={handleSave}
+        disabled={loading}
+        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 font-medium flex items-center"
+      >
+        {loading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+            Saving...
+          </>
+        ) : (
+          'Save Changes'
+        )}
+      </button>
+
+      <button
+        onClick={handleDelete}
+        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+      >
+        Delete
+      </button>
+    </div>
+  )}
+</div>
+
         </div>
 
         {/* Deal Details */}

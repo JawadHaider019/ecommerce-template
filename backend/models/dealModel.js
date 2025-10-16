@@ -27,7 +27,12 @@ const dealSchema = new mongoose.Schema({
         enum: ['draft', 'published', 'archived', 'scheduled'],
         default: 'draft'
     },
-    date: { type: Date, default: Date.now }
+    date: { type: Date, default: Date.now },
+    // Add to dealSchema
+views: { type: Number, default: 0 },
+clicks: { type: Number, default: 0 },
+totalSales: { type: Number, default: 0 },
+revenue: { type: Number, default: 0 }
 });
 
 export default mongoose.model("deals", dealSchema);

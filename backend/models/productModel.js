@@ -11,12 +11,17 @@ const productSchema = new mongoose.Schema({
     category: { type: String, required: true },
     subcategory: { type: String, required: true },
     bestseller: { type: Boolean, default: false },
-    date: { type: Number, required: true },
+    date: { type: Number, required: true },  
     status: {
         type: String,
         enum: ['draft', 'published', 'archived', 'scheduled'],
         default: 'draft'
-    }
+    },
+     // Add to productSchema
+totalSales: { type: Number, default: 0 },
+idealStock: { type: Number, default: 20 },
+views: { type: Number, default: 0 }
+   
 });
 
 const productModel = mongoose.models.product || mongoose.model("product", productSchema);
