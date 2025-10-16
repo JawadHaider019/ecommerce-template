@@ -103,6 +103,18 @@ const ContentManagement = () => {
   // Render the appropriate tab component
   const renderTabContent = () => {
     switch (activeTab) {
+            case 'banner':
+        return (
+          <OtherTab 
+            deliverySettings={deliverySettings}
+            setDeliverySettings={setDeliverySettings}
+            banners={banners}
+            setBanners={setBanners}
+            selectedImage={selectedImage}
+            setSelectedImage={setSelectedImage}
+            previewUrlsRef={previewUrlsRef}
+          />
+        );
       case 'categories':
         return (
           <CategoriesTab 

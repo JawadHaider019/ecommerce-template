@@ -11,6 +11,10 @@ import orderRoutes from './routes/orderRoutes.js';
 import settingRoutes from "./routes/settingRoutes.js";
 import dealRoutes from './routes/dealRoutes.js';
 import dashboardRoutes from "./routes/dashboradRoutes.js";
+import categoriesRoutes from './routes/categoryRoutes.js';
+import dealtypesRoutes from './routes/dealtypeRoutes.js';
+import testimonialRoutes from './routes/testimonialRoutes.js';
+
 
 // App Config    
 const app = express();
@@ -31,6 +35,9 @@ app.use('/api/cart',cartRoutes)
 app.use('/api/order',orderRoutes)
 app.use("/api/settings", settingRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/deal-types', dealtypesRoutes);
+app.use('/api/testimonials', testimonialRoutes);
 
 
 app.get('/', (req, res) => {

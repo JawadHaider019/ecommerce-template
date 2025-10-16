@@ -8,7 +8,8 @@ import {
   faArrowTrendUp, faArrowTrendDown, faUsers, faRocket, faPercent,
   faBell, faSync, faExclamationTriangle, faTimes, faFire,
   faUserCheck, faUserPlus, faMapMarkerAlt, faExclamationCircle,
-  faMoneyBillWave, faCalculator
+  faMoneyBillWave, faCalculator,
+  faLayerGroup
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
@@ -566,7 +567,7 @@ const Dashboard = () => {
     { to: "/add", icon: faPlus, text: "Add Product", color: "bg-blue-500" },
     { to: "/list", icon: faBoxes, text: "Manage Products", color: "bg-green-500" },
     { to: "/orders", icon: faShoppingCart, text: "View Orders", color: "bg-red-500" },
-    { to: "/deals", icon: faRocket, text: "Manage Deals", color: "bg-purple-500" }
+    { to: "/content-management", icon: faLayerGroup, text: "Content Management", color: "bg-purple-500" }
   ];
 
   // Loading state
