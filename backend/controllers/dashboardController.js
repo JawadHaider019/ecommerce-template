@@ -4,7 +4,7 @@ import Deal from "../models/dealModel.js";
 import User from "../models/userModel.js";
 
 /**
- * MAIN DASHBOARD STATS CONTROLLER - COMPLETELY FIXED VERSION
+ * MAIN DASHBOARD STATS CONTROLLER - FIXED DEAL CALCULATIONS
  */
 export const getDashboardStats = async (req, res) => {
   try {
@@ -33,10 +33,10 @@ export const getDashboardStats = async (req, res) => {
     const totalDeals = allDeals.length;
 
     // 2️⃣ REVENUE CALCULATION
-    const totalRevenue = allOrders.reduce((acc, order) => acc + (order.amount || 0), 0);
+    const totalProductRevenue = allOrders.reduce((acc, order) => acc + (order.amount || 0), 0);
 
     // 3️⃣ COST CALCULATION - IMPROVED
-    let totalCost = 0;
+    let totalProductCost = 0;
     let totalItemsSold = 0;
 
     for (const order of allOrders) {
@@ -45,28 +45,28 @@ export const getDashboardStats = async (req, res) => {
         
         if (item.cost) {
           // If cost is directly in order item
-          totalCost += item.cost * (item.quantity || 1);
+          totalProductCost += item.cost * (item.quantity || 1);
         } else if (item.productId) {
           // If we have productId, try to get cost from product
           const product = await Product.findById(item.productId);
           if (product) {
-            totalCost += product.cost * (item.quantity || 1);
+            totalProductCost += product.cost * (item.quantity || 1);
           } else {
             // Fallback: estimate cost as 60% of price
             const estimatedCost = (item.price || order.amount / (item.quantity || 1)) * 0.6;
-            totalCost += estimatedCost * (item.quantity || 1);
+            totalProductCost += estimatedCost * (item.quantity || 1);
           }
         } else {
           // Final fallback: estimate cost as 60% of revenue
-          totalCost += order.amount * 0.6;
+          totalProductCost += order.amount * 0.6;
           break; // Avoid double counting
         }
       }
     }
 
     // 4️⃣ PROFIT CALCULATIONS
-    const totalProfit = totalRevenue - totalCost;
-    const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0;
+    const totalProductProfit = totalProductRevenue - totalProductCost;
+    const profitMargin = totalProductRevenue > 0 ? ((totalProductProfit / totalProductRevenue) * 100) : 0;
 
     // 5️⃣ PENDING ORDERS
     const pendingOrders = allOrders.filter(order => 
@@ -156,7 +156,7 @@ export const getDashboardStats = async (req, res) => {
 
     // 9️⃣ LOW STOCK PRODUCTS - FIXED THRESHOLD
     const lowStockProducts = allProducts
-      .filter(product => product.quantity < 15 && product.quantity > 0) // Changed from 10 to 15
+      .filter(product => product.quantity < 15 && product.quantity > 0)
       .sort((a, b) => a.quantity - b.quantity)
       .slice(0, 5)
       .map(product => ({
@@ -206,47 +206,78 @@ export const getDashboardStats = async (req, res) => {
         })
     );
 
-    // 1️⃣1️⃣ DEAL ANALYTICS - COMPLETELY FIXED ACTIVE DEALS
+    // 1️⃣1️⃣ DEAL ANALYTICS - COMPLETELY REWRITTEN WITH REAL DATA
     const now = new Date();
     console.log('Current time for deal check:', now);
 
-    const activeDeals = allDeals.filter(deal => {
-      // Check if deal is published
-      if (deal.status !== "published") {
-        return false;
+    // Calculate deal metrics from actual orders
+    let totalDealRevenue = 0;
+    let totalDealCost = 0;
+    let totalDealsSold = 0;
+    
+    // Track individual deal performance
+    const dealPerformanceMap = new Map();
+    
+    // Analyze each order to find deal-related purchases
+    for (const order of allOrders) {
+      // Check if order has deal information or if items are part of deals
+      if (order.dealId || order.items.some(item => item.dealId)) {
+        const dealId = order.dealId || order.items[0]?.dealId;
+        const deal = await Deal.findById(dealId);
+        
+        if (deal) {
+          totalDealRevenue += order.amount;
+          totalDealsSold += 1;
+          
+          // Calculate deal cost based on deal products
+          let orderDealCost = 0;
+          if (deal.dealProducts && deal.dealProducts.length > 0) {
+            orderDealCost = deal.dealProducts.reduce((sum, product) => {
+              const productCost = product.cost || (product.price * 0.6);
+              return sum + (productCost * (product.quantity || 1));
+            }, 0);
+          } else {
+            // Estimate cost if no deal products defined
+            orderDealCost = order.amount * 0.6;
+          }
+          
+          totalDealCost += orderDealCost;
+          
+          // Track individual deal performance
+          if (!dealPerformanceMap.has(dealId.toString())) {
+            dealPerformanceMap.set(dealId.toString(), {
+              deal,
+              revenue: 0,
+              cost: 0,
+              sales: 0
+            });
+          }
+          
+          const dealPerformance = dealPerformanceMap.get(dealId.toString());
+          dealPerformance.revenue += order.amount;
+          dealPerformance.cost += orderDealCost;
+          dealPerformance.sales += 1;
+        }
       }
-      
+    }
+
+    // Calculate deal profit
+    const totalDealProfit = totalDealRevenue - totalDealCost;
+    const dealProfitMargin = totalDealRevenue > 0 ? ((totalDealProfit / totalDealRevenue) * 100) : 0;
+
+    // Calculate active deals
+    const activeDeals = allDeals.filter(deal => {
+      if (deal.status !== "published") return false;
       const startDate = new Date(deal.dealStartDate);
       const endDate = new Date(deal.dealEndDate);
-      
-      // Debug each deal
-      console.log(`Deal: ${deal.dealName}`);
-      console.log(`- Start: ${startDate}`);
-      console.log(`- End: ${endDate}`);
-      console.log(`- Now: ${now}`);
-      console.log(`- Start <= Now: ${startDate <= now}`);
-      console.log(`- End >= Now: ${endDate >= now}`);
-      
-      const isActive = startDate <= now && endDate >= now;
-      console.log(`- Is Active: ${isActive}`);
-      
-      return isActive;
+      return startDate <= now && endDate >= now;
     }).length;
 
-    console.log('Active deals found:', activeDeals);
-
-    // Deal revenue calculation - improved
-    const totalDealRevenue = allDeals.reduce((sum, deal) => {
-      return sum + (deal.revenue || Math.floor(Math.random() * 20000) + 5000);
-    }, 0);
-
+    // Calculate average deal discount
     const avgDealDiscount = allDeals.length > 0 ? 
       allDeals.reduce((sum, deal) => sum + (deal.dealDiscountValue || 0), 0) / allDeals.length : 0;
 
-    const dealsSold = allDeals.reduce((sum, deal) => {
-      return sum + (deal.totalSales || Math.floor(Math.random() * 50) + 10);
-    }, 0);
-
+    // Calculate deal inventory value
     const dealInventoryValue = allDeals.reduce((acc, deal) => {
       const dealValue = (deal.dealProducts || []).reduce((sum, product) => {
         return sum + ((product.cost || 0) * (product.quantity || 0));
@@ -254,29 +285,25 @@ export const getDashboardStats = async (req, res) => {
       return acc + dealValue;
     }, 0);
 
+    // Updated deal stats with real calculations
     const dealStats = {
       totalDeals: allDeals.length,
       activeDeals,
-      totalDealRevenue,
+      totalDealRevenue: parseFloat(totalDealRevenue.toFixed(2)),
+      totalDealCost: parseFloat(totalDealCost.toFixed(2)),
+      totalDealProfit: parseFloat(totalDealProfit.toFixed(2)),
+      dealProfitMargin: parseFloat(dealProfitMargin.toFixed(2)),
       avgDealDiscount: parseFloat(avgDealDiscount.toFixed(2)),
-      dealsSold,
-      dealInventoryValue
+      dealsSold: totalDealsSold,
+      dealInventoryValue: parseFloat(dealInventoryValue.toFixed(2))
     };
 
-    // Top deals - show active ones first
-    const topDeals = allDeals
-      .sort((a, b) => {
-        // Sort active deals first, then by views/clicks
-        const aActive = new Date(a.dealStartDate) <= now && new Date(a.dealEndDate) >= now && a.status === "published";
-        const bActive = new Date(b.dealStartDate) <= now && new Date(b.dealEndDate) >= now && b.status === "published";
-        
-        if (aActive && !bActive) return -1;
-        if (!aActive && bActive) return 1;
-        
-        return (b.views || 0) - (a.views || 0);
-      })
+    // Top deals - based on actual performance data
+    const topDeals = Array.from(dealPerformanceMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 4)
-      .map(deal => {
+      .map(performance => {
+        const deal = performance.deal;
         const startDate = new Date(deal.dealStartDate);
         const endDate = new Date(deal.dealEndDate);
         const isActive = deal.status === "published" && startDate <= now && endDate >= now;
@@ -288,39 +315,73 @@ export const getDashboardStats = async (req, res) => {
           discountType: deal.dealDiscountType,
           discountValue: deal.dealDiscountValue,
           status: deal.status,
-          isActive: isActive, // Add this for debugging
-          views: deal.views || Math.floor(Math.random() * 200) + 50,
-          clicks: deal.clicks || Math.floor(Math.random() * 50) + 10,
-          revenue: deal.revenue || Math.floor(Math.random() * 20000) + 5000,
-          totalSales: deal.totalSales || Math.floor(Math.random() * 50) + 10,
+          isActive,
+          views: deal.views || 0,
+          clicks: deal.clicks || 0,
+          revenue: performance.revenue,
+          totalSales: performance.sales,
           startDate: deal.dealStartDate,
           endDate: deal.dealEndDate
         };
       });
 
-    console.log('Top deals with active status:');
+    // If no deal performance data, show all deals sorted by creation date
+    if (topDeals.length === 0) {
+      const allDealsSorted = allDeals
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 4)
+        .map(deal => {
+          const startDate = new Date(deal.dealStartDate);
+          const endDate = new Date(deal.dealEndDate);
+          const isActive = deal.status === "published" && startDate <= now && endDate >= now;
+          
+          return {
+            _id: deal._id,
+            name: deal.dealName,
+            type: deal.dealType,
+            discountType: deal.dealDiscountType,
+            discountValue: deal.dealDiscountValue,
+            status: deal.status,
+            isActive,
+            views: deal.views || 0,
+            clicks: deal.clicks || 0,
+            revenue: 0,
+            totalSales: 0,
+            startDate: deal.dealStartDate,
+            endDate: deal.dealEndDate
+          };
+        });
+      
+      topDeals.push(...allDealsSorted);
+    }
+
+    console.log('Top deals with real data:');
     topDeals.forEach(deal => {
-      console.log(`- ${deal.name}: Active=${deal.isActive}, Status=${deal.status}`);
+      console.log(`- ${deal.name}: Revenue=${deal.revenue}, Sales=${deal.totalSales}, Active=${deal.isActive}`);
     });
 
-    // Deal performance
+    // Deal performance by type
     const dealPerformance = allDeals.reduce((acc, deal) => {
       const type = deal.dealType || 'other';
-      const existing = acc.find(item => item.type === type);
+      const performance = dealPerformanceMap.get(deal._id.toString());
       
-      if (existing) {
-        existing.count++;
-        existing.totalViews += deal.views || 0;
-        existing.totalClicks += deal.clicks || 0;
-      } else {
-        acc.push({
-          type: type,
-          count: 1,
-          totalViews: deal.views || 0,
-          totalClicks: deal.clicks || 0,
-          totalRevenue: deal.revenue || Math.floor(Math.random() * 50000) + 10000,
-          avgDiscount: deal.dealDiscountValue || 0
-        });
+      if (performance) {
+        const existing = acc.find(item => item.type === type);
+        if (existing) {
+          existing.count++;
+          existing.totalViews += deal.views || 0;
+          existing.totalClicks += deal.clicks || 0;
+          existing.totalProductRevenue += performance.revenue;
+        } else {
+          acc.push({
+            type: type,
+            count: 1,
+            totalViews: deal.views || 0,
+            totalClicks: deal.clicks || 0,
+            totalProductRevenue: performance.revenue,
+            avgDiscount: deal.dealDiscountValue || 0
+          });
+        }
       }
       return acc;
     }, []);
@@ -352,21 +413,25 @@ export const getDashboardStats = async (req, res) => {
 
     console.log('=== FINAL STATS ===');
     console.log('Total Products:', totalProducts);
-    console.log('Total Revenue:', totalRevenue);
-    console.log('Total Cost:', totalCost);
-    console.log('Total Profit:', totalProfit);
+    console.log('Total Product Revenue:', totalProductRevenue);
+    console.log('Total Product Cost:', totalProductCost);
+    console.log('Total Product Profit:', totalProductProfit);
     console.log('Active Deals:', activeDeals);
+    console.log('Deal Revenue (from orders):', totalDealRevenue);
+    console.log('Deal Cost:', totalDealCost);
+    console.log('Deal Profit:', totalDealProfit);
+    console.log('Deals Sold:', totalDealsSold);
 
-    // ✅ FINAL RESPONSE
+    // ✅ FINAL RESPONSE - UPDATED WITH REAL DEAL DATA
     res.status(200).json({
       stats: {
         totalOrders,
-        totalRevenue,
+        totalProductRevenue,
         totalProducts,
         pendingOrders,
-        totalProfit: parseFloat(totalProfit.toFixed(2)),
+        totalProductProfit: parseFloat(totalProductProfit.toFixed(2)),
         profitMargin: parseFloat(profitMargin.toFixed(2)),
-        totalCost: parseFloat(totalCost.toFixed(2)),
+        totalProductCost: parseFloat(totalProductCost.toFixed(2)),
         totalItemsSold,
         inventoryValue: parseFloat(inventoryValue.toFixed(2)),
         ...dealStats
@@ -467,7 +532,7 @@ export const getSalesTrend = async (req, res) => {
 export const getAlerts = async (req, res) => {
   try {
     const lowStockProducts = await Product.find({ 
-      quantity: { $lt: 15, $gt: 0 } // Updated threshold
+      quantity: { $lt: 15, $gt: 0 }
     }).select("name quantity category cost");
 
     const outOfStockProducts = await Product.find({ 
