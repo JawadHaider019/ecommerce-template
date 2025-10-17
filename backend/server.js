@@ -14,6 +14,8 @@ import dashboardRoutes from "./routes/dashboradRoutes.js";
 import categoriesRoutes from './routes/categoryRoutes.js';
 import dealtypesRoutes from './routes/dealtypeRoutes.js';
 import testimonialRoutes from './routes/testimonialRoutes.js';
+import bannerRoutes from './routes/bannerRoutes.js'
+import commentRoutes from './routes/commentRoutes.js'
 
 
 // App Config    
@@ -38,7 +40,8 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/deal-types', dealtypesRoutes);
 app.use('/api/testimonials', testimonialRoutes);
-
+app.use('/api/banners', bannerRoutes);
+app.use("/api/comments", commentRoutes);
 
 app.get('/', (req, res) => {
     res.send("API Working ✅");
