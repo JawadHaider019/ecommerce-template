@@ -5,7 +5,10 @@ import { faFacebook, faInstagram, faTiktok, faWhatsapp } from '@fortawesome/free
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const TestimonialsTab = ({ testimonials, setTestimonials }) => {
+const API_BASE_URL = 'http://localhost:4000/api';
+
+const TestimonialsTab = () => {
+  const [testimonials, setTestimonials] = useState([]);
   const [newTestimonial, setNewTestimonial] = useState({ 
     name: '', 
     content: '', 
@@ -16,6 +19,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
   const [editingTestimonial, setEditingTestimonial] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', content: '', rating: 5, platform: 'website' });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, testimonial: null });
+  const [loading, setLoading] = useState(false);
 
   // Platform options with React Icons and colors
   const platformOptions = [
@@ -57,6 +61,123 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
     }
   ];
 
+  // Fetch testimonials from backend
+  const fetchTestimonials = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/testimonials`);
+      if (!response.ok) throw new Error('Failed to fetch testimonials');
+      const data = await response.json();
+      setTestimonials(data);
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      toast.error('Failed to load testimonials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add new testimonial to backend
+  const addTestimonial = async () => {
+    if (newTestimonial.name.trim() === '' || newTestimonial.content.trim() === '') {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/testimonials`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newTestimonial),
+      });
+
+      if (!response.ok) throw new Error('Failed to add testimonial');
+
+      const savedTestimonial = await response.json();
+      setTestimonials(prev => [...prev, savedTestimonial]);
+      setNewTestimonial({ name: '', content: '', rating: 5, platform: 'website' });
+      toast.success('Testimonial added successfully!');
+    } catch (error) {
+      console.error('Error adding testimonial:', error);
+      toast.error('Failed to add testimonial');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Approve testimonial
+  const approveTestimonial = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/testimonials/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'approved' }),
+      });
+
+      if (!response.ok) throw new Error('Failed to approve testimonial');
+
+      const updatedTestimonial = await response.json();
+      setTestimonials(prev => 
+        prev.map(test => test._id === id ? updatedTestimonial : test)
+      );
+      toast.success('Testimonial approved!');
+    } catch (error) {
+      console.error('Error approving testimonial:', error);
+      toast.error('Failed to approve testimonial');
+    }
+  };
+
+  // Update testimonial
+  const updateTestimonial = async (id, updatedData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/testimonials/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedData),
+      });
+
+      if (!response.ok) throw new Error('Failed to update testimonial');
+
+      const updatedTestimonial = await response.json();
+      setTestimonials(prev => 
+        prev.map(test => test._id === id ? updatedTestimonial : test)
+      );
+      return updatedTestimonial;
+    } catch (error) {
+      console.error('Error updating testimonial:', error);
+      throw error;
+    }
+  };
+
+  // Delete testimonial
+  const deleteTestimonial = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/testimonials/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete testimonial');
+
+      setTestimonials(prev => prev.filter(test => test._id !== id));
+      toast.success('Testimonial deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting testimonial:', error);
+      toast.error('Failed to delete testimonial');
+    }
+  };
+
+  // Load testimonials on component mount
+  useEffect(() => {
+    fetchTestimonials();
+  }, []);
+
   // Filter only approved testimonials for the slider
   const approvedTestimonials = testimonials.filter(test => test.status === 'approved');
 
@@ -70,31 +191,6 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
     }
   }, [approvedTestimonials.length]);
 
-  const addTestimonial = () => {
-    if (newTestimonial.name.trim() === '' || newTestimonial.content.trim() === '') {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    const newTest = {
-      id: Date.now(),
-      name: newTestimonial.name,
-      content: newTestimonial.content,
-      rating: newTestimonial.rating,
-      platform: newTestimonial.platform,
-      status: 'pending'
-    };
-    setTestimonials([...testimonials, newTest]);
-    setNewTestimonial({ name: '', content: '', rating: 5, platform: 'website' });
-    toast.success('Testimonial added successfully!');
-  };
-
-  const approveTestimonial = (id) => {
-    setTestimonials(testimonials.map(test => 
-      test.id === id ? {...test, status: 'approved'} : test
-    ));
-    toast.success('Testimonial approved!');
-  };
-
   const openDeleteModal = (testimonial) => {
     setDeleteModal({ isOpen: true, testimonial });
   };
@@ -103,19 +199,18 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
     setDeleteModal({ isOpen: false, testimonial: null });
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteModal.testimonial) {
-      setTestimonials(testimonials.filter(test => test.id !== deleteModal.testimonial.id));
-      if (editingTestimonial === deleteModal.testimonial.id) {
+      await deleteTestimonial(deleteModal.testimonial._id);
+      if (editingTestimonial === deleteModal.testimonial._id) {
         setEditingTestimonial(null);
       }
-      toast.success('Testimonial deleted successfully!');
       closeDeleteModal();
     }
   };
 
   const startEditing = (testimonial) => {
-    setEditingTestimonial(testimonial.id);
+    setEditingTestimonial(testimonial._id);
     setEditForm({
       name: testimonial.name,
       content: testimonial.content,
@@ -129,20 +224,20 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
     setEditForm({ name: '', content: '', rating: 5, platform: 'website' });
   };
 
-  const saveEditing = () => {
+  const saveEditing = async () => {
     if (editForm.name.trim() === '' || editForm.content.trim() === '') {
       toast.error('Please fill in all required fields');
       return;
     }
     
-    setTestimonials(testimonials.map(test => 
-      test.id === editingTestimonial 
-        ? { ...test, ...editForm }
-        : test
-    ));
-    setEditingTestimonial(null);
-    setEditForm({ name: '', content: '', rating: 5, platform: 'website' });
-    toast.success('Testimonial updated successfully!');
+    try {
+      await updateTestimonial(editingTestimonial, editForm);
+      setEditingTestimonial(null);
+      setEditForm({ name: '', content: '', rating: 5, platform: 'website' });
+      toast.success('Testimonial updated successfully!');
+    } catch (error) {
+      toast.error('Failed to update testimonial');
+    }
   };
 
   const nextSlide = () => {
@@ -203,6 +298,16 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
         theme="light"
       />
 
+      {/* Loading State */}
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      )}
+
       {/* Add New Testimonial Form */}
       <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Add New Testimonial</h3>
@@ -238,10 +343,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
             >
               {platformOptions.map(platform => (
                 <option key={platform.value} value={platform.value}>
-                  <span className="flex items-center">
-                    <span className="mr-2 w-4 text-center">{platform.icon}</span>
-                    {platform.label}
-                  </span>
+                  {platform.label}
                 </option>
               ))}
             </select>
@@ -258,11 +360,12 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
           />
         </div>
         <button
-          className="px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 focus:ring-2 focus:ring-black focus:ring-offset-2 transition-all duration-200 flex items-center shadow-md rounded-lg"
+          className="px-6 py-3 bg-black text-white font-medium hover:bg-gray-800 focus:ring-2 focus:ring-black focus:ring-offset-2 transition-all duration-200 flex items-center shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={addTestimonial}
+          disabled={loading}
         >
           <FontAwesomeIcon icon={faPlus} className="mr-2" />
-          Add Testimonial
+          {loading ? 'Adding...' : 'Add Testimonial'}
         </button>
       </div>
       
@@ -287,7 +390,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
               {testimonials.map(testimonial => {
                 const platform = getPlatformDetails(testimonial.platform);
                 return (
-                  <tr key={testimonial.id} className="hover:bg-gray-50 transition-colors duration-150">
+                  <tr key={testimonial._id} className="hover:bg-gray-50 transition-colors duration-150">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{testimonial.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-md">{testimonial.content}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -315,8 +418,9 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
                       {testimonial.status !== 'approved' && (
                         <button 
                           className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-2 rounded-lg transition-colors duration-200"
-                          onClick={() => approveTestimonial(testimonial.id)}
+                          onClick={() => approveTestimonial(testimonial._id)}
                           title="Approve"
+                          disabled={loading}
                         >
                           <FontAwesomeIcon icon={faCheck} />
                         </button>
@@ -325,6 +429,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
                         className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 p-2 rounded-lg transition-colors duration-200"
                         onClick={() => startEditing(testimonial)}
                         title="Edit"
+                        disabled={loading}
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
@@ -332,6 +437,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
                         className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors duration-200"
                         onClick={() => openDeleteModal(testimonial)}
                         title="Delete"
+                        disabled={loading}
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
@@ -372,7 +478,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
                     const platform = getPlatformDetails(testimonial.platform);
                     return (
                       <div 
-                        key={testimonial.id}
+                        key={testimonial._id}
                         className="w-full flex-shrink-0 px-4"
                       >
                         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 relative group">
@@ -382,6 +488,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
                               className="bg-black text-white p-2 rounded-lg hover:bg-gray-800 transition-colors duration-200 shadow-md"
                               onClick={() => startEditing(testimonial)}
                               title="Edit"
+                              disabled={loading}
                             >
                               <FontAwesomeIcon icon={faEdit} className="text-sm" />
                             </button>
@@ -389,6 +496,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
                               className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition-colors duration-200 shadow-md"
                               onClick={() => openDeleteModal(testimonial)}
                               title="Delete"
+                              disabled={loading}
                             >
                               <FontAwesomeIcon icon={faTrash} className="text-sm" />
                             </button>
@@ -477,6 +585,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
               <button
                 onClick={cancelEditing}
                 className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                disabled={loading}
               >
                 <FontAwesomeIcon icon={faTimes} />
               </button>
@@ -515,10 +624,7 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
                 >
                   {platformOptions.map(platform => (
                     <option key={platform.value} value={platform.value}>
-                      <span className="flex items-center">
-                        <span className="mr-2 w-4 text-center">{platform.icon}</span>
-                        {platform.label}
-                      </span>
+                      {platform.label}
                     </option>
                   ))}
                 </select>
@@ -538,15 +644,17 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={cancelEditing}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700  hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+                disabled={loading}
               >
                 Cancel
               </button>
               <button
                 onClick={saveEditing}
-                className="flex-1 px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors duration-200"
+                className="flex-1 px-4 py-3 bg-black text-white hover:bg-gray-800 transition-colors duration-200 disabled:opacity-50"
+                disabled={loading}
               >
-                Save Changes
+                {loading ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -572,15 +680,17 @@ const TestimonialsTab = ({ testimonials, setTestimonials }) => {
             <div className="flex space-x-3">
               <button
                 onClick={closeDeleteModal}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+                disabled={loading}
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
+                className="flex-1 px-4 py-3 bg-red-600 text-white  hover:bg-red-700 transition-colors duration-200 disabled:opacity-50"
+                disabled={loading}
               >
-                Delete
+                {loading ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
