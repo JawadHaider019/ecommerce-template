@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { backendUrl } from "../App";
 import { 
   faDollarSign, faChartLine, faClipboardList, faClock, faPlus, 
   faBoxes, faShoppingCart, faWarehouse, faChartPie, faTags,
   faArrowTrendUp, faArrowTrendDown, faUsers, faRocket, faPercent,
   faBell, faSync, faExclamationTriangle, faTimes, faFire,
   faUserCheck, faUserPlus, faMapMarkerAlt, faExclamationCircle,
-  faMoneyBillWave, faCalculator,
-  faLayerGroup
+  faComments, faStar, faReply
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
@@ -34,16 +32,38 @@ ChartJS.register(
 
 const Dashboard = () => {
   const [stats, setStats] = useState({ 
-    totalOrders: 0, totalProductRevenue: 0, totalProducts: 0, pendingOrders: 0, 
-    totalProductProfit: 0, profitMargin: 0, totalProductCost: 0, totalItemsSold: 0,
-    inventoryValue: 0
+    totalOrders: 0, 
+    totalProductRevenue: 0, 
+    totalProducts: 0, 
+    pendingOrders: 0, 
+    totalProductProfit: 0, 
+    profitMargin: 0, 
+    totalProductCost: 0, 
+    totalItemsSold: 0,
+    inventoryValue: 0,
+    // Deal stats
+    totalDeals: 0,
+    activeDeals: 0,
+    totalDealRevenue: 0,
+    totalDealCost: 0,
+    totalDealProfit: 0,
+    dealProfitMargin: 0,
+    avgDealDiscount: 0,
+    dealsSold: 0,
+    dealInventoryValue: 0
   });
   
   const [recentOrders, setRecentOrders] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [customerInsights, setCustomerInsights] = useState({});
+  const [dealData, setDealData] = useState({
+    topDeals: [],
+    dealPerformance: [],
+    dealStats: {}
+  });
   const [alerts, setAlerts] = useState([]);
+  const [commentNotifications, setCommentNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('monthly');
   const [showAlertsModal, setShowAlertsModal] = useState(false);
@@ -54,139 +74,182 @@ const Dashboard = () => {
     products: 'pie',
     deals: 'pie'
   });
-  const [dealData, setDealData] = useState({
-    topDeals: [],
-    dealPerformance: [],
-    dealStats: {
-      totalDeals: 0,
-      activeDeals: 0,
-      totalDealRevenue: 0,
-      totalDealCost: 0,
-      totalDealProfit: 0,
-      dealProfitMargin: 0,
-      avgDealDiscount: 0,
-      dealsSold: 0,
-      dealInventoryValue: 0
-    }
-  });
+  const [revenueTimeRange, setRevenueTimeRange] = useState('12months');
+  const [profitTimeRange, setProfitTimeRange] = useState('12months');
+  const [salesTrend, setSalesTrend] = useState([]);
+  const [profitTrend, setProfitTrend] = useState([]);
 
-  // API Base URL - adjust according to your backend
+  // API base URL
   const API_BASE = 'http://localhost:4000/api';
 
-  // Fetch dashboard data from backend
+  // Fetch dashboard data
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_BASE}/dashboard/stats?timeRange=${timeRange}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
       const data = await response.json();
       
-      console.log('API Response:', data); // Debug log
-      
-      // Set data from backend - use exact values without any processing
-      setStats(data.stats || {});
-      setRecentOrders(data.recentOrders || []);
-      setTopProducts(data.topProducts || []);
-      setLowStockProducts(data.lowStockProducts || []);
-      setCustomerInsights(data.customerInsights || {});
-      setAlerts(data.alerts || []);
-      
-      // Set deal data exactly as it comes from API
-      if (data.dealData) {
-        setDealData({
-          topDeals: data.dealData.topDeals || [],
-          dealPerformance: data.dealData.dealPerformance || [],
-          dealStats: data.dealData.dealStats || {
-            totalDeals: 0,
-            activeDeals: 0,
-            totalDealRevenue: 0,
-            totalDealCost: 0,
-            totalDealProfit: 0,
-            dealProfitMargin: 0,
-            avgDealDiscount: 0,
-            dealsSold: 0,
-            dealInventoryValue: 0
-          }
-        });
+      if (response.ok) {
+        setStats(data.stats);
+        setRecentOrders(data.recentOrders || []);
+        setTopProducts(data.topProducts || []);
+        setLowStockProducts(data.lowStockProducts || []);
+        setCustomerInsights(data.customerInsights || {});
+        setDealData(data.dealData || { topDeals: [], dealPerformance: [], dealStats: {} });
+        setAlerts(data.alerts || []);
+      } else {
+        console.error('Error fetching dashboard data:', data.message);
       }
-      
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
-  // Load all data on component mount and when timeRange changes
+  // Fetch comment notifications
+  const fetchCommentNotifications = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/comments/notifications`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCommentNotifications(data);
+      }
+    } catch (error) {
+      console.error('Error fetching comment notifications:', error);
+    }
+  };
+
+  // Fetch sales trend data for revenue chart
+  const fetchSalesTrend = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/dashboard/sales-trend?period=${revenueTimeRange}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSalesTrend(data.trend || []);
+      }
+    } catch (error) {
+      console.error('Error fetching sales trend:', error);
+    }
+  };
+
+  // Fetch profit trend data for profit growth chart
+  const fetchProfitTrend = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/dashboard/sales-trend?period=${profitTimeRange}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setProfitTrend(data.trend || []);
+      }
+    } catch (error) {
+      console.error('Error fetching profit trend:', error);
+    }
+  };
+
+  // Fetch alerts
+  const fetchAlerts = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/dashboard/alerts`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setAlerts(data.alerts || []);
+      }
+    } catch (error) {
+      console.error('Error fetching alerts:', error);
+    }
+  };
+
+  // Mark comment as read
+  const handleCommentRead = async (commentId) => {
+    try {
+      await fetch(`${API_BASE}/comments/${commentId}/read`, {
+        method: 'PATCH'
+      });
+      // Refresh notifications
+      fetchCommentNotifications();
+    } catch (error) {
+      console.error('Error marking comment as read:', error);
+    }
+  };
+
+  // Load data on component mount and when timeRange changes
   useEffect(() => {
     fetchDashboardData();
+    fetchCommentNotifications();
   }, [timeRange]);
 
-  // Get display metrics using DIRECT API VALUES ONLY - no calculations
-  const getDisplayMetrics = () => {
-    const dealStats = dealData.dealStats || {};
+  // Fetch revenue trend when revenueTimeRange changes
+  useEffect(() => {
+    fetchSalesTrend();
+  }, [revenueTimeRange]);
+
+  // Fetch profit trend when profitTimeRange changes
+  useEffect(() => {
+    fetchProfitTrend();
+  }, [profitTimeRange]);
+
+  // Refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchDashboardData(), 
+      fetchSalesTrend(), 
+      fetchProfitTrend(),
+      fetchAlerts(),
+      fetchCommentNotifications()
+    ]);
+    setRefreshing(false);
+  };
+
+  // Calculate combined metrics from actual data
+  const calculateCombinedMetrics = () => {
+    const productRevenue = stats.totalProductRevenue || 0;
+    const dealRevenue = stats.totalDealRevenue || 0;
+    const totalRevenue = productRevenue + dealRevenue;
     
+    const productCost = stats.totalProductCost || 0;
+    const dealCost = stats.totalDealCost || 0;
+    const totalCost = productCost + dealCost;
+    
+    const productProfit = stats.totalProductProfit || 0;
+    const dealProfit = stats.totalDealProfit || 0;
+    const totalProfit = productProfit + dealProfit;
+
     return {
-      // Product metrics - direct from stats
-      productRevenue: stats.totalProductRevenue || 0,
-      productCost: stats.totalProductCost || 0,
-      productProfit: stats.totalProductProfit || 0,
-      productProfitMargin: stats.profitMargin || 0,
-      
-      // Deal metrics - direct from dealStats
-      dealRevenue: dealStats.totalDealRevenue || 0,
-      dealCost: dealStats.totalDealCost || 0,
-      dealProfit: dealStats.totalDealProfit || 0,
-      dealProfitMargin: dealStats.dealProfitMargin || 0,
-      
-      // Combined metrics - simple addition only
-      totalRevenue: (stats.totalProductRevenue || 0) + (dealStats.totalDealRevenue || 0),
-      totalCost: (stats.totalProductCost || 0) + (dealStats.totalDealCost || 0),
-      totalProfit: (stats.totalProductProfit || 0) + (dealStats.totalDealProfit || 0),
-      
-      // Other metrics
-      totalProductSold: stats.totalItemsSold || 0,
-      totalInventoryValue: (stats.inventoryValue || 0) + (dealStats.dealInventoryValue || 0)
+      productRevenue,
+      productCost,
+      productProfit,
+      dealRevenue,
+      dealCost,
+      dealProfit,
+      totalRevenue,
+      totalCost,
+      totalProfit,
+      totalProductSold: stats.totalItemsSold - (stats.dealsSold || 0),
+      totalInventoryValue: (stats.inventoryValue || 0) + (stats.dealInventoryValue || 0)
     };
   };
 
-  const displayMetrics = getDisplayMetrics();
+  const combinedMetrics = calculateCombinedMetrics();
 
-  // Calculate overall profit margin
-  const overallProfitMargin = displayMetrics.totalRevenue > 0 
-    ? (displayMetrics.totalProfit / displayMetrics.totalRevenue) * 100 
-    : 0;
-
-  // Handle refresh
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchDashboardData();
-  };
-
-  // Handle time range change
-  const handleTimeRangeChange = (range) => {
-    setTimeRange(range);
-  };
+  // Calculate total notifications count
+  const unreadAlertsCount = alerts.filter(alert => !alert.read).length;
+  const unreadCommentsCount = commentNotifications.length;
+  const totalNotificationsCount = unreadAlertsCount + unreadCommentsCount;
 
   // Reusable components
-  const StatCard = ({ title, value, icon, color, change, subtitle, trend, badge }) => (
+  const StatCard = ({ title, value, icon, color, change, subtitle, trend }) => (
     <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <p className="text-gray-600 text-sm font-medium">{title}</p>
-            {badge && (
-              <span className={`text-xs px-2 py-1 rounded-full ${badge.color} ${badge.textColor}`}>
-                {badge.text}
-              </span>
-            )}
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          <p className="text-gray-600 text-sm font-medium mb-2">{title}</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {typeof value === 'number' && value >= 1000 ? `Rs ${value.toLocaleString()}` : value}
+          </p>
           {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
           {change && (
             <div className="flex items-center mt-2">
@@ -206,16 +269,6 @@ const Dashboard = () => {
         </div>
       </div>
     </div>
-  );
-
-  const ProfitBadge = ({ margin }) => (
-    <span className={`text-xs px-2 py-1 rounded-full ${
-      margin >= 20 ? 'bg-green-100 text-green-800' :
-      margin >= 10 ? 'bg-yellow-100 text-yellow-800' :
-      'bg-red-100 text-red-800'
-    }`}>
-      {margin.toFixed(1)}% margin
-    </span>
   );
 
   const StatusBadge = ({ status }) => {
@@ -264,19 +317,16 @@ const Dashboard = () => {
     </div>
   );
 
-  // Chart configurations using actual data - DIRECT API VALUES ONLY
+  // Chart configurations using real data
   const chartConfigs = {
     revenue: {
       pie: {
         data: {
-          labels: ['Product Revenue', 'Deal Revenue'],
+          labels: ['Product Revenue', 'Deal Revenue', 'Total Profit'],
           datasets: [{
-            data: [
-              Math.max(0, displayMetrics.productRevenue),
-              Math.max(0, displayMetrics.dealRevenue)
-            ],
-            backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)'],
-            borderColor: ['rgb(59, 130, 246)', 'rgb(139, 92, 246)'],
+            data: [combinedMetrics.productRevenue, combinedMetrics.dealRevenue, combinedMetrics.totalProfit],
+            backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+            borderColor: ['rgb(59, 130, 246)', 'rgb(139, 92, 246)', 'rgb(16, 185, 129)'],
             borderWidth: 2,
           }]
         },
@@ -284,36 +334,18 @@ const Dashboard = () => {
           responsive: true,
           plugins: {
             legend: { position: 'bottom' },
-            title: { display: true, text: 'Revenue Breakdown' }
+            title: { display: true, text: 'Revenue & Profit Breakdown' }
           }
         }
       },
       bar: {
         data: {
-          labels: ['Product Revenue', 'Deal Revenue', 'Product Cost', 'Deal Cost', 'Total Profit'],
+          labels: ['Product Revenue', 'Deal Revenue', 'Total Cost', 'Total Profit'],
           datasets: [{
             label: 'Amount (Rs)',
-            data: [
-              Math.max(0, displayMetrics.productRevenue),
-              Math.max(0, displayMetrics.dealRevenue),
-              Math.max(0, displayMetrics.productCost),
-              Math.max(0, displayMetrics.dealCost),
-              Math.max(0, displayMetrics.totalProfit)
-            ],
-            backgroundColor: [
-              'rgba(59, 130, 246, 0.8)', 
-              'rgba(139, 92, 246, 0.8)', 
-              'rgba(239, 68, 68, 0.8)', 
-              'rgba(255, 99, 132, 0.8)',
-              'rgba(16, 185, 129, 0.8)'
-            ],
-            borderColor: [
-              'rgb(59, 130, 246)', 
-              'rgb(139, 92, 246)', 
-              'rgb(239, 68, 68)', 
-              'rgb(255, 99, 132)',
-              'rgb(16, 185, 129)'
-            ],
+            data: [combinedMetrics.productRevenue, combinedMetrics.dealRevenue, combinedMetrics.totalCost, combinedMetrics.totalProfit],
+            backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+            borderColor: ['rgb(59, 130, 246)', 'rgb(139, 92, 246)', 'rgb(239, 68, 68)', 'rgb(16, 185, 129)'],
             borderWidth: 1,
           }]
         },
@@ -326,60 +358,12 @@ const Dashboard = () => {
         }
       }
     },
-    profit: {
-      pie: {
-        data: {
-          labels: ['Product Profit', 'Deal Profit'],
-          datasets: [{
-            data: [
-              Math.max(0, displayMetrics.productProfit),
-              Math.max(0, displayMetrics.dealProfit)
-            ],
-            backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(34, 197, 94, 0.8)'],
-            borderColor: ['rgb(16, 185, 129)', 'rgb(34, 197, 94)'],
-            borderWidth: 2,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'bottom' },
-            title: { display: true, text: 'Profit Breakdown' }
-          }
-        }
-      },
-      bar: {
-        data: {
-          labels: ['Product Profit', 'Deal Profit'],
-          datasets: [{
-            label: 'Profit (Rs)',
-            data: [
-              Math.max(0, displayMetrics.productProfit),
-              Math.max(0, displayMetrics.dealProfit)
-            ],
-            backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(34, 197, 94, 0.8)'],
-            borderColor: ['rgb(16, 185, 129)', 'rgb(34, 197, 94)'],
-            borderWidth: 1,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            title: { display: true, text: 'Profit Breakdown' }
-          }
-        }
-      }
-    },
     customers: {
       pie: {
         data: {
           labels: ['New Customers', 'Returning Customers'],
           datasets: [{
-            data: [
-              Math.max(0, customerInsights.newCustomers || 0),
-              Math.max(0, customerInsights.repeatBuyers || 0)
-            ],
+            data: [customerInsights.newCustomers || 0, customerInsights.repeatBuyers || 0],
             backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
             borderColor: ['rgb(59, 130, 246)', 'rgb(16, 185, 129)'],
             borderWidth: 2,
@@ -398,10 +382,7 @@ const Dashboard = () => {
           labels: ['New Customers', 'Returning Customers'],
           datasets: [{
             label: 'Count',
-            data: [
-              Math.max(0, customerInsights.newCustomers || 0),
-              Math.max(0, customerInsights.repeatBuyers || 0)
-            ],
+            data: [customerInsights.newCustomers || 0, customerInsights.repeatBuyers || 0],
             backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
             borderColor: ['rgb(59, 130, 246)', 'rgb(16, 185, 129)'],
             borderWidth: 1,
@@ -421,7 +402,7 @@ const Dashboard = () => {
         data: {
           labels: topProducts.map(p => p.name),
           datasets: [{
-            data: topProducts.map(p => Math.max(0, p.totalSales || 0)),
+            data: topProducts.map(p => p.totalSales || 0),
             backgroundColor: [
               'rgba(59, 130, 246, 0.8)', 
               'rgba(16, 185, 129, 0.8)', 
@@ -446,7 +427,7 @@ const Dashboard = () => {
           labels: topProducts.map(p => p.name),
           datasets: [{
             label: 'Units Sold',
-            data: topProducts.map(p => Math.max(0, p.totalSales || 0)),
+            data: topProducts.map(p => p.totalSales || 0),
             backgroundColor: 'rgba(59, 130, 246, 0.8)',
             borderColor: 'rgb(59, 130, 246)',
             borderWidth: 1,
@@ -466,7 +447,7 @@ const Dashboard = () => {
         data: {
           labels: dealData.topDeals.map(d => d.name),
           datasets: [{
-            data: dealData.topDeals.map(d => Math.max(0, d.totalSales || 0)),
+            data: dealData.topDeals.map(d => d.totalSales || 0),
             backgroundColor: [
               'rgba(139, 92, 246, 0.8)',
               'rgba(59, 130, 246, 0.8)',
@@ -489,7 +470,7 @@ const Dashboard = () => {
           labels: dealData.topDeals.map(d => d.name),
           datasets: [{
             label: 'Units Sold',
-            data: dealData.topDeals.map(d => Math.max(0, d.totalSales || 0)),
+            data: dealData.topDeals.map(d => d.totalSales || 0),
             backgroundColor: 'rgba(139, 92, 246, 0.8)',
             borderColor: 'rgb(139, 92, 246)',
             borderWidth: 1,
@@ -503,6 +484,75 @@ const Dashboard = () => {
           }
         }
       }
+    },
+    revenueTrend: {
+      data: {
+        labels: salesTrend.map(item => item.period),
+        datasets: [
+          {
+            label: 'Revenue',
+            data: salesTrend.map(item => item.revenue),
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            fill: true,
+            tension: 0.4,
+          },
+          {
+            label: 'Profit',
+            data: salesTrend.map(item => item.profit),
+            borderColor: 'rgb(16, 185, 129)',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            fill: true,
+            tension: 0.4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' },
+          title: { display: true, text: 'Revenue & Profit Trend' }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return 'Rs ' + value.toLocaleString();
+              }
+            }
+          }
+        }
+      }
+    },
+    profitGrowth: {
+      data: {
+        labels: profitTrend.map(item => item.period),
+        datasets: [{
+          label: 'Profit (Rs)',
+          data: profitTrend.map(item => item.profit),
+          backgroundColor: 'rgba(16, 185, 129, 0.8)',
+          borderColor: 'rgb(16, 185, 129)',
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: 'Monthly Profit Growth' }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return 'Rs ' + value.toLocaleString();
+              }
+            }
+          }
+        }
+      }
     }
   };
 
@@ -513,7 +563,9 @@ const Dashboard = () => {
     }));
   };
 
-  const unreadAlertsCount = alerts.filter(alert => !alert.read).length;
+  const handleTimeRangeChange = (range) => {
+    setTimeRange(range);
+  };
 
   const AlertsModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -522,40 +574,120 @@ const Dashboard = () => {
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faBell} className="text-yellow-500 text-xl" />
             <h3 className="text-xl font-semibold text-gray-900">Notifications</h3>
-            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{unreadAlertsCount} new</span>
+            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+              {totalNotificationsCount} new
+            </span>
           </div>
           <button onClick={() => setShowAlertsModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
             <FontAwesomeIcon icon={faTimes} className="text-lg" />
           </button>
         </div>
-        <div className="overflow-y-auto max-h-[60vh]">
-          <div className="divide-y divide-gray-200">
-            {alerts.map(alert => (
-              <div key={alert.id} className={`p-6 transition-colors ${!alert.read ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                <div className="flex items-start gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    alert.priority === 'high' ? 'bg-red-100' : 'bg-yellow-100'
-                  }`}>
-                    <FontAwesomeIcon 
-                      icon={faExclamationTriangle} 
-                      className={alert.priority === 'high' ? 'text-red-600' : 'text-yellow-600'} 
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className={`font-semibold ${!alert.read ? 'text-blue-900' : 'text-gray-900'}`}>{alert.title}</h4>
-                      {!alert.read && <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">New</span>}
-                    </div>
-                    <p className={`text-sm mb-2 ${!alert.read ? 'text-blue-800' : 'text-gray-600'}`}>{alert.message}</p>
-                    <p className="text-xs text-gray-500">{new Date(alert.timestamp).toLocaleString()}</p>
-                  </div>
-                </div>
+        <div className="overflow-y-auto max-h-[70vh]">
+          {/* Comment Notifications Section */}
+          {commentNotifications.length > 0 && (
+            <div className="border-b border-gray-200">
+              <div className="p-4 bg-blue-50">
+                <h4 className="font-semibold text-blue-900 flex items-center gap-2">
+                  <FontAwesomeIcon icon={faComments} />
+                  New Reviews & Comments ({commentNotifications.length})
+                </h4>
               </div>
-            ))}
-          </div>
+              <div className="divide-y divide-gray-200">
+                {commentNotifications.map(comment => (
+                  <div 
+                    key={comment._id} 
+                    className="p-6 bg-blue-50 transition-colors cursor-pointer hover:bg-blue-100"
+                    onClick={() => handleCommentRead(comment._id)}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <FontAwesomeIcon icon={faComments} className="text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-blue-900">
+                            New {comment.rating ? 'Review' : 'Comment'}
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            {comment.rating && (
+                              <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded">
+                                <FontAwesomeIcon icon={faStar} className="text-yellow-500 text-xs" />
+                                <span className="text-xs font-medium text-yellow-800">{comment.rating}</span>
+                              </div>
+                            )}
+                            <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">New</span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-blue-800 mb-1">
+                          <strong>{comment.author}</strong> on <strong>{comment.productId?.name || 'Product'}</strong>
+                        </p>
+                        <p className="text-sm text-blue-700 mb-2 line-clamp-2">{comment.content}</p>
+                        <p className="text-xs text-blue-600">
+                          {new Date(comment.date).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Regular Alerts Section */}
+          {alerts.length > 0 && (
+            <div>
+              <div className="p-4 bg-gray-50">
+                <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <FontAwesomeIcon icon={faExclamationTriangle} />
+                  System Alerts ({unreadAlertsCount})
+                </h4>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {alerts.map(alert => (
+                  <div key={alert.id} className={`p-6 transition-colors ${!alert.read ? 'bg-yellow-50' : 'hover:bg-gray-50'}`}>
+                    <div className="flex items-start gap-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        alert.priority === 'high' ? 'bg-red-100' : 'bg-yellow-100'
+                      }`}>
+                        <FontAwesomeIcon 
+                          icon={faExclamationTriangle} 
+                          className={alert.priority === 'high' ? 'text-red-600' : 'text-yellow-600'} 
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className={`font-semibold ${!alert.read ? 'text-yellow-900' : 'text-gray-900'}`}>
+                            {alert.title}
+                          </h4>
+                          {!alert.read && <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">New</span>}
+                        </div>
+                        <p className={`text-sm mb-2 ${!alert.read ? 'text-yellow-800' : 'text-gray-600'}`}>
+                          {alert.message}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(alert.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {commentNotifications.length === 0 && alerts.length === 0 && (
+            <div className="text-center py-12">
+              <FontAwesomeIcon icon={faBell} className="text-gray-300 text-4xl mb-4" />
+              <p className="text-gray-500">No new notifications</p>
+            </div>
+          )}
         </div>
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
-          <button onClick={() => setShowAlertsModal(false)} className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors">
+        <div className="p-6 border-t border-gray-200 bg-gray-50 flex gap-3">
+          <button 
+            onClick={() => setShowAlertsModal(false)} 
+            className="flex-1 bg-black text-white py-3"
+          >
             Close Notifications
           </button>
         </div>
@@ -567,25 +699,19 @@ const Dashboard = () => {
     { to: "/add", icon: faPlus, text: "Add Product", color: "bg-blue-500" },
     { to: "/list", icon: faBoxes, text: "Manage Products", color: "bg-green-500" },
     { to: "/orders", icon: faShoppingCart, text: "View Orders", color: "bg-red-500" },
-    { to: "/content-management", icon: faLayerGroup, text: "Content Management", color: "bg-purple-500" }
+    { to: "/deals", icon: faRocket, text: "Manage Deals", color: "bg-purple-500" },
   ];
 
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading dashboard data...</p>
         </div>
       </div>
     );
   }
-
-  // Format currency helper
-  const formatCurrency = (amount) => {
-    return `Rs ${Math.max(0, amount || 0).toLocaleString()}`;
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -625,60 +751,37 @@ const Dashboard = () => {
               className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <FontAwesomeIcon icon={faBell} className="text-xl" />
-              {unreadAlertsCount > 0 && (
+              {totalNotificationsCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                  {unreadAlertsCount}
+                  {totalNotificationsCount}
                 </span>
               )}
             </button>
           </div>
         </div>
 
-        {/* Main Revenue & Profit Stats Grid */}
+        {/* Main Stats Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <StatCard 
             title="Total Revenue" 
-            value={formatCurrency(displayMetrics.totalRevenue)} 
-            subtitle={`Products: ${formatCurrency(displayMetrics.productRevenue)} | Deals: ${formatCurrency(displayMetrics.dealRevenue)}`}
+            value={`Rs ${combinedMetrics.totalRevenue?.toLocaleString()}`} 
+            subtitle={`Products: Rs ${combinedMetrics.productRevenue?.toLocaleString()} | Deals: Rs ${combinedMetrics.dealRevenue?.toLocaleString()}`}
             icon={faDollarSign} 
             color="bg-green-500" 
           />
           <StatCard 
             title="Total Cost" 
-            value={formatCurrency(displayMetrics.totalCost)} 
-            subtitle={`Products: ${formatCurrency(displayMetrics.productCost)} | Deals: ${formatCurrency(displayMetrics.dealCost)}`}
-            icon={faCalculator} 
+            value={`Rs ${combinedMetrics.totalCost?.toLocaleString()}`} 
+            subtitle={`Products: Rs ${combinedMetrics.productCost?.toLocaleString()} | Deals: Rs ${combinedMetrics.dealCost?.toLocaleString()}`}
+            icon={faChartLine} 
             color="bg-red-500" 
           />
           <StatCard 
             title="Total Profit" 
-            value={formatCurrency(displayMetrics.totalProfit)} 
-            subtitle={`Products: ${formatCurrency(displayMetrics.productProfit)} | Deals: ${formatCurrency(displayMetrics.dealProfit)}`}
+            value={`Rs ${combinedMetrics.totalProfit?.toLocaleString()}`} 
+            subtitle={`Products: Rs ${combinedMetrics.productProfit?.toLocaleString()} | Deals: Rs ${combinedMetrics.dealProfit?.toLocaleString()}`}
             icon={faChartPie} 
             color="bg-blue-500" 
-            badge={{
-              text: `${overallProfitMargin.toFixed(1)}% margin`,
-              color: overallProfitMargin >= 20 ? 'bg-green-100' : overallProfitMargin >= 10 ? 'bg-yellow-100' : 'bg-red-100',
-              textColor: overallProfitMargin >= 20 ? 'text-green-800' : overallProfitMargin >= 10 ? 'text-yellow-800' : 'text-red-800'
-            }}
-          />
-        </div>
-
-        {/* Profit Margin Breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <StatCard 
-            title="Product Profit Margin" 
-            value={`${displayMetrics.productProfitMargin.toFixed(1)}%`} 
-            subtitle={`Profit: ${formatCurrency(displayMetrics.productProfit)}`}
-            icon={faMoneyBillWave} 
-            color="bg-green-500" 
-          />
-          <StatCard 
-            title="Deal Profit Margin" 
-            value={`${displayMetrics.dealProfitMargin.toFixed(1)}%`} 
-            subtitle={`Profit: ${formatCurrency(displayMetrics.dealProfit)}`}
-            icon={faTags} 
-            color="bg-purple-500" 
           />
         </div>
 
@@ -686,26 +789,26 @@ const Dashboard = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard 
             title="Active Deals" 
-            value={dealData.dealStats?.activeDeals || 0} 
+            value={stats.activeDeals} 
             icon={faRocket} 
             color="bg-purple-500" 
           />
           <StatCard 
             title="Deals Sold" 
-            value={dealData.dealStats?.dealsSold || 0} 
+            value={stats.dealsSold} 
             icon={faFire} 
             color="bg-orange-500" 
           />
           <StatCard 
             title="Total Products" 
-            value={stats.totalProducts || 0} 
+            value={stats.totalProducts} 
             icon={faBoxes} 
             color="bg-indigo-500" 
           />
           <StatCard 
-            title="Products Sold" 
-            value={displayMetrics.totalProductSold || 0} 
-            icon={faShoppingCart} 
+            title="New Comments" 
+            value={commentNotifications.length} 
+            icon={faComments} 
             color="bg-blue-500" 
           />
         </div>
@@ -714,21 +817,21 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <StatCard 
             title="Inventory Value" 
-            value={formatCurrency(displayMetrics.totalInventoryValue)} 
-            subtitle={`Products: ${formatCurrency(stats.inventoryValue)} | Deals: ${formatCurrency(dealData.dealStats?.dealInventoryValue)}`}
+            value={`Rs ${combinedMetrics.totalInventoryValue?.toLocaleString()}`} 
+            subtitle={`Products: Rs ${stats.inventoryValue?.toLocaleString()} | Deals: Rs ${stats.dealInventoryValue?.toLocaleString()}`}
             icon={faWarehouse} 
             color="bg-green-500" 
           />
           <StatCard 
             title="Total Orders" 
-            value={stats.totalOrders || 0} 
-            subtitle={`Pending: ${stats.pendingOrders || 0}`}
+            value={stats.totalOrders} 
+            subtitle={`Pending: ${stats.pendingOrders}`}
             icon={faClipboardList} 
             color="bg-yellow-500" 
           />
           <StatCard 
             title="Pending Orders" 
-            value={stats.pendingOrders || 0} 
+            value={stats.pendingOrders} 
             icon={faClock} 
             color="bg-yellow-500" 
           />
@@ -736,10 +839,10 @@ const Dashboard = () => {
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Revenue Breakdown Chart */}
+          {/* Revenue & Profit Chart */}
           <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Revenue Breakdown</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Revenue & Profit</h3>
               <ChartToggle 
                 chartKey="revenue" 
                 currentView={chartViews.revenue} 
@@ -751,25 +854,6 @@ const Dashboard = () => {
                 <Doughnut {...chartConfigs.revenue.pie} />
               ) : (
                 <Bar {...chartConfigs.revenue.bar} />
-              )}
-            </div>
-          </div>
-
-          {/* Profit Analysis Chart */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Profit Analysis</h3>
-              <ChartToggle 
-                chartKey="profit" 
-                currentView={chartViews.revenue} 
-                onToggle={(view) => handleChartToggle('revenue', view)} 
-              />
-            </div>
-            <div className="h-80">
-              {chartViews.revenue === 'pie' ? (
-                <Doughnut {...chartConfigs.profit.pie} />
-              ) : (
-                <Bar {...chartConfigs.profit.bar} />
               )}
             </div>
           </div>
@@ -804,75 +888,42 @@ const Dashboard = () => {
               />
             </div>
             <div className="h-80">
-              {chartViews.products === 'pie' ? (
-                <Pie {...chartConfigs.products.pie} />
+              {topProducts.length > 0 ? (
+                chartViews.products === 'pie' ? (
+                  <Pie {...chartConfigs.products.pie} />
+                ) : (
+                  <Bar {...chartConfigs.products.bar} />
+                )
               ) : (
-                <Bar {...chartConfigs.products.bar} />
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  No product data available
+                </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Deal Performance Section */}
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Deal Performance</h3>
-            <NavLink to="/deals" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-              Manage Deals →
-            </NavLink>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Deal Performance Chart */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-medium text-gray-900">Top Performing Deals</h4>
-                <ChartToggle 
-                  chartKey="deals" 
-                  currentView={chartViews.deals} 
-                  onToggle={(view) => handleChartToggle('deals', view)} 
-                />
-              </div>
-              <div className="h-64">
-                {chartViews.deals === 'pie' ? (
+          {/* Deal Performance Chart */}
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Top Performing Deals</h3>
+              <ChartToggle 
+                chartKey="deals" 
+                currentView={chartViews.deals} 
+                onToggle={(view) => handleChartToggle('deals', view)} 
+              />
+            </div>
+            <div className="h-80">
+              {dealData.topDeals.length > 0 ? (
+                chartViews.deals === 'pie' ? (
                   <Pie {...chartConfigs.deals.pie} />
                 ) : (
                   <Bar {...chartConfigs.deals.bar} />
-                )}
-              </div>
-            </div>
-
-            {/* Deal Stats */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Avg Deal Discount</p>
-                  <p className="text-xl font-bold text-gray-900">{dealData.dealStats?.avgDealDiscount?.toFixed(1) || 0}%</p>
+                )
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  No deal data available
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Deals</p>
-                  <p className="text-xl font-bold text-gray-900">{dealData.dealStats?.totalDeals || 0}</p>
-                </div>
-              </div>
-              
-              {/* Active Deals List */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-2">Active Deals</p>
-                <div className="space-y-2">
-                  {dealData.topDeals
-                    .filter(deal => deal.isActive)
-                    .slice(0, 3)
-                    .map(deal => (
-                      <div key={deal._id} className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-gray-900 truncate">{deal.name}</span>
-                        <ProfitBadge margin={dealData.dealStats?.dealProfitMargin || 0} />
-                      </div>
-                    ))
-                  }
-                  {dealData.topDeals.filter(deal => deal.isActive).length === 0 && (
-                    <p className="text-sm text-gray-500">No active deals</p>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -888,29 +939,35 @@ const Dashboard = () => {
               </NavLink>
             </div>
             <div className="space-y-4">
-              {recentOrders.map(order => (
-                <div key={order._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                      <FontAwesomeIcon icon={faUsers} className="text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">#{order._id}</p>
-                      <div className="flex items-center text-sm text-gray-600 mt-1">
-                        <FontAwesomeIcon icon={faMapMarkerAlt} className="text-xs mr-1" />
-                        <span>{order.user?.location || 'Unknown'}</span>
+              {recentOrders.length > 0 ? (
+                recentOrders.map(order => (
+                  <div key={order._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                        <FontAwesomeIcon icon={faUsers} className="text-blue-600" />
                       </div>
-                      <p className="text-xs text-gray-500">
-                        {order.items?.map(item => `${item.quantity}x ${item.name}`).join(', ')}
-                      </p>
+                      <div>
+                        <p className="font-medium text-gray-900">#{order._id}</p>
+                        <div className="flex items-center text-sm text-gray-600 mt-1">
+                          <FontAwesomeIcon icon={faMapMarkerAlt} className="text-xs mr-1" />
+                          <span>{order.user?.location || 'Unknown'}</span>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {order.items?.map(item => `${item.quantity}x ${item.name}`).join(', ')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-gray-900">Rs {order.amount}</p>
+                      <StatusBadge status={order.status} />
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">Rs {order.amount}</p>
-                    <StatusBadge status={order.status} />
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No recent orders
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -923,31 +980,95 @@ const Dashboard = () => {
               </NavLink>
             </div>
             <div className="space-y-4">
-              {lowStockProducts.map((product, index) => (
-                <div key={product._id} className="flex items-center justify-between p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-4">
-                      <FontAwesomeIcon icon={faExclamationCircle} className="text-red-600" />
+              {lowStockProducts.length > 0 ? (
+                lowStockProducts.map((product, index) => (
+                  <div key={product._id} className="flex items-center justify-between p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                        <FontAwesomeIcon icon={faExclamationCircle} className="text-red-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{product.name}</p>
+                        <p className="text-sm text-gray-600">{product.category} • Ideal: {product.idealStock}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{product.name}</p>
-                      <p className="text-sm text-gray-600">{product.category} • Ideal: {product.idealStock}</p>
+                    <div className="text-right">
+                      <StockBadge stock={product.quantity} />
+                      <p className="text-sm text-gray-600 mt-1">Value: Rs {(product.quantity * product.cost).toLocaleString()}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <StockBadge stock={product.quantity} />
-                    <p className="text-sm text-gray-600 mt-1">Value: Rs {(product.quantity * product.cost).toLocaleString()}</p>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  All products are well stocked
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Revenue Trend Chart */}
+        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+              {['3months', '6months', '12months'].map(range => (
+                <button
+                  key={range}
+                  onClick={() => setRevenueTimeRange(range)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    revenueTimeRange === range ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                  }`}
+                >
+                  {range === '3months' ? '3 Months' : range === '6months' ? '6 Months' : '12 Months'}
+                </button>
               ))}
             </div>
+          </div>
+          <div className="h-80">
+            {salesTrend.length > 0 ? (
+              <Line {...chartConfigs.revenueTrend} />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                No trend data available
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Profit Growth Chart */}
+        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">Profit Growth</h3>
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+              {['3months', '6months', '12months'].map(range => (
+                <button
+                  key={range}
+                  onClick={() => setProfitTimeRange(range)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    profitTimeRange === range ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                  }`}
+                >
+                  {range === '3months' ? '3 Months' : range === '6months' ? '6 Months' : '12 Months'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="h-80">
+            {profitTrend.length > 0 ? (
+              <Bar {...chartConfigs.profitGrowth} />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                No profit data available
+              </div>
+            )}
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {quickActions.map((action, i) => (
               <NavLink 
                 key={i} 

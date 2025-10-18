@@ -8,8 +8,7 @@ import User from "../models/userModel.js";
  */
 export const getDashboardStats = async (req, res) => {
   try {
-    console.log('=== DASHBOARD STATS API CALLED ===');
-    
+
     const { timeRange = 'monthly' } = req.query;
     const dateRange = getDateRange(timeRange);
     const startTimestamp = dateRange.start.getTime();
@@ -21,11 +20,6 @@ export const getDashboardStats = async (req, res) => {
     const allUsers = await User.find({});
     const allDeals = await Deal.find({});
 
-    console.log('DEBUG DATA:');
-    console.log('- Products:', allProducts.length);
-    console.log('- Orders in period:', allOrders.length);
-    console.log('- Users:', allUsers.length);
-    console.log('- Deals:', allDeals.length);
 
     // 1️⃣ BASIC COUNTS
     const totalOrders = allOrders.length;
@@ -208,7 +202,7 @@ export const getDashboardStats = async (req, res) => {
 
     // 1️⃣1️⃣ DEAL ANALYTICS - COMPLETELY REWRITTEN WITH REAL DATA
     const now = new Date();
-    console.log('Current time for deal check:', now);
+
 
     // Calculate deal metrics from actual orders
     let totalDealRevenue = 0;
@@ -353,12 +347,7 @@ export const getDashboardStats = async (req, res) => {
         });
       
       topDeals.push(...allDealsSorted);
-    }
-
-    console.log('Top deals with real data:');
-    topDeals.forEach(deal => {
-      console.log(`- ${deal.name}: Revenue=${deal.revenue}, Sales=${deal.totalSales}, Active=${deal.isActive}`);
-    });
+    }   
 
     // Deal performance by type
     const dealPerformance = allDeals.reduce((acc, deal) => {
@@ -410,17 +399,6 @@ export const getDashboardStats = async (req, res) => {
           read: false
         }))
     ];
-
-    console.log('=== FINAL STATS ===');
-    console.log('Total Products:', totalProducts);
-    console.log('Total Product Revenue:', totalProductRevenue);
-    console.log('Total Product Cost:', totalProductCost);
-    console.log('Total Product Profit:', totalProductProfit);
-    console.log('Active Deals:', activeDeals);
-    console.log('Deal Revenue (from orders):', totalDealRevenue);
-    console.log('Deal Cost:', totalDealCost);
-    console.log('Deal Profit:', totalDealProfit);
-    console.log('Deals Sold:', totalDealsSold);
 
     // ✅ FINAL RESPONSE - UPDATED WITH REAL DEAL DATA
     res.status(200).json({

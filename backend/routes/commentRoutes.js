@@ -1,20 +1,29 @@
 import express from "express";
-import { 
+import multer from "../middleware/multer.js";
+import {
   getComments,
   addComment,
   markRead,
   markUnread,
   addReply,
-  deleteComment
+  deleteComment,
+  likeComment,
+  dislikeComment,
+  getNotifications 
 } from "../controllers/commentController.js";
 
 const router = express.Router();
+const upload = multer.array("reviewImages", 10);
 
-router.get("/", getComments);
-router.post("/", addComment);
-router.patch("/read/:id", markRead);
-router.patch("/unread/:id", markUnread);
-router.patch("/reply/:id", addReply);
-router.delete("/:id", deleteComment);
+// ROUTES
+router.get("/", getComments);             
+router.post("/", upload, addComment);     
+router.patch("/:id/read", markRead);      
+router.patch("/:id/unread", markUnread);  
+router.patch("/:id/reply", addReply);     
+router.patch("/:id/like", likeComment);   // ✅ New route
+router.patch("/:id/dislike", dislikeComment); // ✅ New route
+router.delete("/:id", deleteComment);    
+router.get("/notifications", getNotifications); 
 
 export default router;

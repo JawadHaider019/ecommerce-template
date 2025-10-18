@@ -1,73 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faReply, faTrash, faEnvelope, faEnvelopeOpen, faEye, faStar, faStarHalfAlt, faTimes, faChevronLeft, faChevronRight, faCheck, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
+import { faReply, faTrash, faEnvelope, faEnvelopeOpen, faEye, faStar, faStarHalfAlt, faTimes, faChevronLeft, faChevronRight, faCheck, faExclamationTriangle, faImage, faThumbsUp, faThumbsDown } from '@fortawesome/free-solid-svg-icons';
 
-// Updated sample data with multiple images
-const sampleComments = [
-  {
-    id: 1,
-    productName: "Organic Lavender Soap Collection",
-    productImages: [
-      "https://images.unsplash.com/photo-1549989476-69a92fa57c36?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8c29hcHxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60",
-      "https://images.unsplash.com/photo-1558640476-437a2e94348a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHNvYXB8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60",
-      "https://images.unsplash.com/photo-1594736797933-d0c64a0b643f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fHNvYXB8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60"
-    ],
-    productPrice: "8.99",
-    type: "product",
-    author: "Sarah Johnson",
-    email: "sarah@example.com",
-    content: "The lavender scent is absolutely divine! My skin has never felt softer. I love how it doesn't dry out my skin like other soaps do. Will definitely repurchase! I've attached photos of how beautiful the soaps look in my bathroom.",
-    rating: 4.5,
-    date: "2024-01-15T14:30:00Z",
-    isRead: false,
-    hasReply: false,
-    reply: null
-  },
-  {
-    id: 2,
-    productName: "Summer Skincare Bundle",
-    productImages: [
-      "https://images.unsplash.com/photo-1556228578-8c89e6adf883?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8c2tpbmNhcmUlMjBwcm9kdWN0c3xlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60",
-      "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHNrbmNhcmUlMjBwcm9kdWN0c3xlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60",
-      "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fHNrbmNhcmUlMjBwcm9kdWN0c3xlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60"
-    ],
-    productPrice: "49.99",
-    type: "deal",
-    author: "Mike Chen",
-    email: "mike@example.com",
-    content: "Is this bundle available for international shipping to Canada? How long does shipping usually take and what are the customs charges like? The products look amazing in the photos!",
-    rating: 4,
-    date: "2024-01-14T09:15:00Z",
-    isRead: true,
-    hasReply: true,
-    reply: {
-      content: "Yes, we ship to Canada! Shipping typically takes 7-10 business days. Customs charges vary by location but are usually around 10-15% of the order value. We're glad you like our products!",
-      date: "2024-01-14T16:20:00Z",
-      author: "Admin"
-    }
-  },
-  {
-    id: 3,
-    productName: "Anti-Aging Face Cream & Serum Set",
-    productImages: [
-      "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fGZhY2UlMjBjcmVhbXxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60",
-      "https://images.unsplash.com/photo-1591369822096-ffd140ec946f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c2VydW18ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60",
-      "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8c2tpbmNhcmUlMjBwcm9kdWN0c3xlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60"
-    ],
-    productPrice: "32.50",
-    type: "product",
-    author: "Emma Davis",
-    email: "emma@example.com",
-    content: "After using this cream and serum set for just 3 weeks, I've noticed my fine lines around the eyes have significantly reduced. The texture is luxurious and it absorbs quickly without feeling greasy. The packaging is also very elegant!",
-    rating: 5,
-    date: "2024-01-13T18:45:00Z",
-    isRead: false,
-    hasReply: false,
-    reply: null
-  }
-];
+const API_BASE_URL = 'http://localhost:4000/api/comments';
 
-// Toast Component
+// Toast Component (responsive)
 const Toast = ({ message, type, onClose }) => {
   React.useEffect(() => {
     const timer = setTimeout(() => {
@@ -81,9 +18,9 @@ const Toast = ({ message, type, onClose }) => {
   const icon = type === 'success' ? faCheck : faExclamationTriangle;
 
   return (
-    <div className={`fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 z-50 animate-slide-in`}>
+    <div className={`fixed top-4 right-4 left-4 sm:left-auto ${bgColor} text-white px-4 sm:px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 z-50 animate-slide-in`}>
       <FontAwesomeIcon icon={icon} className="text-lg" />
-      <span className="font-medium">{message}</span>
+      <span className="font-medium flex-1 text-sm sm:text-base">{message}</span>
       <button onClick={onClose} className="text-white hover:text-gray-200 ml-2">
         <FontAwesomeIcon icon={faTimes} />
       </button>
@@ -91,17 +28,12 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
-const CommentsTab = ({ comments: externalComments, setComments: externalSetComments }) => {
-  // Use internal state if no external comments provided
-  const [internalComments, setInternalComments] = useState(sampleComments);
-  
-  // Use external comments if provided, otherwise use internal state
-  const comments = externalComments || internalComments;
-  const setComments = externalSetComments || setInternalComments;
-
+const CommentsTab = () => {
+  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyContent, setReplyContent] = useState('');
-  const [filter, setFilter] = useState('all'); // 'all', 'unread', 'replied'
+  const [filter, setFilter] = useState('all');
 
   // Modal states
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -113,6 +45,121 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
   // Toast state
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
+  // Helper function to create a simple placeholder image
+  const createPlaceholderImage = (text = 'No Image', width = 200, height = 200) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillRect(0, 0, width, height);
+    
+    ctx.strokeStyle = '#d1d5db';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, width, height);
+    
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, width / 2, height / 2);
+    
+    return canvas.toDataURL();
+  };
+
+  // Get image URLs from comment
+  const getImageUrls = (comment) => {
+    if (comment.reviewImages && comment.reviewImages.length > 0) {
+      return comment.reviewImages.map(img => img.url);
+    }
+    
+    if (comment.productId?.images && comment.productId.images.length > 0) {
+      return comment.productId.images;
+    }
+    
+    return [createPlaceholderImage('No Image')];
+  };
+
+  // API functions (unchanged)
+  const api = {
+    getComments: async () => {
+      const response = await fetch(API_BASE_URL);
+      if (!response.ok) throw new Error('Failed to fetch comments');
+      return response.json();
+    },
+
+    markAsRead: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/${id}/read`, {
+        method: 'PATCH',
+      });
+      if (!response.ok) throw new Error('Failed to mark as read');
+      return response.json();
+    },
+
+    markAsUnread: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/${id}/unread`, {
+        method: 'PATCH',
+      });
+      if (!response.ok) throw new Error('Failed to mark as unread');
+      return response.json();
+    },
+
+    addReply: async (id, content) => {
+      const response = await fetch(`${API_BASE_URL}/${id}/reply`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+      if (!response.ok) throw new Error('Failed to add reply');
+      return response.json();
+    },
+
+    likeComment: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/${id}/like`, {
+        method: 'PATCH',
+      });
+      if (!response.ok) throw new Error('Failed to like comment');
+      return response.json();
+    },
+
+    dislikeComment: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/${id}/dislike`, {
+        method: 'PATCH',
+      });
+      if (!response.ok) throw new Error('Failed to dislike comment');
+      return response.json();
+    },
+
+    deleteComment: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete comment');
+      return response.json();
+    },
+  };
+
+  // Fetch comments on component mount
+  useEffect(() => {
+    fetchComments();
+  }, []);
+
+  const fetchComments = async () => {
+    try {
+      setLoading(true);
+      const commentsData = await api.getComments();
+      setComments(commentsData);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      showToast('Failed to load comments', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filter comments based on status
   const filteredComments = comments.filter(comment => {
     if (filter === 'all') return true;
@@ -121,18 +168,58 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
     return true;
   });
 
-  const markAsRead = (id) => {
-    setComments(comments.map(comment => 
-      comment.id === id ? {...comment, isRead: true} : comment
-    ));
-    showToast('Comment marked as read', 'success');
+  const markAsRead = async (id) => {
+    try {
+      await api.markAsRead(id);
+      setComments(comments.map(comment => 
+        comment._id === id ? {...comment, isRead: true} : comment
+      ));
+      showToast('Comment marked as read', 'success');
+    } catch (error) {
+      console.error('Error marking as read:', error);
+      showToast('Failed to mark as read', 'error');
+    }
   };
 
-  const markAsUnread = (id) => {
-    setComments(comments.map(comment => 
-      comment.id === id ? {...comment, isRead: false} : comment
-    ));
-    showToast('Comment marked as unread', 'success');
+  const markAsUnread = async (id) => {
+    try {
+      await api.markAsUnread(id);
+      setComments(comments.map(comment => 
+        comment._id === id ? {...comment, isRead: false} : comment
+      ));
+      showToast('Comment marked as unread', 'success');
+    } catch (error) {
+      console.error('Error marking as unread:', error);
+      showToast('Failed to mark as unread', 'error');
+    }
+  };
+
+  // Like comment function
+  const likeComment = async (id) => {
+    try {
+      const result = await api.likeComment(id);
+      setComments(comments.map(comment => 
+        comment._id === id ? {...comment, likes: result.likes} : comment
+      ));
+      showToast('Comment liked', 'success');
+    } catch (error) {
+      console.error('Error liking comment:', error);
+      showToast('Failed to like comment', 'error');
+    }
+  };
+
+  // Dislike comment function
+  const dislikeComment = async (id) => {
+    try {
+      const result = await api.dislikeComment(id);
+      setComments(comments.map(comment => 
+        comment._id === id ? {...comment, dislikes: result.dislikes} : comment
+      ));
+      showToast('Comment disliked', 'success');
+    } catch (error) {
+      console.error('Error disliking comment:', error);
+      showToast('Failed to dislike comment', 'error');
+    }
   };
 
   // Open delete confirmation modal
@@ -148,38 +235,37 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
   };
 
   // Delete comment after confirmation
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (commentToDelete) {
-      setComments(comments.filter(comment => comment.id !== commentToDelete.id));
-      showToast('Comment deleted successfully', 'success');
-      closeDeleteModal();
+      try {
+        await api.deleteComment(commentToDelete._id);
+        setComments(comments.filter(comment => comment._id !== commentToDelete._id));
+        showToast('Comment deleted successfully', 'success');
+        closeDeleteModal();
+      } catch (error) {
+        console.error('Error deleting comment:', error);
+        showToast('Failed to delete comment', 'error');
+      }
     }
   };
 
-  const replyToComment = (id) => {
+  const replyToComment = async (id) => {
     if (replyContent.trim() === '') return;
     
-    // Add reply to the comment and mark as read
-    const updatedComments = comments.map(comment => {
-      if (comment.id === id) {
-        return {
-          ...comment,
-          hasReply: true,
-          isRead: true,
-          reply: {
-            content: replyContent,
-            date: new Date().toISOString(),
-            author: 'Admin'
-          }
-        };
-      }
-      return comment;
-    });
-    
-    setComments(updatedComments);
-    setReplyingTo(null);
-    setReplyContent('');
-    showToast('Reply sent successfully', 'success');
+    try {
+      const updatedComment = await api.addReply(id, replyContent);
+      
+      setComments(comments.map(comment => 
+        comment._id === id ? updatedComment : comment
+      ));
+      
+      setReplyingTo(null);
+      setReplyContent('');
+      showToast('Reply sent successfully', 'success');
+    } catch (error) {
+      console.error('Error replying to comment:', error);
+      showToast('Failed to send reply', 'error');
+    }
   };
 
   // Show toast notification
@@ -198,36 +284,33 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 !== 0;
     
-    // Full stars
     for (let i = 0; i < fullStars; i++) {
       stars.push(
         <FontAwesomeIcon
           key={`full-${i}`}
           icon={faStar}
-          className="text-yellow-400 text-sm"
+          className="text-yellow-400 text-xs sm:text-sm"
         />
       );
     }
     
-    // Half star
     if (hasHalfStar) {
       stars.push(
         <FontAwesomeIcon
           key="half"
           icon={faStarHalfAlt}
-          className="text-yellow-400 text-sm"
+          className="text-yellow-400 text-xs sm:text-sm"
         />
       );
     }
     
-    // Empty stars
     const emptyStars = 5 - stars.length;
     for (let i = 0; i < emptyStars; i++) {
       stars.push(
         <FontAwesomeIcon
           key={`empty-${i}`}
           icon={faStar}
-          className="text-gray-300 text-sm"
+          className="text-gray-300 text-xs sm:text-sm"
         />
       );
     }
@@ -236,8 +319,9 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
   };
 
   // Open modal with images
-  const openImageModal = (images, index = 0) => {
-    setCurrentImages(images);
+  const openImageModal = (comment, index = 0) => {
+    const imageUrls = getImageUrls(comment);
+    setCurrentImages(imageUrls);
     setCurrentImageIndex(index);
     setIsImageModalOpen(true);
   };
@@ -263,6 +347,12 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
     );
   };
 
+  // Handle image error - fallback to placeholder
+  const handleImageError = (e, fallbackText = 'Image') => {
+    e.target.src = createPlaceholderImage(fallbackText);
+    e.target.onerror = null;
+  };
+
   // Handle keyboard navigation
   React.useEffect(() => {
     const handleKeyDown = (e) => {
@@ -284,67 +374,64 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isImageModalOpen, isDeleteModalOpen, currentImages.length]);
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg text-gray-600">Loading comments...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Filter Controls */}
-      <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-2">
-          <button
-            className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
-              filter === 'all' 
-                ? 'bg-black text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-            onClick={() => setFilter('all')}
-          >
-            All Comments
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
-              filter === 'unread' 
-                ? 'bg-black text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-            onClick={() => setFilter('unread')}
-          >
-            Unread
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
-              filter === 'replied' 
-                ? 'bg-black text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-            onClick={() => setFilter('replied')}
-          >
-            Replied
-          </button>
-        </div>
-        
-        <div className="text-sm text-gray-500">
-          Showing {filteredComments.length} comments
-        </div>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Tabs - Updated to match desired style */}
+      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
+        <button
+          className={`flex-shrink-0 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
+            filter === 'all' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
+          }`}
+          onClick={() => setFilter('all')}
+        >
+          All Comments ({comments.length})
+        </button>
+        <button
+          className={`flex-shrink-0 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
+            filter === 'unread' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
+          }`}
+          onClick={() => setFilter('unread')}
+        >
+          Unread ({comments.filter(comment => !comment.isRead).length})
+        </button>
+        <button
+          className={`flex-shrink-0 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
+            filter === 'replied' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
+          }`}
+          onClick={() => setFilter('replied')}
+        >
+          Replied ({comments.filter(comment => comment.hasReply).length})
+        </button>
       </div>
 
-      {/* Comments Table */}
+      {/* Comments List - Mobile Cards / Desktop Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Product
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Customer
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Comment & Reply
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -352,243 +439,470 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredComments.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center">
+                  <td colSpan="5" className="px-4 sm:px-6 py-12 text-center">
                     <div className="text-gray-400 mb-2">
-                      <FontAwesomeIcon icon={faEnvelope} className="text-4xl" />
+                      <FontAwesomeIcon icon={faEnvelope} className="text-3xl sm:text-4xl" />
                     </div>
-                    <p className="text-gray-500 text-lg">No comments found</p>
+                    <p className="text-gray-500 text-base sm:text-lg">No comments found</p>
                   </td>
                 </tr>
               ) : (
-                filteredComments.map(comment => (
-                  <React.Fragment key={comment.id}>
-                    <tr className={!comment.isRead ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}>
-                      <td className="px-6 py-4">
-                        <div className="flex items-start space-x-3">
-                          {/* Multiple Product Images */}
-                          <div className="flex flex-col space-y-1">
-                            <div className="flex space-x-1">
-                              {comment.productImages.slice(0, 2).map((image, index) => (
-                                <img 
-                                  key={index}
-                                  src={image} 
-                                  alt={`${comment.productName} ${index + 1}`}
-                                  className="w-10 h-10 rounded-lg object-cover border cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => openImageModal(comment.productImages, index)}
-                                  onError={(e) => {
-                                    e.target.src = 'https://via.placeholder.com/40x40?text=Image';
-                                  }}
-                                />
-                              ))}
-                            </div>
-                            {comment.productImages.length > 2 && (
+                filteredComments.map(comment => {
+                  const imageUrls = getImageUrls(comment);
+                  const productName = comment.productName || comment.productId?.name || 'Unknown Product';
+                  const productPrice = comment.productPrice || comment.productId?.price || 'N/A';
+                  
+                  return (
+                    <React.Fragment key={comment._id}>
+                      <tr className={!comment.isRead ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}>
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="flex flex-col space-y-1">
                               <div className="flex space-x-1">
-                                {comment.productImages.slice(2, 4).map((image, index) => (
+                                {imageUrls.slice(0, 2).map((imageUrl, index) => (
                                   <img 
-                                    key={index + 2}
-                                    src={image} 
-                                    alt={`${comment.productName} ${index + 3}`}
-                                    className="w-10 h-10 rounded-lg object-cover border cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => openImageModal(comment.productImages, index + 2)}
-                                    onError={(e) => {
-                                      e.target.src = 'https://via.placeholder.com/40x40?text=Image';
-                                    }}
+                                    key={index}
+                                    src={imageUrl} 
+                                    alt={`${productName} ${index + 1}`}
+                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover border cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => openImageModal(comment, index)}
+                                    onError={(e) => handleImageError(e, 'Image')}
                                   />
                                 ))}
-                                {comment.productImages.length > 4 && (
-                                  <div 
-                                    className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-500 border cursor-pointer hover:bg-gray-200 transition-colors"
-                                    onClick={() => openImageModal(comment.productImages, 4)}
-                                  >
-                                    +{comment.productImages.length - 4}
-                                  </div>
-                                )}
                               </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {comment.productName}
+                              {imageUrls.length > 2 && (
+                                <div className="flex space-x-1">
+                                  {imageUrls.slice(2, 4).map((imageUrl, index) => (
+                                    <img 
+                                      key={index + 2}
+                                      src={imageUrl} 
+                                      alt={`${productName} ${index + 3}`}
+                                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover border cursor-pointer hover:opacity-80 transition-opacity"
+                                      onClick={() => openImageModal(comment, index + 2)}
+                                      onError={(e) => handleImageError(e, 'Image')}
+                                    />
+                                  ))}
+                                  {imageUrls.length > 4 && (
+                                    <div 
+                                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-500 border cursor-pointer hover:bg-gray-200 transition-colors"
+                                      onClick={() => openImageModal(comment, 4)}
+                                    >
+                                      <FontAwesomeIcon icon={faImage} className="text-gray-400 text-xs" />
+                                      <span className="ml-1">+{imageUrls.length - 4}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            <div className="text-xs text-gray-500 capitalize mb-1">
-                              {comment.type} • ${comment.productPrice}
-                            </div>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                comment.isRead 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                <FontAwesomeIcon 
-                                  icon={comment.isRead ? faEnvelopeOpen : faEnvelope} 
-                                  className="mr-1 text-xs" 
-                                />
-                                {comment.isRead ? 'Read' : 'Unread'}
-                              </span>
-                              {comment.hasReply && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                  <FontAwesomeIcon icon={faReply} className="mr-1 text-xs" />
-                                  Replied
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-semibold text-gray-900 line-clamp-2">
+                                {productName}
+                              </div>
+                              <div className="text-xs text-gray-500 capitalize mb-1">
+                                {comment.targetType} • ${productPrice}
+                              </div>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  comment.isRead 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  <FontAwesomeIcon 
+                                    icon={comment.isRead ? faEnvelopeOpen : faEnvelope} 
+                                    className="mr-1 text-xs" 
+                                  />
+                                  {comment.isRead ? 'Read' : 'Unread'}
                                 </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{comment.author}</div>
-                        <div className="text-sm text-gray-500">{comment.email}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="space-y-3">
-                          {/* Customer Comment */}
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="text-xs text-gray-500">Customer Comment:</div>
-                              {/* Comment Rating */}
-                              {comment.rating && (
-                                <div className="flex items-center space-x-2 bg-yellow-50 px-2 py-1 rounded border border-yellow-200">
-                                  <div className="flex items-center space-x-1">
-                                    {renderStarRating(comment.rating)}
-                                  </div>
-                                  <span className="text-xs font-medium text-gray-700">
-                                    {comment.rating}
+                                {comment.hasReply && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    <FontAwesomeIcon icon={faReply} className="mr-1 text-xs" />
+                                    Replied
                                   </span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg border">
-                              {comment.content}
-                            </div>
-                          </div>
-                          
-                          {/* Admin Reply */}
-                          {comment.hasReply && comment.reply && (
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">Your Reply:</div>
-                              <div className="text-sm bg-green-50 border border-green-200 p-3 rounded-lg">
-                                <div className="text-green-800">{comment.reply.content}</div>
-                                <div className="text-xs text-green-600 mt-1 flex justify-between">
-                                  <span>Replied on {new Date(comment.reply.date).toLocaleDateString()}</span>
-                                  <span className="font-medium">By {comment.reply.author}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {new Date(comment.date).toLocaleDateString()}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {new Date(comment.date).toLocaleTimeString()}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-col space-y-2">
-                          {!comment.isRead ? (
-                            <button 
-                              className="flex items-center justify-center w-full px-3 py-2 text-sm text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-                              onClick={() => markAsRead(comment.id)}
-                              title="Mark as Read"
-                            >
-                              <FontAwesomeIcon icon={faEye} className="mr-2" />
-                              Mark Read
-                            </button>
-                          ) : (
-                            <button 
-                              className="flex items-center justify-center w-full px-3 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                              onClick={() => markAsUnread(comment.id)}
-                              title="Mark as Unread"
-                            >
-                              <FontAwesomeIcon icon={faEnvelope} className="mr-2" />
-                              Mark Unread
-                            </button>
-                          )}
-                          
-                          {!comment.hasReply && (
-                            <button 
-                              className="flex items-center justify-center w-full px-3 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                              onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                              title="Reply to Comment"
-                            >
-                              <FontAwesomeIcon icon={faReply} className="mr-2" />
-                              Reply
-                            </button>
-                          )}
-                          
-                          <button 
-                            className="flex items-center justify-center w-full px-3 py-2 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                            onClick={() => openDeleteModal(comment)}
-                            title="Delete Comment"
-                          >
-                            <FontAwesomeIcon icon={faTrash} className="mr-2" />
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    
-                    {/* Reply Editor */}
-                    {replyingTo === comment.id && (
-                      <tr className="bg-blue-25">
-                        <td colSpan="5" className="px-6 py-4 border-t border-blue-200">
-                          <div className="max-w-4xl mx-auto">
-                            <label className="block text-sm font-semibold text-gray-700 mb-3">
-                              Reply to <span className="text-blue-600">{comment.author}</span>'s comment about 
-                              <span className="text-blue-600"> {comment.productName}</span>:
-                            </label>
-                            <div className="flex flex-col space-y-3">
-                              <textarea
-                                placeholder="Type your professional reply here..."
-                                rows="4"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm"
-                                value={replyContent}
-                                onChange={(e) => setReplyContent(e.target.value)}
-                                autoFocus
-                              />
-                              <div className="flex gap-3 justify-end">
-                                <button
-                                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors"
-                                  onClick={() => {
-                                    setReplyingTo(null);
-                                    setReplyContent('');
-                                  }}
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:bg-blue-300"
-                                  onClick={() => replyToComment(comment.id)}
-                                  disabled={!replyContent.trim()}
-                                >
-                                  Send Reply
-                                </button>
+                                )}
                               </div>
                             </div>
                           </div>
                         </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="text-sm font-medium text-gray-900">{comment.author}</div>
+                          <div className="text-sm text-gray-500">{comment.email}</div>
+                          <div className="flex items-center space-x-3 mt-2">
+                            <button 
+                              onClick={() => likeComment(comment._id)}
+                              className="flex items-center space-x-1 text-xs text-gray-600 hover:text-green-600 transition-colors"
+                            >
+                              <FontAwesomeIcon icon={faThumbsUp} />
+                              <span>{comment.likes || 0}</span>
+                            </button>
+                            <button 
+                              onClick={() => dislikeComment(comment._id)}
+                              className="flex items-center space-x-1 text-xs text-gray-600 hover:text-red-600 transition-colors"
+                            >
+                              <FontAwesomeIcon icon={faThumbsDown} />
+                              <span>{comment.dislikes || 0}</span>
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="space-y-3">
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="text-xs text-gray-500">Customer Comment:</div>
+                                {comment.rating > 0 && (
+                                  <div className="flex items-center space-x-2 bg-yellow-50 px-2 py-1 rounded border border-yellow-200">
+                                    <div className="flex items-center space-x-1">
+                                      {renderStarRating(comment.rating)}
+                                    </div>
+                                    <span className="text-xs font-medium text-gray-700">
+                                      {comment.rating}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg border">
+                                {comment.content}
+                              </div>
+                            </div>
+                            
+                            {comment.hasReply && comment.reply && (
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Your Reply:</div>
+                                <div className="text-sm bg-green-50 border border-green-200 p-3 rounded-lg">
+                                  <div className="text-green-800">{comment.reply.content}</div>
+                                  <div className="text-xs text-green-600 mt-1 flex justify-between">
+                                    <span>Replied on {new Date(comment.reply.date).toLocaleDateString()}</span>
+                                    <span className="font-medium">By {comment.reply.author}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {new Date(comment.date).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {new Date(comment.date).toLocaleTimeString()}
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col space-y-2">
+                            {!comment.isRead ? (
+                              <button 
+                                className="flex items-center justify-center w-full px-2 sm:px-3 py-2 text-xs sm:text-sm text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                                onClick={() => markAsRead(comment._id)}
+                                title="Mark as Read"
+                              >
+                                <FontAwesomeIcon icon={faEye} className="mr-1 sm:mr-2 text-xs" />
+                                <span className="hidden sm:inline">Mark Read</span>
+                                <span className="sm:hidden">Read</span>
+                              </button>
+                            ) : (
+                              <button 
+                                className="flex items-center justify-center w-full px-2 sm:px-3 py-2 text-xs sm:text-sm text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                                onClick={() => markAsUnread(comment._id)}
+                                title="Mark as Unread"
+                              >
+                                <FontAwesomeIcon icon={faEnvelope} className="mr-1 sm:mr-2 text-xs" />
+                                <span className="hidden sm:inline">Mark Unread</span>
+                                <span className="sm:hidden">Unread</span>
+                              </button>
+                            )}
+                            
+                            {!comment.hasReply && (
+                              <button 
+                                className="flex items-center justify-center w-full px-2 sm:px-3 py-2 text-xs sm:text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
+                                title="Reply to Comment"
+                              >
+                                <FontAwesomeIcon icon={faReply} className="mr-1 sm:mr-2 text-xs" />
+                                <span className="hidden sm:inline">Reply</span>
+                                <span className="sm:hidden">Reply</span>
+                              </button>
+                            )}
+                            
+                            <button 
+                              className="flex items-center justify-center w-full px-2 sm:px-3 py-2 text-xs sm:text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                              onClick={() => openDeleteModal(comment)}
+                              title="Delete Comment"
+                            >
+                              <FontAwesomeIcon icon={faTrash} className="mr-1 sm:mr-2 text-xs" />
+                              <span className="hidden sm:inline">Delete</span>
+                              <span className="sm:hidden">Delete</span>
+                            </button>
+                          </div>
+                        </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                ))
+                      
+                      {/* Reply Editor */}
+                      {replyingTo === comment._id && (
+                        <tr className="bg-blue-25">
+                          <td colSpan="5" className="px-4 sm:px-6 py-4 border-t border-blue-200">
+                            <div className="max-w-4xl mx-auto">
+                              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                Reply to <span className="text-blue-600">{comment.author}</span>'s comment about 
+                                <span className="text-blue-600"> {productName}</span>:
+                              </label>
+                              <div className="flex flex-col space-y-3">
+                                <textarea
+                                  placeholder="Type your professional reply here..."
+                                  rows="4"
+                                  className="w-full px-3 sm:px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm text-sm sm:text-base"
+                                  value={replyContent}
+                                  onChange={(e) => setReplyContent(e.target.value)}
+                                  autoFocus
+                                />
+                                <div className="flex gap-2 sm:gap-3 justify-end">
+                                  <button
+                                    className="px-4 sm:px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors text-sm"
+                                    onClick={() => {
+                                      setReplyingTo(null);
+                                      setReplyContent('');
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    className="px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:bg-blue-300 text-sm"
+                                    onClick={() => replyToComment(comment._id)}
+                                    disabled={!replyContent.trim()}
+                                  >
+                                    Send Reply
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Card View */}
+        <div className="lg:hidden">
+          {filteredComments.length === 0 ? (
+            <div className="px-4 py-12 text-center">
+              <div className="text-gray-400 mb-2">
+                <FontAwesomeIcon icon={faEnvelope} className="text-3xl" />
+              </div>
+              <p className="text-gray-500 text-base">No comments found</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {filteredComments.map(comment => {
+                const imageUrls = getImageUrls(comment);
+                const productName = comment.productName || comment.productId?.name || 'Unknown Product';
+                const productPrice = comment.productPrice || comment.productId?.price || 'N/A';
+                
+                return (
+                  <div key={comment._id} className={`p-4 ${!comment.isRead ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}>
+                    {/* Header */}
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center space-x-2">
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                          comment.isRead 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          <FontAwesomeIcon 
+                            icon={comment.isRead ? faEnvelopeOpen : faEnvelope} 
+                            className="mr-1" 
+                          />
+                          {comment.isRead ? 'Read' : 'Unread'}
+                        </span>
+                        {comment.hasReply && (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            <FontAwesomeIcon icon={faReply} className="mr-1" />
+                            Replied
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 text-right">
+                        <div>{new Date(comment.date).toLocaleDateString()}</div>
+                        <div>{new Date(comment.date).toLocaleTimeString()}</div>
+                      </div>
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="flex items-start space-x-3 mb-3">
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex space-x-1">
+                          {imageUrls.slice(0, 2).map((imageUrl, index) => (
+                            <img 
+                              key={index}
+                              src={imageUrl} 
+                              alt={`${productName} ${index + 1}`}
+                              className="w-10 h-10 rounded-lg object-cover border cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => openImageModal(comment, index)}
+                              onError={(e) => handleImageError(e, 'Image')}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-gray-900 mb-1">
+                          {productName}
+                        </div>
+                        <div className="text-xs text-gray-500 capitalize">
+                          {comment.targetType} • ${productPrice}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Customer Info */}
+                    <div className="mb-3">
+                      <div className="text-sm font-medium text-gray-900">{comment.author}</div>
+                      <div className="text-sm text-gray-500">{comment.email}</div>
+                    </div>
+
+                    {/* Rating */}
+                    {comment.rating > 0 && (
+                      <div className="flex items-center justify-between mb-3 p-2 bg-yellow-50 rounded border border-yellow-200">
+                        <div className="flex items-center space-x-1">
+                          {renderStarRating(comment.rating)}
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">
+                          {comment.rating}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Comment Content */}
+                    <div className="mb-3">
+                      <div className="text-xs text-gray-500 mb-1">Customer Comment:</div>
+                      <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg border">
+                        {comment.content}
+                      </div>
+                    </div>
+
+                    {/* Admin Reply */}
+                    {comment.hasReply && comment.reply && (
+                      <div className="mb-3">
+                        <div className="text-xs text-gray-500 mb-1">Your Reply:</div>
+                        <div className="text-sm bg-green-50 border border-green-200 p-3 rounded-lg">
+                          <div className="text-green-800">{comment.reply.content}</div>
+                          <div className="text-xs text-green-600 mt-1">
+                            Replied on {new Date(comment.reply.date).toLocaleDateString()} by {comment.reply.author}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Like/Dislike */}
+                    <div className="flex items-center space-x-4 mb-3">
+                      <button 
+                        onClick={() => likeComment(comment._id)}
+                        className="flex items-center space-x-1 text-sm text-gray-600 hover:text-green-600 transition-colors"
+                      >
+                        <FontAwesomeIcon icon={faThumbsUp} />
+                        <span>{comment.likes || 0}</span>
+                      </button>
+                      <button 
+                        onClick={() => dislikeComment(comment._id)}
+                        className="flex items-center space-x-1 text-sm text-gray-600 hover:text-red-600 transition-colors"
+                      >
+                        <FontAwesomeIcon icon={faThumbsDown} />
+                        <span>{comment.dislikes || 0}</span>
+                      </button>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex space-x-2">
+                      {!comment.isRead ? (
+                        <button 
+                          className="flex-1 flex items-center justify-center px-3 py-2 text-xs text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                          onClick={() => markAsRead(comment._id)}
+                        >
+                          <FontAwesomeIcon icon={faEye} className="mr-1" />
+                          Mark Read
+                        </button>
+                      ) : (
+                        <button 
+                          className="flex-1 flex items-center justify-center px-3 py-2 text-xs text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                          onClick={() => markAsUnread(comment._id)}
+                        >
+                          <FontAwesomeIcon icon={faEnvelope} className="mr-1" />
+                          Mark Unread
+                        </button>
+                      )}
+                      
+                      {!comment.hasReply && (
+                        <button 
+                          className="flex-1 flex items-center justify-center px-3 py-2 text-xs text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                          onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
+                        >
+                          <FontAwesomeIcon icon={faReply} className="mr-1" />
+                          Reply
+                        </button>
+                      )}
+                      
+                      <button 
+                        className="flex-1 flex items-center justify-center px-3 py-2 text-xs text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                        onClick={() => openDeleteModal(comment)}
+                      >
+                        <FontAwesomeIcon icon={faTrash} className="mr-1" />
+                        Delete
+                      </button>
+                    </div>
+
+                    {/* Reply Editor for Mobile */}
+                    {replyingTo === comment._id && (
+                      <div className="mt-4 p-3 bg-blue-25 rounded-lg border border-blue-200">
+                        <label className="block text-xs font-semibold text-gray-700 mb-2">
+                          Reply to {comment.author}:
+                        </label>
+                        <textarea
+                          placeholder="Type your reply here..."
+                          rows="3"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
+                          value={replyContent}
+                          onChange={(e) => setReplyContent(e.target.value)}
+                          autoFocus
+                        />
+                        <div className="flex gap-2 justify-end mt-2">
+                          <button
+                            className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-xs hover:bg-gray-400 transition-colors"
+                            onClick={() => {
+                              setReplyingTo(null);
+                              setReplyContent('');
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+                            onClick={() => replyToComment(comment._id)}
+                            disabled={!replyContent.trim()}
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Image Modal */}
+      {/* Image Modal - Responsive */}
       {isImageModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="relative max-w-4xl max-h-full w-full">
             {/* Close Button */}
             <button
               onClick={closeImageModal}
-              className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-2"
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-2"
             >
-              <FontAwesomeIcon icon={faTimes} className="text-xl" />
+              <FontAwesomeIcon icon={faTimes} className="text-lg sm:text-xl" />
             </button>
 
             {/* Navigation Buttons */}
@@ -596,15 +910,15 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
               <>
                 <button
                   onClick={prevImage}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-3"
+                  className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-2 sm:p-3"
                 >
-                  <FontAwesomeIcon icon={faChevronLeft} className="text-xl" />
+                  <FontAwesomeIcon icon={faChevronLeft} className="text-lg sm:text-xl" />
                 </button>
                 <button
                   onClick={nextImage}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-3"
+                  className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-2 sm:p-3"
                 >
-                  <FontAwesomeIcon icon={faChevronRight} className="text-xl" />
+                  <FontAwesomeIcon icon={faChevronRight} className="text-lg sm:text-xl" />
                 </button>
               </>
             )}
@@ -614,35 +928,31 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
               <img
                 src={currentImages[currentImageIndex]}
                 alt={`Product image ${currentImageIndex + 1}`}
-                className="max-w-full max-h-[80vh] object-contain rounded-lg"
-                onError={(e) => {
-                  e.target.src = 'https://via.placeholder.com/800x600?text=Image+Not+Found';
-                }}
+                className="max-w-full max-h-[70vh] sm:max-h-[80vh] object-contain rounded-lg"
+                onError={(e) => handleImageError(e, 'Large Image')}
               />
             </div>
 
             {/* Image Counter */}
             {currentImages.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-3 py-1 rounded-full text-sm">
+              <div className="absolute bottom-2 sm:bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-3 py-1 rounded-full text-xs sm:text-sm">
                 {currentImageIndex + 1} / {currentImages.length}
               </div>
             )}
 
             {/* Thumbnail Strip */}
             {currentImages.length > 1 && (
-              <div className="absolute bottom-4 left-4 right-4 flex justify-center space-x-2">
+              <div className="absolute bottom-2 sm:bottom-4 left-2 right-2 flex justify-center space-x-1 sm:space-x-2 overflow-x-auto py-1">
                 {currentImages.map((image, index) => (
                   <img
                     key={index}
                     src={image}
                     alt={`Thumbnail ${index + 1}`}
-                    className={`w-12 h-12 object-cover rounded cursor-pointer border-2 ${
+                    className={`w-8 h-8 sm:w-12 sm:h-12 object-cover rounded cursor-pointer border-2 flex-shrink-0 ${
                       index === currentImageIndex ? 'border-white' : 'border-transparent'
                     } hover:border-gray-300 transition-all`}
                     onClick={() => setCurrentImageIndex(index)}
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/48x48?text=Image';
-                    }}
+                    onError={(e) => handleImageError(e, 'Thumb')}
                   />
                 ))}
               </div>
@@ -651,31 +961,31 @@ const CommentsTab = ({ comments: externalComments, setComments: externalSetComme
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal - Responsive */}
       {isDeleteModalOpen && commentToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-lg max-w-md w-full mx-4 p-4 sm:p-6">
             <div className="flex items-center space-x-3 mb-4">
               <div className="p-2 bg-red-100 rounded-full">
-                <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-600 text-xl" />
+                <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-600 text-lg sm:text-xl" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Delete Comment</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900">Delete Comment</h3>
             </div>
             
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete the comment from <strong>{commentToDelete.author}</strong> about <strong>{commentToDelete.productName}</strong>? This action cannot be undone.
+            <p className="text-gray-600 mb-6 text-sm sm:text-base">
+              Are you sure you want to delete the comment from <strong>{commentToDelete.author}</strong> about <strong>{commentToDelete.productName || commentToDelete.productId?.name}</strong>? This action cannot be undone.
             </p>
 
-            <div className="flex space-x-3 justify-end">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-end">
               <button
                 onClick={closeDeleteModal}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base order-2 sm:order-1"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2"
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2 justify-center text-sm sm:text-base order-1 sm:order-2"
               >
                 <FontAwesomeIcon icon={faTrash} />
                 <span>Delete Comment</span>

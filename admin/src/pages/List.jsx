@@ -264,7 +264,7 @@ const updateProductStatus = async (id, status) => {
                   onClick={() => setActiveTab('products')}
                   className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
                     activeTab === 'products'
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-black text-black'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -280,7 +280,7 @@ const updateProductStatus = async (id, status) => {
                   onClick={() => setActiveTab('deals')}
                   className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
                     activeTab === 'deals'
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-black text-black'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -751,14 +751,14 @@ const StatusDropdown = ({ currentStatus, onStatusChange }) => {
     { value: 'draft', label: 'Draft', color: 'text-gray-600' },
     { value: 'published', label: 'Published', color: 'text-green-600' },
     { value: 'archived', label: 'Archived', color: 'text-yellow-600' },
-    { value: 'scheduled', label: 'Scheduled', color: 'text-blue-600' }
+    { value: 'scheduled', label: 'Scheduled', color: 'text-black' }
   ]
 
   return (
     <select
       value={currentStatus}
       onChange={(e) => onStatusChange(e.target.value)}
-      className="text-xs border border-gray-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+      className="text-xs border border-gray-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-colors duration-200"
     >
       {statusOptions.map((option) => (
         <option key={option.value} value={option.value} className={option.color}>
@@ -774,7 +774,7 @@ const ActionButton = ({ onClick, variant, icon, label, size = 'md', fullWidth = 
   const baseClasses = "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2"
   
   const variants = {
-    primary: "bg-blue-500 text-white hover:bg-blue-600 focus:ring-blue-500",
+    primary: "bg-black text-white hover:bg-black focus:ring-black",
     secondary: "bg-green-500 text-white hover:bg-green-600 focus:ring-green-500",
     danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-red-500",
     ghost: "bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500"
@@ -818,7 +818,7 @@ const EmptyState = ({ type }) => (
       </div>
       <h3 className="text-lg font-semibold text-gray-900 mb-2">No {type} found</h3>
       <p className="text-gray-500 mb-6">Get started by creating your first {type.slice(0, -1)}</p>
-      <button className="bg-blue-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200">
+      <button className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-black transition-colors duration-200">
         Create {type.slice(0, -1)}
       </button>
     </div>
