@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck, faTrash, faPlus, faChevronLeft, faChevronRight, faEdit, faTimes, faGlobe, faEnvelope, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faTrash, faPlus, faEdit, faTimes, faGlobe, faEnvelope, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { faFacebook, faInstagram, faTiktok, faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
+import { FaStar } from 'react-icons/fa'; 
+
 
 const API_BASE_URL = 'http://localhost:4000/api';
 
@@ -15,11 +18,11 @@ const TestimonialsTab = () => {
     rating: 5, 
     platform: 'website' 
   });
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [editingTestimonial, setEditingTestimonial] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', content: '', rating: 5, platform: 'website' });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, testimonial: null });
   const [loading, setLoading] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   // Platform options with React Icons and colors
   const platformOptions = [
@@ -252,34 +255,17 @@ const TestimonialsTab = () => {
     setCurrentSlide(index);
   };
 
-  // Get platform details
-  const getPlatformDetails = (platformValue) => {
-    return platformOptions.find(p => p.value === platformValue) || platformOptions[0];
-  };
-
-  // Star rating component
-  const StarRating = ({ rating, size = 'lg' }) => {
-    const sizeClasses = {
-      sm: 'text-sm',
-      md: 'text-md',
-      lg: 'text-lg',
-      xl: 'text-xl'
+  // Get platform label for display
+  const getPlatformLabel = (platform) => {
+    const labels = {
+      website: 'Website',
+      email: 'Email',
+      facebook: 'Facebook',
+      instagram: 'Instagram',
+      tiktok: 'TikTok',
+      whatsapp: 'WhatsApp'
     };
-
-    return (
-      <div className="flex justify-center mb-3">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <span
-            key={star}
-            className={`${sizeClasses[size]} ${
-              star <= rating ? 'text-yellow-400' : 'text-gray-300'
-            }`}
-          >
-            ★
-          </span>
-        ))}
-      </div>
-    );
+    return labels[platform] || 'Website';
   };
 
   return (
@@ -388,7 +374,7 @@ const TestimonialsTab = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {testimonials.map(testimonial => {
-                const platform = getPlatformDetails(testimonial.platform);
+                const platform = platformOptions.find(p => p.value === testimonial.platform) || platformOptions[0];
                 return (
                   <tr key={testimonial._id} className="hover:bg-gray-50 transition-colors duration-150">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{testimonial.name}</td>
@@ -450,7 +436,7 @@ const TestimonialsTab = () => {
         </div>
       </div>
 
-      {/* Preview Section - At Bottom */}
+      {/* Preview Section - Custom Slider */}
       <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -465,103 +451,68 @@ const TestimonialsTab = () => {
         </div>
         
         {approvedTestimonials.length > 0 ? (
-          <div className="max-w-6xl mx-auto">
-            {/* Slider Container */}
-            <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8">
-              {/* Testimonial Cards */}
-              <div className="relative overflow-hidden rounded-xl">
-                <div 
-                  className="flex transition-transform duration-500 ease-in-out"
-                  style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          <div className="relative my-10 px-4 md:px-20 lg:px-40">
+            
+            {/* Navigation Buttons */}
+            {approvedTestimonials.length > 1 && (
+              <>
+                <button 
+                  className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gray-200 p-3 shadow-md transition duration-300 hover:bg-black"
+                  onClick={prevSlide}
                 >
-                  {approvedTestimonials.map((testimonial, index) => {
-                    const platform = getPlatformDetails(testimonial.platform);
-                    return (
-                      <div 
-                        key={testimonial._id}
-                        className="w-full flex-shrink-0 px-4"
-                      >
-                        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 relative group">
-                          {/* Edit/Delete Buttons for Preview */}
-                          <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <button 
-                              className="bg-black text-white p-2 rounded-lg hover:bg-gray-800 transition-colors duration-200 shadow-md"
-                              onClick={() => startEditing(testimonial)}
-                              title="Edit"
-                              disabled={loading}
-                            >
-                              <FontAwesomeIcon icon={faEdit} className="text-sm" />
-                            </button>
-                            <button 
-                              className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition-colors duration-200 shadow-md"
-                              onClick={() => openDeleteModal(testimonial)}
-                              title="Delete"
-                              disabled={loading}
-                            >
-                              <FontAwesomeIcon icon={faTrash} className="text-sm" />
-                            </button>
-                          </div>
+                  <IoIosArrowBack size={24} className="text-gray-700 hover:text-white" />
+                </button>
 
-                          {/* Platform Badge */}
-                          <div className="absolute top-4 left-4">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${platform.color} border border-white shadow-sm`}>
-                              <span className="mr-1.5 w-3 text-center">{platform.icon}</span>
-                              {platform.label}
-                            </span>
-                          </div>
+                <button 
+                  className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full bg-gray-200 p-3 shadow-md transition duration-300 hover:bg-black"
+                  onClick={nextSlide}
+                >
+                  <IoIosArrowForward size={24} className="text-gray-700 hover:text-white" />
+                </button>
+              </>
+            )}
 
-                          <StarRating rating={testimonial.rating} size="xl" />
-                          
-                          <blockquote className="text-gray-700 text-lg leading-relaxed mb-6 text-center font-light mt-4">
-                            "{testimonial.content}"
-                          </blockquote>
-                          
-                          <div className="text-center">
-                            <div className="text-gray-900 font-semibold text-lg mb-1">— {testimonial.name}</div>
-                            <div className="w-12 h-1 bg-gradient-to-r from-black to-gray-600 rounded-full mx-auto"></div>
-                          </div>
+            {/* Slider Container */}
+            <div className="relative overflow-hidden">
+              <div className="flex transition-transform duration-500 ease-in-out">
+                {approvedTestimonials.map((testimonial, index) => (
+                  <div
+                    key={testimonial._id}
+                    className="w-full flex-shrink-0 px-4"
+                    style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+                  >
+                    <div className="flex items-center justify-center">
+                      <div className="max-w-3xl rounded-lg bg-white p-8 text-center transition duration-300 hover:scale-105">
+                        <p className="text-xl font-semibold text-gray-700">"{testimonial.content}"</p>
+                        <p className="mt-4 text-sm font-medium text-gray-600">- {testimonial.name}, via {getPlatformLabel(testimonial.platform)}</p>
+                        <div className="mt-2 flex justify-center">
+                          {[...Array(testimonial.rating)].map((_, i) => (
+                            <FaStar key={i} className="size-5 text-yellow-500" />
+                          ))}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-
-                {/* Navigation Arrows */}
-                {approvedTestimonials.length > 1 && (
-                  <>
-                    <button
-                      onClick={prevSlide}
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border border-gray-200"
-                    >
-                      <FontAwesomeIcon icon={faChevronLeft} />
-                    </button>
-                    <button
-                      onClick={nextSlide}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border border-gray-200"
-                    >
-                      <FontAwesomeIcon icon={faChevronRight} />
-                    </button>
-                  </>
-                )}
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              {/* Dots Indicator */}
-              {approvedTestimonials.length > 1 && (
-                <div className="flex justify-center mt-8 space-x-3">
-                  {approvedTestimonials.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => goToSlide(index)}
-                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                        index === currentSlide 
-                          ? 'bg-black transform scale-125' 
-                          : 'bg-gray-300 hover:bg-gray-400'
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
+
+            {/* Dots Indicator */}
+            {approvedTestimonials.length > 1 && (
+              <div className="flex justify-center mt-8 space-x-3">
+                {approvedTestimonials.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => goToSlide(index)}
+                    className={`size-3 rounded-full transition-all duration-300 ${
+                      index === currentSlide 
+                        ? 'bg-black transform scale-125' 
+                        : 'bg-gray-300 hover:bg-gray-400'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">

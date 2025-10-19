@@ -2,10 +2,41 @@ import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
-import { bannerSlides } from "../assets/assets"; 
 import { Link } from 'react-router-dom'; 
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const Hero = () => {
+  const [banners, setBanners] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // API base URL - update this to match your backend URL
+  const API_BASE_URL =  'http://localhost:4000/api';
+
+  // Fetch banners from backend
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API_BASE_URL}/banners/active`);
+        
+        if (response.data.success) {
+          setBanners(response.data.data);
+        } else {
+          setError('Failed to fetch banners');
+        }
+      } catch (err) {
+        setError('Error loading banners. Please try again later.');
+        console.error('Error fetching banners:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBanners();
+  }, []);
+
   // Custom Arrow Components
   const NextArrow = ({ onClick }) => (
     <button
@@ -41,15 +72,91 @@ const Hero = () => {
     prevArrow: <PrevArrow />,
   };
 
+  // Loading state - matches original design
+  if (loading) {
+    return (
+      <div className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl">
+        <div 
+          className="relative flex h-[350px] items-center rounded-2xl md:h-[550px] bg-gray-200"
+          style={{
+                     backgroundSize: "cover",
+                backgroundPosition: "center",
+            borderRadius: "16px",
+          }}
+        >
+          {/* Overlay */}
+          <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-40"></div>
+
+          {/* Content */}
+          <div className="relative z-10 max-w-lg px-14 text-left text-white">
+            <div className="h-12 bg-gray-300 rounded animate-pulse mb-4"></div>
+            <div className="h-6 bg-gray-300 rounded animate-pulse mb-2"></div>
+            <div className="h-6 bg-gray-300 rounded animate-pulse w-2/3"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state - matches original design
+  if (error) {
+    return (
+      <div className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl">
+        <div 
+          className="relative flex h-[350px] items-center justify-center rounded-2xl md:h-[550px] bg-gray-200"
+          style={{
+            borderRadius: "16px",
+          }}
+        >
+          {/* Overlay */}
+          <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-40"></div>
+
+          {/* Content */}
+          <div className="relative z-10 text-center text-white px-14">
+            <p className="text-lg mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="text-sm font-medium transition hover:text-gray-300 md:text-base border border-white px-4 py-2 rounded"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No banners state - matches original design
+  if (banners.length === 0) {
+    return (
+      <div className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl">
+        <div 
+          className="relative flex h-[350px] items-center justify-center rounded-2xl md:h-[550px] bg-gray-200"
+          style={{
+            borderRadius: "16px",
+          }}
+        >
+          {/* Overlay */}
+          <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-40"></div>
+
+          {/* Content */}
+          <div className="relative z-10 text-center text-white px-14">
+            <p className="text-lg">No banners available</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl">
       <Slider {...settings}>
-        {bannerSlides.map((slide) => (
-          <div key={slide.id}>
+        {banners.map((banner) => (
+          <div key={banner._id}>
             <div
               className="relative flex h-[350px] items-center rounded-2xl md:h-[550px]"
               style={{
-                backgroundImage: `url(${slide.image})`,
+                backgroundImage: `url(${banner.imageUrl})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 borderRadius: "16px",
@@ -59,22 +166,29 @@ const Hero = () => {
               <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-40"></div>
 
               {/* Content */}
-              <div className="relative z-10 max-w-lg px-14 text-left text-white">
+              <div className="relative z-10 lg:pl-20 px-14 text-left text-white">
                 <h1 className="text-3xl font-bold leading-tight sm:py-3 sm:text-4xl lg:text-5xl">
-                  {slide.headline}
+                  {banner.headingLine1}
+                  {banner.headingLine2 && (
+                    <span className="block">{banner.headingLine2}</span>
+                  )}
                 </h1>
-                <p className="mt-2 text-sm font-medium sm:text-base">
-                  {slide.subheading}
-                </p>
-                <div className="mt-4 flex items-center gap-2">
-                  <p className="h-px w-8 bg-white"></p>
-                  
-            <Link                  to={slide.ctaLink}
-                    className="text-sm font-medium transition hover:text-gray-300 md:text-base"
-                  >
-                    {slide.cta}
-                  </Link>
-                </div>
+                {banner.subtext && (
+                  <p className="mt-2 text-sm font-medium sm:text-base">
+                    {banner.subtext}
+                  </p>
+                )}
+                {banner.buttonText && banner.redirectUrl && (
+                  <div className="mt-4 flex items-center gap-2">
+                    <p className="h-px w-8 bg-white"></p>
+                    <Link 
+                      to={banner.redirectUrl}
+                      className="text-sm font-medium transition hover:text-gray-300 md:text-base"
+                    >
+                      {banner.buttonText}
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>

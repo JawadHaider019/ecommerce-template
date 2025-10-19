@@ -45,6 +45,13 @@ const CommentsTab = () => {
   // Toast state
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
+  // Get current user ID - replace this with your actual user authentication
+  const getCurrentUserId = () => {
+    // Replace this with your actual user ID from context, localStorage, or auth system
+    // For demo purposes, using a static ID. In real app, get from your auth system
+    return "65a1b2c3d4e5f67890123456"; // Example user ID
+  };
+
   // Helper function to create a simple placeholder image
   const createPlaceholderImage = (text = 'No Image', width = 200, height = 200) => {
     const canvas = document.createElement('canvas');
@@ -81,7 +88,16 @@ const CommentsTab = () => {
     return [createPlaceholderImage('No Image')];
   };
 
-  // API functions (unchanged)
+  // Check if current user has liked/disliked a comment
+  const getUserInteractionStatus = (comment) => {
+    const userId = getCurrentUserId();
+    const hasLiked = comment.likedBy?.some(user => user._id === userId) || false;
+    const hasDisliked = comment.dislikedBy?.some(user => user._id === userId) || false;
+    
+    return { hasLiked, hasDisliked };
+  };
+
+  // API functions - UPDATED for YouTube-like system
   const api = {
     getComments: async () => {
       const response = await fetch(API_BASE_URL);
@@ -117,19 +133,64 @@ const CommentsTab = () => {
       return response.json();
     },
 
-    likeComment: async (id) => {
+    likeComment: async (id, userId) => {
       const response = await fetch(`${API_BASE_URL}/${id}/like`, {
         method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
       });
-      if (!response.ok) throw new Error('Failed to like comment');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to like comment');
+      }
       return response.json();
     },
 
-    dislikeComment: async (id) => {
+    dislikeComment: async (id, userId) => {
       const response = await fetch(`${API_BASE_URL}/${id}/dislike`, {
         method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
       });
-      if (!response.ok) throw new Error('Failed to dislike comment');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to dislike comment');
+      }
+      return response.json();
+    },
+
+    // NEW: Remove like/dislike (toggle off)
+    removeLike: async (id, userId) => {
+      const response = await fetch(`${API_BASE_URL}/${id}/remove-like`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to remove like');
+      }
+      return response.json();
+    },
+
+    removeDislike: async (id, userId) => {
+      const response = await fetch(`${API_BASE_URL}/${id}/remove-dislike`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to remove dislike');
+      }
       return response.json();
     },
 
@@ -151,6 +212,20 @@ const CommentsTab = () => {
     try {
       setLoading(true);
       const commentsData = await api.getComments();
+      
+      // Debug: Check what's being returned from API
+      console.log('Fetched comments:', commentsData);
+      commentsData.forEach(comment => {
+        if (comment.hasReply) {
+          console.log('Comment with reply:', {
+            id: comment._id,
+            hasReply: comment.hasReply,
+            reply: comment.reply,
+            isRead: comment.isRead
+          });
+        }
+      });
+      
       setComments(commentsData);
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -194,33 +269,113 @@ const CommentsTab = () => {
     }
   };
 
-  // Like comment function
-  const likeComment = async (id) => {
-    try {
-      const result = await api.likeComment(id);
+// Like comment function - FIXED for proper count decrement
+const likeComment = async (id) => {
+  try {
+    const userId = getCurrentUserId();
+    const comment = comments.find(c => c._id === id);
+    const { hasLiked, hasDisliked } = getUserInteractionStatus(comment);
+    
+    // If already liked, remove the like (toggle off)
+    if (hasLiked) {
+      const result = await api.removeLike(id, userId);
       setComments(comments.map(comment => 
-        comment._id === id ? {...comment, likes: result.likes} : comment
+        comment._id === id ? {
+          ...comment, 
+          likes: Math.max(0, (comment.likes || 0) - 1), // Decrease by 1, minimum 0
+          // Remove user from likedBy
+          likedBy: (comment.likedBy || []).filter(user => user._id !== userId)
+        } : comment
+      ));
+      showToast('Like removed', 'success');
+    } 
+    // If disliked, switch to like (remove dislike and add like)
+    else if (hasDisliked) {
+      const result = await api.likeComment(id, userId);
+      setComments(comments.map(comment => 
+        comment._id === id ? {
+          ...comment, 
+          likes: (comment.likes || 0) + 1, // Increase likes by 1
+          dislikes: Math.max(0, (comment.dislikes || 0) - 1), // Decrease dislikes by 1, minimum 0
+          // Switch from dislike to like
+          likedBy: [...(comment.likedBy || []), { _id: userId }],
+          dislikedBy: (comment.dislikedBy || []).filter(user => user._id !== userId)
+        } : comment
       ));
       showToast('Comment liked', 'success');
-    } catch (error) {
-      console.error('Error liking comment:', error);
-      showToast('Failed to like comment', 'error');
     }
-  };
-
-  // Dislike comment function
-  const dislikeComment = async (id) => {
-    try {
-      const result = await api.dislikeComment(id);
+    // If neither, add like
+    else {
+      const result = await api.likeComment(id, userId);
       setComments(comments.map(comment => 
-        comment._id === id ? {...comment, dislikes: result.dislikes} : comment
+        comment._id === id ? {
+          ...comment, 
+          likes: (comment.likes || 0) + 1, // Increase likes by 1
+          // Add user to likedBy
+          likedBy: [...(comment.likedBy || []), { _id: userId }]
+        } : comment
+      ));
+      showToast('Comment liked', 'success');
+    }
+  } catch (error) {
+    console.error('Error liking comment:', error);
+    showToast(error.message || 'Failed to like comment', 'error');
+  }
+};
+
+// Dislike comment function - FIXED for proper count decrement
+const dislikeComment = async (id) => {
+  try {
+    const userId = getCurrentUserId();
+    const comment = comments.find(c => c._id === id);
+    const { hasLiked, hasDisliked } = getUserInteractionStatus(comment);
+    
+    // If already disliked, remove the dislike (toggle off)
+    if (hasDisliked) {
+      const result = await api.removeDislike(id, userId);
+      setComments(comments.map(comment => 
+        comment._id === id ? {
+          ...comment, 
+          dislikes: Math.max(0, (comment.dislikes || 0) - 1), // Decrease by 1, minimum 0
+          // Remove user from dislikedBy
+          dislikedBy: (comment.dislikedBy || []).filter(user => user._id !== userId)
+        } : comment
+      ));
+      showToast('Dislike removed', 'success');
+    } 
+    // If liked, switch to dislike (remove like and add dislike)
+    else if (hasLiked) {
+      const result = await api.dislikeComment(id, userId);
+      setComments(comments.map(comment => 
+        comment._id === id ? {
+          ...comment, 
+          likes: Math.max(0, (comment.likes || 0) - 1), // Decrease likes by 1, minimum 0
+          dislikes: (comment.dislikes || 0) + 1, // Increase dislikes by 1
+          // Switch from like to dislike
+          dislikedBy: [...(comment.dislikedBy || []), { _id: userId }],
+          likedBy: (comment.likedBy || []).filter(user => user._id !== userId)
+        } : comment
       ));
       showToast('Comment disliked', 'success');
-    } catch (error) {
-      console.error('Error disliking comment:', error);
-      showToast('Failed to dislike comment', 'error');
     }
-  };
+    // If neither, add dislike
+    else {
+      const result = await api.dislikeComment(id, userId);
+      setComments(comments.map(comment => 
+        comment._id === id ? {
+          ...comment, 
+          dislikes: (comment.dislikes || 0) + 1, // Increase dislikes by 1
+          // Add user to dislikedBy
+          dislikedBy: [...(comment.dislikedBy || []), { _id: userId }]
+        } : comment
+      ));
+      showToast('Comment disliked', 'success');
+    }
+  } catch (error) {
+    console.error('Error disliking comment:', error);
+    showToast(error.message || 'Failed to dislike comment', 'error');
+  }
+};
 
   // Open delete confirmation modal
   const openDeleteModal = (comment) => {
@@ -255,8 +410,13 @@ const CommentsTab = () => {
     try {
       const updatedComment = await api.addReply(id, replyContent);
       
+      // Update the comments state with the returned comment
       setComments(comments.map(comment => 
-        comment._id === id ? updatedComment : comment
+        comment._id === id ? {
+          ...updatedComment, // Use the entire updated comment from backend
+          hasReply: true,
+          isRead: true // Ensure it's marked as read
+        } : comment
       ));
       
       setReplyingTo(null);
@@ -451,10 +611,11 @@ const CommentsTab = () => {
                   const imageUrls = getImageUrls(comment);
                   const productName = comment.productName || comment.productId?.name || 'Unknown Product';
                   const productPrice = comment.productPrice || comment.productId?.price || 'N/A';
+                  const { hasLiked, hasDisliked } = getUserInteractionStatus(comment);
                   
                   return (
                     <React.Fragment key={comment._id}>
-                      <tr className={!comment.isRead ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}>
+                      <tr className={!comment.isRead ? 'bg-blue-50 border-l-4 border-l-black' : ''}>
                         <td className="px-4 sm:px-6 py-4">
                           <div className="flex items-start space-x-3">
                             <div className="flex flex-col space-y-1">
@@ -529,14 +690,22 @@ const CommentsTab = () => {
                           <div className="flex items-center space-x-3 mt-2">
                             <button 
                               onClick={() => likeComment(comment._id)}
-                              className="flex items-center space-x-1 text-xs text-gray-600 hover:text-green-600 transition-colors"
+                              className={`flex items-center space-x-1 text-xs transition-colors ${
+                                hasLiked 
+                                  ? 'text-green-600' 
+                                  : 'text-gray-600 hover:text-green-600'
+                              }`}
                             >
                               <FontAwesomeIcon icon={faThumbsUp} />
                               <span>{comment.likes || 0}</span>
                             </button>
                             <button 
                               onClick={() => dislikeComment(comment._id)}
-                              className="flex items-center space-x-1 text-xs text-gray-600 hover:text-red-600 transition-colors"
+                              className={`flex items-center space-x-1 text-xs transition-colors ${
+                                hasDisliked 
+                                  ? 'text-red-600' 
+                                  : 'text-gray-600 hover:text-red-600'
+                              }`}
                             >
                               <FontAwesomeIcon icon={faThumbsDown} />
                               <span>{comment.dislikes || 0}</span>
@@ -612,7 +781,7 @@ const CommentsTab = () => {
                             
                             {!comment.hasReply && (
                               <button 
-                                className="flex items-center justify-center w-full px-2 sm:px-3 py-2 text-xs sm:text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                className="flex items-center justify-center w-full px-2 sm:px-3 py-2 text-xs sm:text-sm text-black bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                                 onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
                                 title="Reply to Comment"
                               >
@@ -641,21 +810,21 @@ const CommentsTab = () => {
                           <td colSpan="5" className="px-4 sm:px-6 py-4 border-t border-blue-200">
                             <div className="max-w-4xl mx-auto">
                               <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                Reply to <span className="text-blue-600">{comment.author}</span>'s comment about 
-                                <span className="text-blue-600"> {productName}</span>:
+                                Reply to <span className="text-black">{comment.author}</span>'s comment about 
+                                <span className="text-black"> {productName}</span>:
                               </label>
                               <div className="flex flex-col space-y-3">
                                 <textarea
                                   placeholder="Type your professional reply here..."
                                   rows="4"
-                                  className="w-full px-3 sm:px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm text-sm sm:text-base"
+                                  className="w-full px-3 sm:px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black resize-none shadow-sm text-sm sm:text-base"
                                   value={replyContent}
                                   onChange={(e) => setReplyContent(e.target.value)}
                                   autoFocus
                                 />
                                 <div className="flex gap-2 sm:gap-3 justify-end">
                                   <button
-                                    className="px-4 sm:px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium transition-colors text-sm"
+                                    className="px-4 sm:px-6 py-2 bg-gray-300 text-black  hover:bg-gray-400 font-medium transition-colors text-sm"
                                     onClick={() => {
                                       setReplyingTo(null);
                                       setReplyContent('');
@@ -664,7 +833,7 @@ const CommentsTab = () => {
                                     Cancel
                                   </button>
                                   <button
-                                    className="px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:bg-blue-300 text-sm"
+                                    className="px-4 sm:px-6 py-2 bg-black text-white font-medium text-sm"
                                     onClick={() => replyToComment(comment._id)}
                                     disabled={!replyContent.trim()}
                                   >
@@ -699,9 +868,10 @@ const CommentsTab = () => {
                 const imageUrls = getImageUrls(comment);
                 const productName = comment.productName || comment.productId?.name || 'Unknown Product';
                 const productPrice = comment.productPrice || comment.productId?.price || 'N/A';
+                const { hasLiked, hasDisliked } = getUserInteractionStatus(comment);
                 
                 return (
-                  <div key={comment._id} className={`p-4 ${!comment.isRead ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}>
+                  <div key={comment._id} className={`p-4 ${!comment.isRead ? 'bg-blue-50 border-l-4 border-l-black' : ''}`}>
                     {/* Header */}
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center space-x-2">
@@ -717,7 +887,7 @@ const CommentsTab = () => {
                           {comment.isRead ? 'Read' : 'Unread'}
                         </span>
                         {comment.hasReply && (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-black-100 text-black-800">
                             <FontAwesomeIcon icon={faReply} className="mr-1" />
                             Replied
                           </span>
@@ -798,14 +968,22 @@ const CommentsTab = () => {
                     <div className="flex items-center space-x-4 mb-3">
                       <button 
                         onClick={() => likeComment(comment._id)}
-                        className="flex items-center space-x-1 text-sm text-gray-600 hover:text-green-600 transition-colors"
+                        className={`flex items-center space-x-1 text-sm transition-colors ${
+                          hasLiked 
+                            ? 'text-green-600' 
+                            : 'text-gray-600 hover:text-green-600'
+                        }`}
                       >
                         <FontAwesomeIcon icon={faThumbsUp} />
                         <span>{comment.likes || 0}</span>
                       </button>
                       <button 
                         onClick={() => dislikeComment(comment._id)}
-                        className="flex items-center space-x-1 text-sm text-gray-600 hover:text-red-600 transition-colors"
+                        className={`flex items-center space-x-1 text-sm transition-colors ${
+                          hasDisliked 
+                            ? 'text-red-600' 
+                            : 'text-gray-600 hover:text-red-600'
+                        }`}
                       >
                         <FontAwesomeIcon icon={faThumbsDown} />
                         <span>{comment.dislikes || 0}</span>
@@ -834,7 +1012,7 @@ const CommentsTab = () => {
                       
                       {!comment.hasReply && (
                         <button 
-                          className="flex-1 flex items-center justify-center px-3 py-2 text-xs text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                          className="flex-1 flex items-center justify-center px-3 py-2 text-xs text-black bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                           onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
                         >
                           <FontAwesomeIcon icon={faReply} className="mr-1" />
@@ -860,7 +1038,7 @@ const CommentsTab = () => {
                         <textarea
                           placeholder="Type your reply here..."
                           rows="3"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black resize-none text-sm"
                           value={replyContent}
                           onChange={(e) => setReplyContent(e.target.value)}
                           autoFocus
@@ -876,7 +1054,7 @@ const CommentsTab = () => {
                             Cancel
                           </button>
                           <button
-                            className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+                            className="px-3 py-1 bg-black text-white rounded text-xs hover:bg-blue-700 transition-colors disabled:bg-blue-300"
                             onClick={() => replyToComment(comment._id)}
                             disabled={!replyContent.trim()}
                           >

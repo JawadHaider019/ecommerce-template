@@ -36,6 +36,16 @@ const commentSchema = new mongoose.Schema({
   likes: { type: Number, default: 0 },
   dislikes: { type: Number, default: 0 },
 
+  // 👥 Track user interactions for one like/dislike per user
+  likedBy: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "user" 
+  }],
+  dislikedBy: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "user" 
+  }],
+
   // 🔔 Admin notification flag
   isNotified: { type: Boolean, default: false }
 });

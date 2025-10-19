@@ -6,6 +6,7 @@ import About from './pages/About'
 import Contact from './pages/Contact'
 import Login from './pages/Login'
 import Product from './pages/Product'
+import Deal from './pages/Deal';
 import Cart from './pages/Cart'
 import Orders from './pages/Orders'
 import PlaceOrder from './pages/PlaceOrder'
@@ -28,6 +29,7 @@ const App = () => {
         <Route path='/about' element={<About/>}/>
         <Route path='/contact' element={<Contact/>}/>
         <Route path='/product/:productId' element={<Product/>}/>
+        <Route path="/deal/:dealId" element={<Deal />} />
         <Route path="/collection/product/:productId" element={<Product />} />
         <Route path='/login' element={<Login/>}/>
         <Route path='/cart' element={<Cart/>}/>

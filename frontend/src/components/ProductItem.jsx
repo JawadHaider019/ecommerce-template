@@ -1,6 +1,7 @@
 import { useContext } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
+import { FaStar, FaStarHalf, FaRegStar } from 'react-icons/fa';
 
 const ProductItem = ({ id, image, name, price, discount, rating }) => {
   const { currency } = useContext(ShopContext);
@@ -11,18 +12,29 @@ const ProductItem = ({ id, image, name, price, discount, rating }) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Render rating stars
-  const renderRating = (rating) => {
+  // Render rating stars - SAME LOGIC AS PRODUCT PAGE
+  const renderRating = (ratingValue = 0) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <span
-          key={i}
-          className={i <= rating ? "text-yellow-400" : "text-gray-300"}
-        >
-          ★
-        </span>
-      );
+      if (i <= ratingValue) {
+        stars.push(
+          <span key={i} className="text-yellow-400">
+            <FaStar size={14} />
+          </span>
+        );
+      } else if (i - 0.5 <= ratingValue) {
+        stars.push(
+          <span key={i} className="text-yellow-400">
+            <FaStarHalf size={14} />
+          </span>
+        );
+      } else {
+        stars.push(
+          <span key={i} className="text-yellow-400">
+            <FaRegStar size={14} />
+          </span>
+        );
+      }
     }
     return stars;
   };
@@ -55,7 +67,12 @@ const ProductItem = ({ id, image, name, price, discount, rating }) => {
           </p>
         )}
       </div>
-      {rating && <div className="mt-1 flex">{renderRating(rating)}</div>}
+      {rating > 0 && (
+        <div className="mt-1 flex items-center gap-1">
+          {renderRating(rating)}
+          <span className="text-xs text-gray-500 ml-1">({rating.toFixed(1)})</span>
+        </div>
+      )}
     </div>
   );
 };

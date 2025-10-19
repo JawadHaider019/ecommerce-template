@@ -1,29 +1,31 @@
 import express from "express";
-import multer from "../middleware/multer.js";
 import {
   getComments,
   addComment,
   markRead,
   markUnread,
   addReply,
-  deleteComment,
   likeComment,
   dislikeComment,
-  getNotifications 
+  removeLike,
+  removeDislike,
+  deleteComment,
+  getNotifications,
 } from "../controllers/commentController.js";
+import upload from "../middleware/multer.js";
 
 const router = express.Router();
-const upload = multer.array("reviewImages", 10);
 
-// ROUTES
-router.get("/", getComments);             
-router.post("/", upload, addComment);     
-router.patch("/:id/read", markRead);      
-router.patch("/:id/unread", markUnread);  
-router.patch("/:id/reply", addReply);     
-router.patch("/:id/like", likeComment);   // ✅ New route
-router.patch("/:id/dislike", dislikeComment); // ✅ New route
-router.delete("/:id", deleteComment);    
-router.get("/notifications", getNotifications); 
+router.get("/", getComments);
+router.post("/", upload.array("images", 5), addComment);
+router.patch("/:id/read", markRead);
+router.patch("/:id/unread", markUnread);
+router.patch("/:id/reply", addReply);
+router.patch("/:id/like", likeComment);
+router.patch("/:id/dislike", dislikeComment);
+router.patch("/:id/remove-like", removeLike); // NEW
+router.patch("/:id/remove-dislike", removeDislike); // NEW
+router.delete("/:id", deleteComment);
+router.get("/notifications/new", getNotifications);
 
 export default router;

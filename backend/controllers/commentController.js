@@ -2,27 +2,59 @@ import Comment from "../models/commentModel.js";
 import Product from "../models/productModel.js";
 import User from "../models/userModel.js";
 import { v2 as cloudinary } from "cloudinary";
-import fs from "fs"; // ✅ for deleting temp files
+import fs from "fs";
+import mongoose from "mongoose";
 
-// ✅ GET all comments (latest first) - UPDATED VERSION
+// ✅ GET comments with product filtering - UPDATED VERSION
 export const getComments = async (req, res) => {
   try {
-    const comments = await Comment.find()
+    const { productId } = req.query;
+    console.log('Fetching comments for product:', productId);
+    
+    let filter = {};
+    if (productId) {
+      if (mongoose.Types.ObjectId.isValid(productId)) {
+        filter.productId = new mongoose.Types.ObjectId(productId);
+      } else {
+        filter.productId = productId;
+      }
+    }
+
+    const comments = await Comment.find(filter)
       .sort({ date: -1 })
       .populate("productId", "name price images")
-      .populate("orderId", "orderNumber total")
-      .populate("userId", "name email");
+      .populate("userId", "name email")
+      .populate("likedBy", "name email")
+      .populate("dislikedBy", "name email")
+      .lean();
+
+    console.log(`Found ${comments.length} comments for product ${productId}`);
 
     // Transform data to match frontend expectations
     const transformedComments = comments.map(comment => ({
-      ...comment.toObject(),
-      // Ensure productImages is available for frontend
-      productImages: comment.reviewImages?.map(img => img.url) || comment.productId?.images || []
+      _id: comment._id,
+      rating: comment.rating,
+      content: comment.content,
+      reviewImages: comment.reviewImages || [],
+      date: comment.date,
+      author: comment.author,
+      email: comment.email,
+      likes: comment.likes || 0,
+      dislikes: comment.dislikes || 0,
+      likedBy: comment.likedBy || [],
+      dislikedBy: comment.dislikedBy || [],
+      isRead: comment.isRead || false,
+      hasReply: comment.hasReply || false,
+      reply: comment.reply || null,
+      targetType: comment.targetType,
+      productName: comment.productName || (comment.productId ? comment.productId.name : 'Unknown Product'),
+      productPrice: comment.productPrice || (comment.productId ? comment.productId.price : 'N/A'),
+      productId: comment.productId?._id ? comment.productId._id.toString() : comment.productId
     }));
 
     res.json(transformedComments);
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching comments:", err);
     res.status(500).json({ message: "Failed to fetch comments", error: err.message });
   }
 };
@@ -133,47 +165,193 @@ export const addReply = async (req, res) => {
     const { content } = req.body;
     if (!content) return res.status(400).json({ message: "Reply content is required" });
 
-    const comment = await Comment.findById(req.params.id);
-    if (!comment) return res.status(404).json({ message: "Comment not found" });
+    const updated = await Comment.findByIdAndUpdate(
+      req.params.id,
+      { 
+        hasReply: true,
+        isRead: true,
+        isNotified: false,
+        reply: {
+          content: content,
+          author: "Admin",
+          date: new Date()
+        }
+      },
+      { new: true }
+    ).populate("productId", "name price images")
+     .populate("userId", "name email")
+     .lean();
 
-    comment.hasReply = true;
-    comment.isRead = true;
-    comment.reply = { content, author: "Admin", date: new Date() };
+    if (!updated) return res.status(404).json({ message: "Comment not found" });
 
-    const updated = await comment.save();
-    res.json(updated);
+    const transformedComment = {
+      ...updated,
+      productName: updated.productName || (updated.productId ? updated.productId.name : 'Unknown Product'),
+      productPrice: updated.productPrice || (updated.productId ? updated.productId.price : 'N/A')
+    };
+
+    res.json(transformedComment);
   } catch (err) {
+    console.error("Error adding reply:", err);
     res.status(400).json({ message: "Failed to add reply", error: err.message });
   }
 };
 
-// ✅ PATCH - Like comment
+// ✅ PATCH - Like comment with user tracking - UPDATED
 export const likeComment = async (req, res) => {
   try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    comment.likes = (comment.likes || 0) + 1;
+    // Convert userId to ObjectId for comparison
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Check if user already liked
+    const alreadyLiked = comment.likedBy.some(id => id.equals(userObjectId));
+    
+    // Check if user previously disliked - remove from dislikes if switching
+    const alreadyDisliked = comment.dislikedBy.some(id => id.equals(userObjectId));
+
+    if (alreadyLiked) {
+      // User is toggling off their like
+      comment.likes = Math.max(0, comment.likes - 1);
+      comment.likedBy = comment.likedBy.filter(id => !id.equals(userObjectId));
+    } else {
+      // User is adding a like
+      if (alreadyDisliked) {
+        // Switching from dislike to like
+        comment.dislikes = Math.max(0, comment.dislikes - 1);
+        comment.dislikedBy = comment.dislikedBy.filter(id => !id.equals(userObjectId));
+      }
+      
+      comment.likes = (comment.likes || 0) + 1;
+      comment.likedBy.push(userObjectId);
+    }
+
     const updated = await comment.save();
 
-    res.json({ message: "Liked successfully", likes: updated.likes });
+    res.json({ 
+      message: alreadyLiked ? "Like removed" : "Liked successfully", 
+      likes: updated.likes,
+      dislikes: updated.dislikes
+    });
   } catch (err) {
+    console.error("Error liking comment:", err);
     res.status(400).json({ message: "Failed to like comment", error: err.message });
   }
 };
 
-// ✅ PATCH - Dislike comment
+// ✅ PATCH - Dislike comment with user tracking - UPDATED
 export const dislikeComment = async (req, res) => {
   try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    comment.dislikes = (comment.dislikes || 0) + 1;
+    // Convert userId to ObjectId for comparison
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Check if user already disliked
+    const alreadyDisliked = comment.dislikedBy.some(id => id.equals(userObjectId));
+    
+    // Check if user previously liked - remove from likes if switching
+    const alreadyLiked = comment.likedBy.some(id => id.equals(userObjectId));
+
+    if (alreadyDisliked) {
+      // User is toggling off their dislike
+      comment.dislikes = Math.max(0, comment.dislikes - 1);
+      comment.dislikedBy = comment.dislikedBy.filter(id => !id.equals(userObjectId));
+    } else {
+      // User is adding a dislike
+      if (alreadyLiked) {
+        // Switching from like to dislike
+        comment.likes = Math.max(0, comment.likes - 1);
+        comment.likedBy = comment.likedBy.filter(id => !id.equals(userObjectId));
+      }
+      
+      comment.dislikes = (comment.dislikes || 0) + 1;
+      comment.dislikedBy.push(userObjectId);
+    }
+
     const updated = await comment.save();
 
-    res.json({ message: "Disliked successfully", dislikes: updated.dislikes });
+    res.json({ 
+      message: alreadyDisliked ? "Dislike removed" : "Disliked successfully", 
+      likes: updated.likes,
+      dislikes: updated.dislikes
+    });
   } catch (err) {
+    console.error("Error disliking comment:", err);
     res.status(400).json({ message: "Failed to dislike comment", error: err.message });
+  }
+};
+
+// ✅ PATCH - Remove like (toggle off) - NEW ENDPOINT
+export const removeLike = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Remove user from likedBy and decrement likes
+    comment.likedBy = comment.likedBy.filter(id => !id.equals(userObjectId));
+    comment.likes = Math.max(0, comment.likes - 1);
+
+    const updated = await comment.save();
+
+    res.json({ 
+      message: "Like removed successfully", 
+      likes: updated.likes,
+      dislikes: updated.dislikes
+    });
+  } catch (err) {
+    console.error("Error removing like:", err);
+    res.status(400).json({ message: "Failed to remove like", error: err.message });
+  }
+};
+
+// ✅ PATCH - Remove dislike (toggle off) - NEW ENDPOINT
+export const removeDislike = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Remove user from dislikedBy and decrement dislikes
+    comment.dislikedBy = comment.dislikedBy.filter(id => !id.equals(userObjectId));
+    comment.dislikes = Math.max(0, comment.dislikes - 1);
+
+    const updated = await comment.save();
+
+    res.json({ 
+      message: "Dislike removed successfully", 
+      likes: updated.likes,
+      dislikes: updated.dislikes
+    });
+  } catch (err) {
+    console.error("Error removing dislike:", err);
+    res.status(400).json({ message: "Failed to remove dislike", error: err.message });
   }
 };
 

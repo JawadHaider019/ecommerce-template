@@ -81,7 +81,6 @@ const itemTotalPrice = unitPrice * item.quantity;
                     type="number"
                     className="max-w-10 border px-2 py-1 sm:max-w-20 sm:px-2"
                     min={1}
-                    max={10}
                     value={item.quantity}
                   />
                 </div>
