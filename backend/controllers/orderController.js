@@ -6,14 +6,14 @@ const placeOrder = async (req, res) => {
     console.log("🛒 ========== BACKEND ORDER PLACEMENT ==========");
     console.log("📥 Received request body:", req.body);
     
-    const { items, amount, address, deliveryCharges } = req.body; // ✅ Add deliveryCharges
+    const { items, amount, address, deliveryCharges } = req.body;
     const userId = req.userId;
 
     console.log("🔍 Extracted data:", {
       userId,
       itemsCount: items?.length,
       amount,
-      deliveryCharges, // ✅ Log delivery charges
+      deliveryCharges,
       address: address ? "Present" : "Missing"
     });
 
@@ -36,7 +36,7 @@ const placeOrder = async (req, res) => {
       items,
       amount: Number(amount),
       address,
-      deliveryCharges: deliveryCharges || 0, // ✅ Include delivery charges with default
+      deliveryCharges: deliveryCharges || 0,
       paymentMethod: "COD",
       payment: false,
       status: "Order Placed",
@@ -62,13 +62,12 @@ const placeOrder = async (req, res) => {
       success: true, 
       message: "Order Placed Successfully", 
       orderId: newOrder._id,
-      deliveryCharges: newOrder.deliveryCharges // ✅ Return delivery charges in response
+      deliveryCharges: newOrder.deliveryCharges
     });
 
   } catch (error) {
     console.error("❌ Error in placeOrder:", error);
     
-    // More specific error handling
     if (error.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors).map(err => err.message);
       console.error("Validation errors:", validationErrors);
@@ -88,7 +87,6 @@ const allOrders = async (req, res) => {
     const orders = await orderModel.find({}).sort({ date: -1 });
     console.log(`📦 Found ${orders.length} orders with delivery charges`);
     
-    // Log delivery charges for debugging
     orders.forEach(order => {
       console.log(`Order ${order._id}: Delivery Charges = ${order.deliveryCharges}`);
     });
@@ -108,7 +106,6 @@ const userOrders = async (req, res) => {
     
     console.log(`📦 Found ${orders.length} orders for user ${userId}`);
     
-    // Log delivery charges for debugging
     orders.forEach(order => {
       console.log(`Order ${order._id}: Amount = ${order.amount}, Delivery Charges = ${order.deliveryCharges}`);
     });
@@ -120,22 +117,51 @@ const userOrders = async (req, res) => {
   }
 };
 
-// 🔄 Update Order Status (Admin Panel)
+// 🔄 Update Order Status (Admin Panel) - Enhanced with cancellation reason
 const updateStatus = async (req, res) => {
   try {
-    const { orderId, status } = req.body;
+    const { orderId, status, cancellationReason } = req.body;
+    
     if (!orderId || !status) {
       return res.json({ success: false, message: "Order ID and status are required" });
     }
 
-    await orderModel.findByIdAndUpdate(orderId, { status, updatedAt: Date.now() });
-    res.json({ success: true, message: "Order status updated successfully" });
+    // Prepare update data
+    const updateData = { 
+      status, 
+      updatedAt: new Date() 
+    };
+
+    // If cancelling order, add cancellation details
+    if (status === "Cancelled") {
+      updateData.cancellationReason = cancellationReason || "Cancelled by admin";
+      updateData.cancelledAt = new Date();
+      updateData.cancelledBy = "admin";
+    }
+
+    const updatedOrder = await orderModel.findByIdAndUpdate(
+      orderId, 
+      updateData, 
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      return res.json({ success: false, message: "Order not found" });
+    }
+
+    res.json({ 
+      success: true, 
+      message: "Order status updated successfully",
+      order: updatedOrder 
+    });
+
   } catch (error) {
     console.error("❌ Error in updateStatus:", error);
     res.json({ success: false, message: error.message });
   }
 };
 
+// ❌ Cancel Order (User)
 const cancelOrder = async (req, res) => {
   try {
     const { orderId, cancellationReason } = req.body;
@@ -145,6 +171,10 @@ const cancelOrder = async (req, res) => {
 
     if (!orderId) {
       return res.json({ success: false, message: "Order ID is required" });
+    }
+
+    if (!cancellationReason || cancellationReason.trim() === "") {
+      return res.json({ success: false, message: "Cancellation reason is required" });
     }
 
     // Find the order
@@ -159,7 +189,7 @@ const cancelOrder = async (req, res) => {
       return res.json({ success: false, message: "Unauthorized to cancel this order" });
     }
 
-    // Check if order can be cancelled (only orders that are not shipped/delivered)
+    // Check if order can be cancelled
     const nonCancellableStatuses = ["Shipped", "Out for delivery", "Delivered", "Cancelled"];
     if (nonCancellableStatuses.includes(order.status)) {
       return res.json({ 
@@ -173,8 +203,9 @@ const cancelOrder = async (req, res) => {
       orderId,
       { 
         status: "Cancelled",
-        cancellationReason: cancellationReason || "No reason provided",
+        cancellationReason: cancellationReason.trim(),
         cancelledAt: new Date(),
+        cancelledBy: "user",
         updatedAt: new Date()
       },
       { new: true }
@@ -194,4 +225,33 @@ const cancelOrder = async (req, res) => {
   }
 };
 
-export { placeOrder, allOrders, userOrders, updateStatus, cancelOrder };
+// 🆕 Get Cancellation Reasons (For dropdown in frontend)
+const getCancellationReasons = async (req, res) => {
+  try {
+    const cancellationReasons = [
+      "Changed my mind",
+      "Found better price elsewhere",
+      "Delivery time too long",
+      "Ordered by mistake",
+      "Product not required anymore",
+      "Payment issues",
+      "Duplicate order",
+      "Shipping address issues",
+      "Other"
+    ];
+
+    res.json({ success: true, cancellationReasons });
+  } catch (error) {
+    console.error("❌ Error in getCancellationReasons:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export { 
+  placeOrder, 
+  allOrders, 
+  userOrders, 
+  updateStatus, 
+  cancelOrder,
+  getCancellationReasons 
+};

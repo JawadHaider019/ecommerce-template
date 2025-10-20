@@ -1070,7 +1070,7 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {quickActions.map((action, i) => (
               <NavLink 
                 key={i} 

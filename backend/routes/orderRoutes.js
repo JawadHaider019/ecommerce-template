@@ -1,5 +1,5 @@
 import express from "express"
-import { placeOrder,allOrders,userOrders,updateStatus,cancelOrder  } from "../controllers/orderController.js"
+import { placeOrder,allOrders,userOrders,updateStatus,cancelOrder ,getCancellationReasons } from "../controllers/orderController.js"
 import { authUser } from "../middleware/auth.js"
 import  adminAuth  from "../middleware/adminAuth.js"
 
@@ -13,5 +13,6 @@ orderRoutes.post("/place",authUser, placeOrder)
 orderRoutes.post("/userorders",authUser, userOrders)
 
 orderRoutes.post("/cancel", authUser, cancelOrder)
+orderRoutes.get("/cancellation-reasons", getCancellationReasons);
 
 export default orderRoutes;

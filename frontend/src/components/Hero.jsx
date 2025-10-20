@@ -75,9 +75,9 @@ const Hero = () => {
   // Loading state - matches original design
   if (loading) {
     return (
-      <div className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl">
+      <div className="relative mx-auto max-w-7xl overflow-hidden  ">
         <div 
-          className="relative flex h-[350px] items-center rounded-2xl md:h-[550px] bg-gray-200"
+          className="relative flex h-[350px] items-center   md:h-[550px] bg-gray-200"
           style={{
                      backgroundSize: "cover",
                 backgroundPosition: "center",
@@ -85,7 +85,7 @@ const Hero = () => {
           }}
         >
           {/* Overlay */}
-          <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-40"></div>
+          <div className="absolute inset-0   bg-black bg-opacity-40"></div>
 
           {/* Content */}
           <div className="relative z-10 max-w-lg px-14 text-left text-white">
@@ -101,15 +101,15 @@ const Hero = () => {
   // Error state - matches original design
   if (error) {
     return (
-      <div className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl">
+      <div className="relative mx-auto max-w-7xl overflow-hidden  ">
         <div 
-          className="relative flex h-[350px] items-center justify-center rounded-2xl md:h-[550px] bg-gray-200"
+          className="relative flex h-[350px] items-center justify-center   md:h-[550px] bg-gray-200"
           style={{
             borderRadius: "16px",
           }}
         >
           {/* Overlay */}
-          <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-40"></div>
+          <div className="absolute inset-0   bg-black bg-opacity-40"></div>
 
           {/* Content */}
           <div className="relative z-10 text-center text-white px-14">
@@ -129,15 +129,15 @@ const Hero = () => {
   // No banners state - matches original design
   if (banners.length === 0) {
     return (
-      <div className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl">
+      <div className="relative mx-auto max-w-7xl overflow-hidden  ">
         <div 
-          className="relative flex h-[350px] items-center justify-center rounded-2xl md:h-[550px] bg-gray-200"
+          className="relative flex h-[350px] items-center justify-center   md:h-[550px] bg-gray-200"
           style={{
             borderRadius: "16px",
           }}
         >
           {/* Overlay */}
-          <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-40"></div>
+          <div className="absolute inset-0  bg-black bg-opacity-40"></div>
 
           {/* Content */}
           <div className="relative z-10 text-center text-white px-14">
@@ -149,12 +149,12 @@ const Hero = () => {
   }
 
   return (
-    <div className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl">
+    <div className="relative mx-auto max-w-7xl overflow-hidden  ">
       <Slider {...settings}>
         {banners.map((banner) => (
           <div key={banner._id}>
             <div
-              className="relative flex h-[350px] items-center rounded-2xl md:h-[550px]"
+              className="relative flex h-[350px] items-center   md:h-[550px]"
               style={{
                 backgroundImage: `url(${banner.imageUrl})`,
                 backgroundSize: "cover",
@@ -163,7 +163,7 @@ const Hero = () => {
               }}
             >
               {/* Overlay */}
-              <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-40"></div>
+              <div className="absolute inset-0   bg-black bg-opacity-40"></div>
 
               {/* Content */}
               <div className="relative z-10 lg:pl-20 px-14 text-left text-white">
