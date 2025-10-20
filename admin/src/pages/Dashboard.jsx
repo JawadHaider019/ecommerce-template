@@ -219,6 +219,8 @@ const Dashboard = () => {
     const dealProfit = stats.totalDealProfit || 0;
     const totalProfit = productProfit + dealProfit;
 
+
+
     return {
       productRevenue,
       productCost,
@@ -699,7 +701,7 @@ const Dashboard = () => {
     { to: "/add", icon: faPlus, text: "Add Product", color: "bg-blue-500" },
     { to: "/list", icon: faBoxes, text: "Manage Products", color: "bg-green-500" },
     { to: "/orders", icon: faShoppingCart, text: "View Orders", color: "bg-red-500" },
-    { to: "/deals", icon: faRocket, text: "Manage Deals", color: "bg-purple-500" },
+    { to: "/content-management", icon: faRocket, text: "Content Management", color: "bg-purple-500" },
   ];
 
   if (loading) {
@@ -805,10 +807,10 @@ const Dashboard = () => {
             icon={faBoxes} 
             color="bg-indigo-500" 
           />
-          <StatCard 
-            title="New Comments" 
-            value={commentNotifications.length} 
-            icon={faComments} 
+      <StatCard 
+            title="Product Sold" 
+            value={stats.totalItemsSold || 0} 
+            icon={faShoppingCart} 
             color="bg-blue-500" 
           />
         </div>

@@ -208,32 +208,61 @@ const CommentsTab = () => {
     fetchComments();
   }, []);
 
-  const fetchComments = async () => {
-    try {
-      setLoading(true);
-      const commentsData = await api.getComments();
-      
-      // Debug: Check what's being returned from API
-      console.log('Fetched comments:', commentsData);
-      commentsData.forEach(comment => {
-        if (comment.hasReply) {
-          console.log('Comment with reply:', {
-            id: comment._id,
-            hasReply: comment.hasReply,
-            reply: comment.reply,
-            isRead: comment.isRead
-          });
+ const fetchComments = async () => {
+  try {
+    setLoading(true);
+
+    // Fetch all comments from API
+    const commentsData = await api.getComments();
+
+    // Debug: check what data came back
+    console.log("🟢 Raw comments from API:", commentsData);
+
+    // ✅ Normalize data for UI safety (ensure every comment has clean fields)
+    const formattedComments = commentsData.map((comment) => ({
+      _id: comment._id,
+      rating: comment.rating,
+      content: comment.content,
+      date: comment.date,
+      author: comment.author,
+      email: comment.email,
+      productName: comment.productName || "N/A",
+      productPrice: comment.productPrice || "N/A",
+      targetType: comment.targetType || "unknown",
+      reviewImages: comment.reviewImages || [],
+      likes: comment.likes || 0,
+      dislikes: comment.dislikes || 0,
+      likedBy: comment.likedBy || [],
+      dislikedBy: comment.dislikedBy || [],
+      hasReply: comment.hasReply || false,
+      reply: comment.reply || null,
+      isRead: comment.isRead || false,
+      productId: comment.productId,
+      dealId: comment.dealId,
+    }));
+
+    // Debug: check for deal/product distinction
+    formattedComments.forEach((c) => {
+      console.log(
+        `💬 Comment for ${c.targetType === "deal" ? "Deal" : "Product"} →`,
+        {
+          name: c.productName,
+          price: c.productPrice,
+          id: c.targetType === "deal" ? c.dealId : c.productId,
         }
-      });
-      
-      setComments(commentsData);
-    } catch (error) {
-      console.error('Error fetching comments:', error);
-      showToast('Failed to load comments', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+      );
+    });
+
+    // ✅ Update state
+    setComments(formattedComments);
+  } catch (error) {
+    console.error("❌ Error fetching comments:", error);
+    showToast("Failed to load comments", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Filter comments based on status
   const filteredComments = comments.filter(comment => {
@@ -660,7 +689,7 @@ const dislikeComment = async (id) => {
                                 {productName}
                               </div>
                               <div className="text-xs text-gray-500 capitalize mb-1">
-                                {comment.targetType} • ${productPrice}
+                                {comment.targetType} • Rs {productPrice}
                               </div>
                               <div className="flex items-center space-x-2 mt-1">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${

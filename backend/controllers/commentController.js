@@ -1,68 +1,82 @@
 import Comment from "../models/commentModel.js";
 import Product from "../models/productModel.js";
+import Deal from "../models/dealModel.js"; // Added Deal import
 import User from "../models/userModel.js";
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 import mongoose from "mongoose";
 
-// ✅ GET comments with product filtering - UPDATED VERSION
 export const getComments = async (req, res) => {
   try {
-    const { productId } = req.query;
-    console.log('Fetching comments for product:', productId);
-    
-    let filter = {};
-    if (productId) {
-      if (mongoose.Types.ObjectId.isValid(productId)) {
-        filter.productId = new mongoose.Types.ObjectId(productId);
-      } else {
-        filter.productId = productId;
-      }
-    }
+    const { productId, dealId } = req.query;
+    console.log("Incoming query:", req.query);
+
+    // Build filter dynamically
+    const filter = {};
+    if (productId) filter.productId = productId;
+    if (dealId) filter.dealId = dealId;
+
+    console.log("Filter object:", filter);
 
     const comments = await Comment.find(filter)
       .sort({ date: -1 })
-      .populate("productId", "name price images")
+      .populate("productId", "name price discountprice images")
+      .populate("dealId", "dealName dealFinalPrice dealImages")
       .populate("userId", "name email")
       .populate("likedBy", "name email")
       .populate("dislikedBy", "name email")
       .lean();
 
-    console.log(`Found ${comments.length} comments for product ${productId}`);
+    const transformedComments = comments.map((comment) => {
+      let targetName = "Unknown";
+      let targetPrice = "N/A";
 
-    // Transform data to match frontend expectations
-    const transformedComments = comments.map(comment => ({
-      _id: comment._id,
-      rating: comment.rating,
-      content: comment.content,
-      reviewImages: comment.reviewImages || [],
-      date: comment.date,
-      author: comment.author,
-      email: comment.email,
-      likes: comment.likes || 0,
-      dislikes: comment.dislikes || 0,
-      likedBy: comment.likedBy || [],
-      dislikedBy: comment.dislikedBy || [],
-      isRead: comment.isRead || false,
-      hasReply: comment.hasReply || false,
-      reply: comment.reply || null,
-      targetType: comment.targetType,
-      productName: comment.productName || (comment.productId ? comment.productId.name : 'Unknown Product'),
-      productPrice: comment.productPrice || (comment.productId ? comment.productId.price : 'N/A'),
-      productId: comment.productId?._id ? comment.productId._id.toString() : comment.productId
-    }));
+      if (comment.targetType === "product" && comment.productId) {
+        targetName = comment.productName || comment.productId.name;
+        targetPrice = comment.productId.discountprice || comment.productId.price;
+      } else if (comment.targetType === "deal" && comment.dealId) {
+        targetName = comment.dealName || comment.dealId.dealName || "Unknown Deal";
+        targetPrice = comment.dealPrice || comment.dealId.dealFinalPrice || "N/A";
+      }
+
+      return {
+        _id: comment._id,
+        rating: comment.rating,
+        content: comment.content,
+        reviewImages: comment.reviewImages || [],
+        date: comment.date,
+        author: comment.author,
+        email: comment.email,
+        likes: comment.likes || 0,
+        dislikes: comment.dislikes || 0,
+        likedBy: comment.likedBy || [],
+        dislikedBy: comment.dislikedBy || [],
+        isRead: comment.isRead || false,
+        hasReply: comment.hasReply || false,
+        reply: comment.reply || null,
+        targetType: comment.targetType,
+        productName: targetName,
+        productPrice: targetPrice,
+        productId: comment.productId?._id?.toString() || comment.productId,
+        dealId: comment.dealId?._id?.toString() || comment.dealId,
+      };
+    });
 
     res.json(transformedComments);
   } catch (err) {
-    console.error("Error fetching comments:", err);
-    res.status(500).json({ message: "Failed to fetch comments", error: err.message });
+    console.error("❌ Error fetching comments:", err);
+    res.status(500).json({
+      message: "Failed to fetch comments",
+      error: err.message,
+    });
   }
 };
 
-// ✅ POST new comment (with Cloudinary upload)
+
+// ✅ POST new comment (with Cloudinary upload) - UPDATED FOR DEALS
 export const addComment = async (req, res) => {
   try {
-    const { targetType, productId, orderId, userId, content, rating } = req.body;
+    const { targetType, productId, dealId, orderId, userId, content, rating } = req.body;
 
     if (!targetType || !userId || !content) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -71,15 +85,30 @@ export const addComment = async (req, res) => {
     const user = await User.findById(userId).select("name email");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    let productData = {};
+    let targetData = {};
+    
+    // Handle product comments
     if (targetType === "product" && productId) {
       const product = await Product.findById(productId).select("name price images");
       if (!product) return res.status(404).json({ message: "Product not found" });
-      productData = { 
+      targetData = { 
         productName: product.name, 
-        productPrice: product.price
+        productPrice: product.discountprice
       };
+          console.log("Fetching comments for prducts:", productId);
     }
+    
+    // Handle deal comments
+    if (targetType === "deal" && dealId) {
+      const deal = await Deal.findById(dealId).select("title price images");
+      if (!deal) return res.status(404).json({ message: "Deal not found" });
+      targetData = { 
+        dealName: deal.dealName, 
+        dealPrice: deal.dealFinalPrice
+      };
+      console.log("Fetching comments for deal:", dealId);
+    }
+
 
     // 🖼️ Upload images to Cloudinary
     let reviewImages = [];
@@ -103,7 +132,8 @@ export const addComment = async (req, res) => {
     // 🧠 Create comment
     const comment = new Comment({
       targetType,
-      productId,
+      productId: targetType === "product" ? productId : undefined,
+      dealId: targetType === "deal" ? dealId : undefined,
       orderId,
       userId,
       author: user.name,
@@ -112,7 +142,7 @@ export const addComment = async (req, res) => {
       rating: rating || 0,
       reviewImages,
       isNotified: true,
-      ...productData,
+      ...targetData,
     });
 
     const saved = await comment.save();
@@ -120,6 +150,7 @@ export const addComment = async (req, res) => {
     // Populate the response to match frontend expectations
     const populatedComment = await Comment.findById(saved._id)
       .populate("productId", "name price images")
+      .populate("dealId", "title price images") // Added deal population
       .populate("userId", "name email");
       
     res.status(201).json(populatedComment);
@@ -159,7 +190,7 @@ export const markUnread = async (req, res) => {
   }
 };
 
-// ✅ PATCH - Add admin reply
+// ✅ PATCH - Add admin reply - UPDATED FOR DEALS
 export const addReply = async (req, res) => {
   try {
     const { content } = req.body;
@@ -178,17 +209,24 @@ export const addReply = async (req, res) => {
         }
       },
       { new: true }
-    ).populate("productId", "name price images")
-     .populate("userId", "name email")
-     .lean();
+    )
+    .populate("productId", "name price images")
+    .populate("dealId", "title price images") // Added deal population
+    .populate("userId", "name email")
+    .lean();
 
     if (!updated) return res.status(404).json({ message: "Comment not found" });
 
-    const transformedComment = {
-      ...updated,
-      productName: updated.productName || (updated.productId ? updated.productId.name : 'Unknown Product'),
-      productPrice: updated.productPrice || (updated.productId ? updated.productId.price : 'N/A')
-    };
+    // Transform response based on target type
+    let transformedComment = { ...updated };
+    
+    if (updated.targetType === "product") {
+      transformedComment.productName = updated.productName || (updated.productId ? updated.productId.name : 'Unknown Product');
+      transformedComment.productPrice = updated.productPrice || (updated.productId ? updated.productId.price : 'N/A');
+    } else if (updated.targetType === "deal") {
+      transformedComment.dealName = updated.dealName || (updated.dealId ? updated.dealId.title : 'Unknown Deal');
+      transformedComment.dealPrice = updated.dealPrice || (updated.dealId ? updated.dealId.price : 'N/A');
+    }
 
     res.json(transformedComment);
   } catch (err) {
@@ -197,7 +235,7 @@ export const addReply = async (req, res) => {
   }
 };
 
-// ✅ PATCH - Like comment with user tracking - UPDATED
+// ✅ PATCH - Like comment with user tracking
 export const likeComment = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -246,7 +284,7 @@ export const likeComment = async (req, res) => {
   }
 };
 
-// ✅ PATCH - Dislike comment with user tracking - UPDATED
+// ✅ PATCH - Dislike comment with user tracking
 export const dislikeComment = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -295,7 +333,7 @@ export const dislikeComment = async (req, res) => {
   }
 };
 
-// ✅ PATCH - Remove like (toggle off) - NEW ENDPOINT
+// ✅ PATCH - Remove like (toggle off)
 export const removeLike = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -325,7 +363,7 @@ export const removeLike = async (req, res) => {
   }
 };
 
-// ✅ PATCH - Remove dislike (toggle off) - NEW ENDPOINT
+// ✅ PATCH - Remove dislike (toggle off)
 export const removeDislike = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -366,12 +404,13 @@ export const deleteComment = async (req, res) => {
   }
 };
 
-// ✅ GET - New notifications (unread + notified)
+// ✅ GET - New notifications (unread + notified) - UPDATED FOR DEALS
 export const getNotifications = async (req, res) => {
   try {
     const newReviews = await Comment.find({ isNotified: true, isRead: false })
       .sort({ date: -1 })
       .populate("productId", "name price")
+      .populate("dealId", "title price") // Added deal population
       .populate("userId", "name email");
 
     res.json(newReviews);

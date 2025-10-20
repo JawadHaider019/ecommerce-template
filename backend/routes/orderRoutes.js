@@ -1,5 +1,5 @@
 import express from "express"
-import { placeOrder,allOrders,userOrders,updateStatus } from "../controllers/orderController.js"
+import { placeOrder,allOrders,userOrders,updateStatus,cancelOrder  } from "../controllers/orderController.js"
 import { authUser } from "../middleware/auth.js"
 import  adminAuth  from "../middleware/adminAuth.js"
 
@@ -11,5 +11,7 @@ orderRoutes.post("/status",adminAuth, updateStatus)
 orderRoutes.post("/place",authUser, placeOrder)
 //user orders
 orderRoutes.post("/userorders",authUser, userOrders)
+
+orderRoutes.post("/cancel", authUser, cancelOrder)
 
 export default orderRoutes;

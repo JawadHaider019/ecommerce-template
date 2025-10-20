@@ -7,15 +7,22 @@ const replySchema = new mongoose.Schema({
   author: { type: String, default: "Admin" }
 });
 
-// Main comment schema
+// Main comment schema - UPDATED FOR DEALS
 const commentSchema = new mongoose.Schema({
-  targetType: { type: String, enum: ["product", "order"], required: true },
+  targetType: { 
+    type: String, 
+    enum: ["product", "order", "deal"], // ADDED "deal"
+    required: true 
+  },
   productId: { type: mongoose.Schema.Types.ObjectId, ref: "product" },
+  dealId: { type: mongoose.Schema.Types.ObjectId, ref: "deals" },
   orderId: { type: mongoose.Schema.Types.ObjectId, ref: "orders" },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
 
   productName: { type: String },
   productPrice: { type: String },
+  dealName: { type: String }, // NEW FIELD
+   dealPrice: { type: String },
 
   reviewImages: [
     {
@@ -47,10 +54,11 @@ const commentSchema = new mongoose.Schema({
   }],
 
   // 🔔 Admin notification flag
-  isNotified: { type: Boolean, default: false }
+  isNotified: { type: Boolean, default: true }
 });
 
 commentSchema.index({ isRead: 1, hasReply: 1, date: -1 });
+commentSchema.index({ dealId: 1 }); // NEW INDEX
 
 const Comment = mongoose.model("Comment", commentSchema);
 export default Comment;

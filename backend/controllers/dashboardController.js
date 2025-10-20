@@ -8,18 +8,16 @@ import User from "../models/userModel.js";
  */
 export const getDashboardStats = async (req, res) => {
   try {
-
     const { timeRange = 'monthly' } = req.query;
     const dateRange = getDateRange(timeRange);
     const startTimestamp = dateRange.start.getTime();
     const endTimestamp = dateRange.end.getTime();
 
-    // Debug: Check what data exists
+    // Fetch all data
     const allProducts = await Product.find({});
     const allOrders = await Order.find({ date: { $gte: startTimestamp, $lte: endTimestamp } });
     const allUsers = await User.find({});
     const allDeals = await Deal.find({});
-
 
     // 1️⃣ BASIC COUNTS
     const totalOrders = allOrders.length;
@@ -38,22 +36,18 @@ export const getDashboardStats = async (req, res) => {
         totalItemsSold += item.quantity || 1;
         
         if (item.cost) {
-          // If cost is directly in order item
           totalProductCost += item.cost * (item.quantity || 1);
         } else if (item.productId) {
-          // If we have productId, try to get cost from product
           const product = await Product.findById(item.productId);
           if (product) {
             totalProductCost += product.cost * (item.quantity || 1);
           } else {
-            // Fallback: estimate cost as 60% of price
             const estimatedCost = (item.price || order.amount / (item.quantity || 1)) * 0.6;
             totalProductCost += estimatedCost * (item.quantity || 1);
           }
         } else {
-          // Final fallback: estimate cost as 60% of revenue
           totalProductCost += order.amount * 0.6;
-          break; // Avoid double counting
+          break;
         }
       }
     }
@@ -83,7 +77,6 @@ export const getDashboardStats = async (req, res) => {
         
         const orderItems = await Promise.all(
           order.items.map(async (item, index) => {
-            // Try multiple ways to find product name
             if (item.productId) {
               const product = await Product.findById(item.productId);
               return {
@@ -91,13 +84,11 @@ export const getDashboardStats = async (req, res) => {
                 quantity: item.quantity || 1
               };
             } else if (item.name && item.name !== 'Generic Item') {
-              // If item already has a name
               return {
                 name: item.name,
                 quantity: item.quantity || 1
               };
             } else {
-              // Try to find product by price matching
               const avgPricePerItem = order.amount / order.items.reduce((sum, i) => sum + (i.quantity || 1), 0);
               const possibleProducts = await Product.find({
                 price: { $gte: avgPricePerItem * 0.7, $lte: avgPricePerItem * 1.3 }
@@ -110,7 +101,6 @@ export const getDashboardStats = async (req, res) => {
                 };
               }
               
-              // Final fallback with better naming
               return {
                 name: `Item ${index + 1}`,
                 quantity: item.quantity || 1
@@ -200,54 +190,137 @@ export const getDashboardStats = async (req, res) => {
         })
     );
 
-    // 1️⃣1️⃣ DEAL ANALYTICS - COMPLETELY REWRITTEN WITH REAL DATA
+    // 1️⃣1️⃣ DEAL ANALYTICS - COMPLETELY REWRITTEN WITH IMPROVED DETECTION
     const now = new Date();
 
-
-    // Calculate deal metrics from actual orders
+    // Calculate deal metrics - IMPROVED DETECTION
     let totalDealRevenue = 0;
     let totalDealCost = 0;
     let totalDealsSold = 0;
-    
+
     // Track individual deal performance
     const dealPerformanceMap = new Map();
-    
-    // Analyze each order to find deal-related purchases
+
+    // Initialize all deals in the performance map first
+    for (const deal of allDeals) {
+      dealPerformanceMap.set(deal._id.toString(), {
+        deal,
+        revenue: 0,
+        cost: 0,
+        sales: 0
+      });
+    }
+
+    // Helper function to calculate expected regular price
+    const calculateExpectedRegularPrice = async (order) => {
+      let expectedPrice = 0;
+      
+      for (const item of order.items) {
+        if (item.productId) {
+          const product = await Product.findById(item.productId);
+          if (product) {
+            expectedPrice += product.price * (item.quantity || 1);
+          } else if (item.price) {
+            expectedPrice += item.price * (item.quantity || 1);
+          }
+        } else if (item.price) {
+          expectedPrice += item.price * (item.quantity || 1);
+        }
+      }
+      
+      return expectedPrice > 0 ? expectedPrice : order.amount * 1.2;
+    };
+
+    // Analyze each order to find deal-related purchases - IMPROVED LOGIC
     for (const order of allOrders) {
-      // Check if order has deal information or if items are part of deals
-      if (order.dealId || order.items.some(item => item.dealId)) {
-        const dealId = order.dealId || order.items[0]?.dealId;
-        const deal = await Deal.findById(dealId);
+      let orderDealId = null;
+      let orderDeal = null;
+      
+      // METHOD 1: Check if order has direct dealId
+      if (order.dealId) {
+        orderDealId = order.dealId;
+        orderDeal = await Deal.findById(orderDealId);
+      }
+      
+      // METHOD 2: Check if any order items have dealId
+      if (!orderDeal && order.items && order.items.length > 0) {
+        for (const item of order.items) {
+          if (item.dealId) {
+            orderDealId = item.dealId;
+            orderDeal = await Deal.findById(orderDealId);
+            if (orderDeal) break;
+          }
+        }
+      }
+      
+      // METHOD 3: Try to match by deal name in order notes or description
+      if (!orderDeal && order.notes) {
+        for (const deal of allDeals) {
+          if (order.notes.toLowerCase().includes(deal.dealName.toLowerCase())) {
+            orderDealId = deal._id;
+            orderDeal = deal;
+            break;
+          }
+        }
+      }
+      
+      // METHOD 4: Check if this looks like a deal order based on discount patterns
+      if (!orderDeal) {
+        const expectedRegularPrice = await calculateExpectedRegularPrice(order);
+        const actualPrice = order.amount;
         
-        if (deal) {
-          totalDealRevenue += order.amount;
-          totalDealsSold += 1;
+        // If there's a significant discount (more than 5%), it might be a deal
+        if (expectedRegularPrice > 0 && actualPrice < expectedRegularPrice * 0.95) {
+          const discountPercentage = ((expectedRegularPrice - actualPrice) / expectedRegularPrice) * 100;
           
-          // Calculate deal cost based on deal products
-          let orderDealCost = 0;
-          if (deal.dealProducts && deal.dealProducts.length > 0) {
-            orderDealCost = deal.dealProducts.reduce((sum, product) => {
-              const productCost = product.cost || (product.price * 0.6);
-              return sum + (productCost * (product.quantity || 1));
-            }, 0);
-          } else {
-            // Estimate cost if no deal products defined
-            orderDealCost = order.amount * 0.6;
+          const matchingDeal = allDeals.find(deal => 
+            Math.abs(deal.dealDiscountValue - discountPercentage) < 10
+          );
+          
+          if (matchingDeal) {
+            orderDealId = matchingDeal._id;
+            orderDeal = matchingDeal;
           }
-          
-          totalDealCost += orderDealCost;
-          
-          // Track individual deal performance
-          if (!dealPerformanceMap.has(dealId.toString())) {
-            dealPerformanceMap.set(dealId.toString(), {
-              deal,
-              revenue: 0,
-              cost: 0,
-              sales: 0
-            });
+        }
+      }
+      
+      // If we found a deal for this order, calculate deal metrics
+      if (orderDeal && orderDealId) {
+        totalDealRevenue += order.amount;
+        totalDealsSold += 1;
+        
+        // Calculate deal cost based on deal products or estimate
+        let orderDealCost = 0;
+        
+        if (orderDeal.dealProducts && orderDeal.dealProducts.length > 0) {
+          // Calculate actual cost from deal products
+          orderDealCost = orderDeal.dealProducts.reduce((sum, product) => {
+            const productDoc = allProducts.find(p => p._id.toString() === product.productId?.toString());
+            const productCost = productDoc?.cost || product.cost || (product.price * 0.6);
+            const quantity = product.quantity || 1;
+            return sum + (productCost * quantity);
+          }, 0);
+        } else {
+          // Estimate cost based on order items
+          for (const item of order.items) {
+            if (item.productId) {
+              const product = await Product.findById(item.productId);
+              if (product) {
+                orderDealCost += product.cost * (item.quantity || 1);
+              } else {
+                orderDealCost += (item.price || 0) * 0.6 * (item.quantity || 1);
+              }
+            } else {
+              orderDealCost += (item.price || (order.amount / order.items.length)) * 0.6 * (item.quantity || 1);
+            }
           }
-          
-          const dealPerformance = dealPerformanceMap.get(dealId.toString());
+        }
+        
+        totalDealCost += orderDealCost;
+        
+        // Track individual deal performance
+        const dealPerformance = dealPerformanceMap.get(orderDealId.toString());
+        if (dealPerformance) {
           dealPerformance.revenue += order.amount;
           dealPerformance.cost += orderDealCost;
           dealPerformance.sales += 1;
@@ -268,13 +341,16 @@ export const getDashboardStats = async (req, res) => {
     }).length;
 
     // Calculate average deal discount
-    const avgDealDiscount = allDeals.length > 0 ? 
-      allDeals.reduce((sum, deal) => sum + (deal.dealDiscountValue || 0), 0) / allDeals.length : 0;
+    const dealsWithDiscount = allDeals.filter(deal => deal.dealDiscountValue && deal.dealDiscountValue > 0);
+    const avgDealDiscount = dealsWithDiscount.length > 0 ? 
+      dealsWithDiscount.reduce((sum, deal) => sum + deal.dealDiscountValue, 0) / dealsWithDiscount.length : 0;
 
     // Calculate deal inventory value
     const dealInventoryValue = allDeals.reduce((acc, deal) => {
       const dealValue = (deal.dealProducts || []).reduce((sum, product) => {
-        return sum + ((product.cost || 0) * (product.quantity || 0));
+        const productDoc = allProducts.find(p => p._id.toString() === product.productId?.toString());
+        const cost = productDoc?.cost || product.cost || 0;
+        return sum + (cost * (product.quantity || 0));
       }, 0);
       return acc + dealValue;
     }, 0);
@@ -294,6 +370,7 @@ export const getDashboardStats = async (req, res) => {
 
     // Top deals - based on actual performance data
     const topDeals = Array.from(dealPerformanceMap.values())
+      .filter(performance => performance.sales > 0) // Only show deals with sales
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 4)
       .map(performance => {
@@ -314,14 +391,20 @@ export const getDashboardStats = async (req, res) => {
           clicks: deal.clicks || 0,
           revenue: performance.revenue,
           totalSales: performance.sales,
+          profit: performance.revenue - performance.cost,
           startDate: deal.dealStartDate,
           endDate: deal.dealEndDate
         };
       });
 
-    // If no deal performance data, show all deals sorted by creation date
+    // If no deal performance data, show active deals sorted by creation date
     if (topDeals.length === 0) {
-      const allDealsSorted = allDeals
+      const activeDealsSorted = allDeals
+        .filter(deal => {
+          const startDate = new Date(deal.dealStartDate);
+          const endDate = new Date(deal.dealEndDate);
+          return deal.status === "published" && startDate <= now && endDate >= now;
+        })
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 4)
         .map(deal => {
@@ -341,39 +424,73 @@ export const getDashboardStats = async (req, res) => {
             clicks: deal.clicks || 0,
             revenue: 0,
             totalSales: 0,
+            profit: 0,
             startDate: deal.dealStartDate,
             endDate: deal.dealEndDate
           };
         });
       
-      topDeals.push(...allDealsSorted);
-    }   
+      topDeals.push(...activeDealsSorted);
+    }
 
-    // Deal performance by type
-    const dealPerformance = allDeals.reduce((acc, deal) => {
-      const type = deal.dealType || 'other';
-      const performance = dealPerformanceMap.get(deal._id.toString());
-      
-      if (performance) {
+    // Deal performance by type - FIXED
+    const dealPerformance = Array.from(dealPerformanceMap.values())
+      .filter(performance => performance.sales > 0)
+      .reduce((acc, performance) => {
+        const deal = performance.deal;
+        const type = deal.dealType || 'other';
+        
         const existing = acc.find(item => item.type === type);
         if (existing) {
           existing.count++;
           existing.totalViews += deal.views || 0;
           existing.totalClicks += deal.clicks || 0;
-          existing.totalProductRevenue += performance.revenue;
+          existing.totalRevenue += performance.revenue;
+          existing.totalSales += performance.sales;
+          existing.totalProfit += (performance.revenue - performance.cost);
         } else {
           acc.push({
             type: type,
             count: 1,
             totalViews: deal.views || 0,
             totalClicks: deal.clicks || 0,
-            totalProductRevenue: performance.revenue,
+            totalRevenue: performance.revenue,
+            totalSales: performance.sales,
+            totalProfit: performance.revenue - performance.cost,
             avgDiscount: deal.dealDiscountValue || 0
           });
         }
-      }
-      return acc;
-    }, []);
+        return acc;
+      }, []);
+
+    // If no performance data, show deal types summary
+    if (dealPerformance.length === 0) {
+      const dealTypeSummary = allDeals.reduce((acc, deal) => {
+        const type = deal.dealType || 'other';
+        const existing = acc.find(item => item.type === type);
+        
+        if (existing) {
+          existing.count++;
+          existing.totalViews += deal.views || 0;
+          existing.totalClicks += deal.clicks || 0;
+          existing.avgDiscount = (existing.avgDiscount + (deal.dealDiscountValue || 0)) / 2;
+        } else {
+          acc.push({
+            type: type,
+            count: 1,
+            totalViews: deal.views || 0,
+            totalClicks: deal.clicks || 0,
+            totalRevenue: 0,
+            totalSales: 0,
+            totalProfit: 0,
+            avgDiscount: deal.dealDiscountValue || 0
+          });
+        }
+        return acc;
+      }, []);
+      
+      dealPerformance.push(...dealTypeSummary);
+    }
 
     // 1️⃣2️⃣ ALERTS - FIXED
     const alerts = [
