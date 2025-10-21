@@ -6,6 +6,7 @@ import OurPolicy from "../components/OurPolicy"
 import Testimonial from '../components/Testimonial'
 import WhyChooseUs from "../components/WhyChooseUs"
 import DealCollection from "../components/DealCollection"
+import ScrollToTop from "../components/ScrollToTop"
 
 const Home = () => {
   return (
@@ -18,6 +19,7 @@ const Home = () => {
       <Testimonial/>
       <OurPolicy/>
       <NewsletterBox/>
+      <ScrollToTop />
     </div>
   )
 }

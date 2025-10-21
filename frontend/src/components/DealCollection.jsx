@@ -201,7 +201,7 @@ const DealCollection = () => {
         <div className="py-8 text-center text-3xl">
           <Title text1={'HOT'} text2={'DEALS'} />
           <p className="m-auto w-3/4 text-xs text-gray-600 sm:text-sm md:text-base">
-            Discover our exclusive limited-time offers with great discounts
+           Pure Deals, Pure Beauty — Shop Organic Skincare Offers Before They’re Gone!
           </p>
         </div>
         <div className="flex justify-center items-center h-40">
@@ -216,7 +216,7 @@ const DealCollection = () => {
       <div className="py-8 text-center text-3xl">
         <Title text1={'HOT'} text2={'DEALS'} />
         <p className="m-auto w-3/4 text-xs text-gray-600 sm:text-sm md:text-base">
-          Discover our exclusive limited-time offers with great discounts and special bundles
+       Pure Deals, Pure Beauty — Shop Organic Skincare Offers Before They’re Gone!
         </p>
       </div>
 

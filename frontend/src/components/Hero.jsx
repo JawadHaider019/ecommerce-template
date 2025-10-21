@@ -11,8 +11,7 @@ const Hero = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // API base URL - update this to match your backend URL
-  const API_BASE_URL =  'http://localhost:4000/api';
+  const API_BASE_URL = 'http://localhost:4000/api';
 
   // Fetch banners from backend
   useEffect(() => {
@@ -72,22 +71,12 @@ const Hero = () => {
     prevArrow: <PrevArrow />,
   };
 
-  // Loading state - matches original design
+  // Loading state
   if (loading) {
     return (
-      <div className="relative mx-auto max-w-7xl overflow-hidden  ">
-        <div 
-          className="relative flex h-[350px] items-center   md:h-[550px] bg-gray-200"
-          style={{
-                     backgroundSize: "cover",
-                backgroundPosition: "center",
-            borderRadius: "16px",
-          }}
-        >
-          {/* Overlay */}
-          <div className="absolute inset-0   bg-black bg-opacity-40"></div>
-
-          {/* Content */}
+      <div className="relative mx-auto max-w-7xl overflow-hidden">
+        <div className="relative flex h-[350px] items-center md:h-[550px] bg-gray-200 rounded-lg">
+          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
           <div className="relative z-10 max-w-lg px-14 text-left text-white">
             <div className="h-12 bg-gray-300 rounded animate-pulse mb-4"></div>
             <div className="h-6 bg-gray-300 rounded animate-pulse mb-2"></div>
@@ -98,20 +87,12 @@ const Hero = () => {
     );
   }
 
-  // Error state - matches original design
+  // Error state
   if (error) {
     return (
-      <div className="relative mx-auto max-w-7xl overflow-hidden  ">
-        <div 
-          className="relative flex h-[350px] items-center justify-center   md:h-[550px] bg-gray-200"
-          style={{
-            borderRadius: "16px",
-          }}
-        >
-          {/* Overlay */}
-          <div className="absolute inset-0   bg-black bg-opacity-40"></div>
-
-          {/* Content */}
+      <div className="relative mx-auto max-w-7xl overflow-hidden">
+        <div className="relative flex h-[350px] items-center justify-center md:h-[550px] bg-gray-200 rounded-lg">
+          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
           <div className="relative z-10 text-center text-white px-14">
             <p className="text-lg mb-4">{error}</p>
             <button 
@@ -126,20 +107,12 @@ const Hero = () => {
     );
   }
 
-  // No banners state - matches original design
+  // No banners state
   if (banners.length === 0) {
     return (
-      <div className="relative mx-auto max-w-7xl overflow-hidden  ">
-        <div 
-          className="relative flex h-[350px] items-center justify-center   md:h-[550px] bg-gray-200"
-          style={{
-            borderRadius: "16px",
-          }}
-        >
-          {/* Overlay */}
-          <div className="absolute inset-0  bg-black bg-opacity-40"></div>
-
-          {/* Content */}
+      <div className="relative mx-auto max-w-7xl overflow-hidden">
+        <div className="relative flex h-[350px] items-center justify-center md:h-[550px] bg-gray-200 rounded-lg">
+          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
           <div className="relative z-10 text-center text-white px-14">
             <p className="text-lg">No banners available</p>
           </div>
@@ -149,46 +122,47 @@ const Hero = () => {
   }
 
   return (
-    <div className="relative mx-auto max-w-7xl overflow-hidden  ">
+    <div className="relative mx-auto max-w-7xl overflow-hidden">
       <Slider {...settings}>
         {banners.map((banner) => (
           <div key={banner._id}>
-            <div
-              className="relative flex h-[350px] items-center   md:h-[550px]"
-              style={{
-                backgroundImage: `url(${banner.imageUrl})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                borderRadius: "16px",
-              }}
-            >
+            <div className="relative flex h-[350px] md:h-[550px]">
+              {/* Image with original size */}
+              <img 
+                src={banner.imageUrl} 
+                alt={banner.headingLine1 || "Natura Bliss Banner"}
+                className="w-full h-full object-fit"
+              />
+              
               {/* Overlay */}
-              <div className="absolute inset-0   bg-black bg-opacity-40"></div>
+              <div className="absolute inset-0 bg-black bg-opacity-40"></div>
 
               {/* Content */}
-              <div className="relative z-10 lg:pl-20 px-14 text-left text-white">
-                <h1 className="text-3xl font-bold leading-tight sm:py-3 sm:text-4xl lg:text-5xl">
-                  {banner.headingLine1}
-                  {banner.headingLine2 && (
-                    <span className="block">{banner.headingLine2}</span>
+              <div className="absolute inset-0 z-10 flex items-center">
+                <div className="lg:pl-20 px-14 text-left text-white">
+                  <h1 className="text-3xl font-bold leading-tight sm:py-3 sm:text-4xl lg:text-5xl">
+                    {banner.headingLine1}
+                    {banner.headingLine2 && (
+                      <span className="block">{banner.headingLine2}</span>
+                    )}
+                  </h1>
+                  {banner.subtext && (
+                    <p className="mt-2 text-sm font-medium sm:text-base">
+                      {banner.subtext}
+                    </p>
                   )}
-                </h1>
-                {banner.subtext && (
-                  <p className="mt-2 text-sm font-medium sm:text-base">
-                    {banner.subtext}
-                  </p>
-                )}
-                {banner.buttonText && banner.redirectUrl && (
-                  <div className="mt-4 flex items-center gap-2">
-                    <p className="h-px w-8 bg-white"></p>
-                    <Link 
-                      to={banner.redirectUrl}
-                      className="text-sm font-medium transition hover:text-gray-300 md:text-base"
-                    >
-                      {banner.buttonText}
-                    </Link>
-                  </div>
-                )}
+                  {banner.buttonText && banner.redirectUrl && (
+                    <div className="mt-4 flex items-center gap-2">
+                      <p className="h-px w-8 bg-white"></p>
+                      <Link 
+                        to={banner.redirectUrl}
+                        className="text-sm font-medium transition hover:text-gray-300 md:text-base"
+                      >
+                        {banner.buttonText}
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

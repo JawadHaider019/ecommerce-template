@@ -17,7 +17,7 @@ const LatestCollection = () => {
       <div className="py-8 text-center text-3xl">
         <Title text1={'LATEST'} text2={'COLLECTIONS'} />
         <p className="m-auto w-3/4 text-xs text-gray-600 sm:text-sm md:text-base">
-          Lorem ipsum dolor sit amet consectetur adipisicing elit.
+        Experience the Beauty of Nature with Natura Bliss’s Newest Organic Skincare Collection
         </p>
       </div>
       <div className="grid grid-cols-2 gap-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">

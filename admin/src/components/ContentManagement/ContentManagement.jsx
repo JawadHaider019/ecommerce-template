@@ -7,6 +7,7 @@ import {
   faReply,
   faCog,
   faImages,
+  faUsers,
 } from "@fortawesome/free-solid-svg-icons";
 
 // Import tab components
@@ -16,6 +17,7 @@ import BlogsTab from "./Tabs/BlogsTab.jsx";
 import CommentsTab from "./Tabs/CommentsTab.jsx";
 import OtherTab from "./Tabs/OtherTab.jsx";
 import { BannerManager } from "./Tabs/BannerTab.jsx";
+import TeamsTab from "./Tabs/TeamsTab.jsx"; 
 
 const ContentManagement = () => {
   const [activeTab, setActiveTab] = useState("categories");
@@ -25,6 +27,7 @@ const ContentManagement = () => {
   const [testimonials, setTestimonials] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [comments, setComments] = useState([]);
+  const [teams, setTeams] = useState([]); // New state for teams
 
   const [deliverySettings, setDeliverySettings] = useState({
     mode: "fixed",
@@ -64,6 +67,11 @@ const ContentManagement = () => {
     fetch("http://localhost:4000/api/testimonials")
       .then((res) => res.json())
       .then((data) => setTestimonials(data));
+
+    // Fetch teams data
+    fetch("http://localhost:4000/api/teams")
+      .then((res) => res.json())
+      .then((data) => setTeams(data));
     */
   }, []);
 
@@ -95,6 +103,10 @@ const ContentManagement = () => {
         return (
           <CommentsTab comments={comments} setComments={setComments} />
         );
+      case "teams": // New case for teams
+        return (
+          <TeamsTab teams={teams} setTeams={setTeams} />
+        );
       case "other":
         return (
           <OtherTab
@@ -121,6 +133,7 @@ const ContentManagement = () => {
           { id: "banner", name: "Banner", icon: faImages },
           { id: "testimonials", name: "Testimonials", icon: faComment },
           { id: "comments", name: "Comments", icon: faReply },
+          { id: "teams", name: "Teams", icon: faUsers }, // New tab
           { id: "other", name: "Other", icon: faCog },
         ].map((tab) => (
           <button

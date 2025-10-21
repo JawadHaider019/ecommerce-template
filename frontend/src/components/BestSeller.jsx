@@ -107,7 +107,7 @@ const BestSeller = () => {
       <div className="py-8 text-center text-3xl">
         <Title text1={"BEST"} text2={"SELLERS"} />
         <p className="m-auto w-3/4 text-xs text-gray-600 sm:text-sm md:text-base">
-          Discover our most popular and loved products
+        From Nature to Your Shelf — Discover the Organic Skincare Products Everyone’s Talking About.
         </p>
       </div>
 

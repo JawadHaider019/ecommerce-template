@@ -153,7 +153,6 @@ export const togglePublishStatus = async (req, res) => {
   }
 };
 
-// 🟩 Simple Category Management (without separate model)
 export const getAllCategories = async (req, res) => {
   try {
     // Get distinct categories from all blogs with counts
@@ -189,25 +188,43 @@ export const createCategory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Category name is required' });
     }
     
+    const categoryName = name.trim();
+    
     // Check if category already exists in any blog
     const existingCategory = await Blog.findOne({ 
-      category: { $regex: new RegExp(`^${name.trim()}$`, 'i') } 
+      category: { $regex: new RegExp(`^${categoryName}$`, 'i') } 
     });
     
     if (existingCategory) {
       return res.status(400).json({ success: false, message: 'Category already exists' });
     }
     
+    // ACTUALLY CREATE A BLOG WITH THIS CATEGORY TO SAVE IT
+    const newBlog = new Blog({
+      title: `Category Setup - ${categoryName}`,
+      content: `This blog was created to establish the "${categoryName}" category in the system.`,
+      category: [categoryName],
+      excerpt: `Category setup for ${categoryName}`,
+      tags: ['system', 'category-setup'],
+      status: 'draft', // Keep it as draft so it doesn't show publicly
+      author: 'System'
+    });
+    
+    await newBlog.save();
+    
     res.json({ 
       success: true, 
-      message: 'Category can be used', 
-      data: { name: name.trim() } 
+      message: 'Category created successfully', 
+      data: { 
+        name: categoryName,
+        blogCount: 1,
+        lastUsed: new Date()
+      } 
     });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Error creating category', error: error.message });
   }
 };
-
 export const updateCategory = async (req, res) => {
   try {
     const { newName } = req.body;
@@ -217,10 +234,31 @@ export const updateCategory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'New category name is required' });
     }
     
+    // Check if new category name already exists
+    const existingCategory = await Blog.findOne({ 
+      category: { $regex: new RegExp(`^${newName.trim()}$`, 'i') } 
+    });
+    
+    if (existingCategory) {
+      return res.status(400).json({ success: false, message: 'New category name already exists' });
+    }
+    
     // Update all blogs that have this category
     const result = await Blog.updateMany(
       { category: oldName },
       { $set: { "category.$": newName.trim() } }
+    );
+    
+    // Update any system category setup blogs
+    await Blog.updateMany(
+      { title: `Category Setup - ${oldName}`, author: 'System' },
+      { 
+        $set: { 
+          title: `Category Setup - ${newName.trim()}`,
+          category: [newName.trim()],
+          excerpt: `Category setup for ${newName.trim()}`
+        } 
+      }
     );
     
     res.json({ 
@@ -242,6 +280,12 @@ export const deleteCategory = async (req, res) => {
       { category: categoryName },
       { $pull: { category: categoryName } }
     );
+    
+    // Also delete any system-created category setup blogs
+    await Blog.deleteMany({
+      title: { $regex: `Category Setup - ${categoryName}` },
+      author: 'System'
+    });
     
     res.json({ 
       success: true, 

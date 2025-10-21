@@ -1,7 +1,7 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
-import notificationModel from "../models/notificationModel.js";
+import notificationModel from "../models/notifcationModel.js";
 import Comment from "../models/commentModel.js"; // Your existing comment model
 
 // 🆕 Notification Types
