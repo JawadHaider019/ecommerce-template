@@ -5,12 +5,12 @@ import axios from "axios";
 import { assets } from "../assets/assets";
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faTimesCircle, 
-  faClock, 
-  faBox, 
-  faShippingFast, 
-  faMotorcycle, 
+import {
+  faTimesCircle,
+  faClock,
+  faBox,
+  faShippingFast,
+  faMotorcycle,
   faCheckCircle,
   faPhone,
   faMapMarkerAlt,
@@ -57,17 +57,17 @@ const Orders = () => {
         return null;
       }
       const response = await axios.post(
-        backendUrl + '/api/order/userorders', 
-        {}, 
+        backendUrl + '/api/order/userorders',
+        {},
         { headers: { token } }
       );
-     
+
       if (response.data.success) {
         // ✅ Filter out cancelled orders and reverse the array
         const activeOrders = response.data.orders
           .filter(order => order.status !== "Cancelled")
           .reverse();
-        
+
         setOrders(activeOrders);
         console.log("📦 Active orders loaded:", activeOrders);
       }
@@ -93,7 +93,7 @@ const Orders = () => {
           const timeDifference = currentTime - orderTime;
           const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
           const timeRemaining = fifteenMinutes - timeDifference;
-          
+
           if (timeRemaining > 0) {
             newTimeLeft[order._id] = Math.ceil(timeRemaining / 1000); // Convert to seconds
           } else {
@@ -110,7 +110,7 @@ const Orders = () => {
   // Cancel order function
   const cancelOrder = async (orderId) => {
     const reason = selectedReason === 'Other' ? cancellationReason : selectedReason;
-    
+
     if (!reason.trim()) {
       toast.error("Please provide a cancellation reason");
       return;
@@ -120,9 +120,9 @@ const Orders = () => {
     try {
       const response = await axios.post(
         backendUrl + '/api/order/cancel',
-        { 
-          orderId, 
-          cancellationReason: reason.trim() 
+        {
+          orderId,
+          cancellationReason: reason.trim()
         },
         { headers: { token } }
       );
@@ -170,12 +170,12 @@ const Orders = () => {
   // Check if order can be cancelled (only within 15 minutes)
   const canCancelOrder = (order) => {
     if (order.status !== "Order Placed") return false;
-    
+
     const orderTime = new Date(order.date);
     const currentTime = new Date();
     const timeDifference = currentTime - orderTime;
     const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
-    
+
     return timeDifference < fifteenMinutes;
   };
 
@@ -249,7 +249,7 @@ const Orders = () => {
               <p className="text-sm text-gray-600 mb-4">
                 Are you sure you want to cancel this order? This action cannot be undone.
               </p>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -301,18 +301,17 @@ const Orders = () => {
               >
                 Keep Order
               </button>
-        <button
-  onClick={() => cancelOrder(cancellingOrder)}
-  disabled={!selectedReason || (selectedReason === 'Other' && !cancellationReason.trim())}
-  className={`flex-1 px-4 py-2 bg-red-600 text-white rounded-lg transition-colors flex items-center justify-center space-x-2 ${
-    (!selectedReason || (selectedReason === 'Other' && !cancellationReason.trim())) 
-      ? 'opacity-50 cursor-not-allowed' 
-      : 'hover:bg-red-700'
-  }`}
->
-  <FontAwesomeIcon icon={faTimesCircle} />
-  <span>{cancellingOrder ? 'Cancelling...' : 'Confirm Cancellation'}</span>
-</button>
+              <button
+                onClick={() => cancelOrder(cancellingOrder)}
+                disabled={!selectedReason || (selectedReason === 'Other' && !cancellationReason.trim())}
+                className={`flex-1 px-4 py-2 bg-red-600 text-white rounded-lg transition-colors flex items-center justify-center space-x-2 ${(!selectedReason || (selectedReason === 'Other' && !cancellationReason.trim()))
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:bg-red-700'
+                  }`}
+              >
+                <FontAwesomeIcon icon={faTimesCircle} />
+                <span>{cancellingOrder ? 'Cancelling...' : 'Confirm Cancellation'}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -333,12 +332,12 @@ const Orders = () => {
               const itemData = getItemDisplayData(item);
               return sum + (itemData.discountedPrice * item.quantity);
             }, 0);
-            
+
             const total = subtotal + (order.deliveryCharges || 0);
             const isCancellable = canCancelOrder(order);
             const cancellationTimeLeft = timeLeft[order._id] || 0;
             const timePercentage = getTimePercentage(order._id);
-            
+
             return (
               <div key={order._id} className="mb-8 border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
                 {/* Order header with summary info */}
@@ -357,7 +356,7 @@ const Orders = () => {
                       </div>
                     </div>
                   </div>
-                
+
                   {/* Cancellation timer */}
                   {isCancellable && cancellationTimeLeft > 0 && (
                     <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -372,7 +371,7 @@ const Orders = () => {
                         </span>
                       </div>
                       <div className="w-full bg-yellow-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-yellow-500 h-2 rounded-full transition-all duration-1000"
                           style={{ width: `${timePercentage}%` }}
                         ></div>
@@ -380,28 +379,28 @@ const Orders = () => {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Order items */}
                 <div className="divide-y divide-gray-100">
                   {order.items.map((item, index) => {
                     const itemData = getItemDisplayData(item);
-                    
+
                     return (
                       <div key={index} className="flex flex-col gap-6 p-6 transition-all duration-200 hover:bg-gray-50 md:flex-row md:items-start">
                         {/* Image Section */}
                         <div className="flex-shrink-0 flex justify-center md:justify-start">
                           <div className="w-32 h-32 md:w-36 md:h-36 flex items-center justify-center overflow-hidden bg-white border border-gray-200 rounded-lg">
-                            <img 
-                              className="w-full h-full object-contain p-2" 
-                              src={itemData.image} 
-                              alt={itemData.name} 
+                            <img
+                              className="w-full h-full object-contain p-2"
+                              src={itemData.image}
+                              alt={itemData.name}
                               onError={(e) => {
                                 e.target.src = assets.placeholder_image;
                               }}
                             />
                           </div>
                         </div>
-                        
+
                         {/* Product Details */}
                         <div className="flex-1">
                           <div className="flex items-start gap-2 mb-3">
@@ -412,7 +411,7 @@ const Orders = () => {
                               </span>
                             )}
                           </div>
-                          
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                             {itemData.originalPrice > itemData.discountedPrice && (
                               <div className="flex flex-col">
@@ -422,7 +421,7 @@ const Orders = () => {
                                 </span>
                               </div>
                             )}
-                            
+
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">
                                 {itemData.type === 'deal' ? 'Deal Price' : 'Price'}
@@ -431,12 +430,12 @@ const Orders = () => {
                                 {currency}{(itemData.discountedPrice * item.quantity).toFixed(2)}
                               </span>
                             </div>
-                            
+
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Quantity</span>
                               <span className="font-medium text-green-600">{item.quantity}</span>
                             </div>
-                            
+
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Unit Price</span>
                               <span className="font-medium text-gray-700">
@@ -447,7 +446,7 @@ const Orders = () => {
 
                           {itemData.description && (
                             <p className="text-sm text-gray-500 mt-3">
-                              {itemData.description.length > 100 
+                              {itemData.description.length > 100
                                 ? `${itemData.description.substring(0, 100)}...`
                                 : itemData.description
                               }
@@ -458,7 +457,7 @@ const Orders = () => {
                     );
                   })}
                 </div>
-                
+
                 {/* Order footer with actions */}
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                   <div className="flex flex-col gap-6 lg:flex-row lg:justify-between">
@@ -473,7 +472,7 @@ const Orders = () => {
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-start space-x-2">
                         <FontAwesomeIcon icon={faPhone} className="text-gray-400 mt-1 text-sm" />
                         <div>
@@ -481,7 +480,7 @@ const Orders = () => {
                           <p className="text-sm text-gray-600">{order.address?.phone}</p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-start space-x-2">
                         <FontAwesomeIcon icon={faCreditCard} className="text-gray-400 mt-1 text-sm" />
                         <div>
@@ -492,7 +491,7 @@ const Orders = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Price Summary and Actions */}
                     <div className="space-y-4 min-w-[250px]">
                       {/* Price Summary */}
@@ -501,7 +500,7 @@ const Orders = () => {
                           <span className="text-gray-500">Subtotal:</span>
                           <span className="font-medium">{currency}{subtotal.toFixed(2)}</span>
                         </div>
-                        
+
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-gray-500">Delivery Fee:</span>
                           <span className="font-medium">
@@ -512,17 +511,17 @@ const Orders = () => {
                             )}
                           </span>
                         </div>
-                        
+
                         <div className="flex justify-between text-base font-semibold border-t pt-2">
                           <span className="text-gray-700">Total:</span>
                           <span className="text-gray-900">{currency}{total.toFixed(2)}</span>
                         </div>
                       </div>
-                      
+
                       {/* Action Buttons */}
                       <div className="flex gap-2">
                         {isCancellable && cancellationTimeLeft > 0 && (
-                          <button 
+                          <button
                             onClick={() => setCancellingOrder(order._id)}
                             className="flex-1 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-all hover:bg-red-100 whitespace-nowrap flex items-center justify-center gap-2"
                           >

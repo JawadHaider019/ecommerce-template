@@ -21,31 +21,73 @@ const Product = () => {
   const [filterRating, setFilterRating] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Debug user authentication state
+  // Debug component state
   useEffect(() => {
-    console.log('🔐 Authentication Debug:');
-    console.log('User object:', user);
-    console.log('Token exists:', !!token);
-    console.log('LocalStorage token:', localStorage.getItem('token'));
-    console.log('User is logged in:', !!(user && user._id));
-  }, [user, token]);
+    console.log('🔍 Product Component Debug:');
+    console.log('productId:', productId);
+    console.log('products length:', products?.length);
+    console.log('productData:', productData);
+    console.log('user:', user);
+    console.log('backendUrl:', backendUrl);
+    console.log('stock:', productData?.quantity);
+  }, [productId, products, productData, user, backendUrl]);
 
   // Fetch product data and reviews
   useEffect(() => {
+    console.log('🔄 Fetching product data...');
+    setLoading(true);
+    setError(null);
+    
+    if (!productId) {
+      console.error('❌ No productId found in URL parameters');
+      setError('Product ID not found');
+      setLoading(false);
+      return;
+    }
+
+    if (!products || products.length === 0) {
+      console.log('⏳ Products array is empty or not loaded yet');
+      setLoading(false);
+      return;
+    }
+
     const product = products.find((item) => item._id === productId);
+    console.log('Found product:', product);
+
     if (product) {
       setProductData(product);
-      setImage(product.image[0]);
+      setImage(product.image?.[0] || '');
+      setError(null);
       fetchProductReviews(productId);
+    } else {
+      console.error('❌ Product not found with ID:', productId);
+      setError('Product not found');
     }
+    setLoading(false);
   }, [productId, products]);
+
+  const stock = productData ? productData.quantity : 0;
+
+  // Monitor stock and adjust quantity if needed
+  useEffect(() => {
+    if (quantity > stock) {
+      setQuantity(Math.max(1, stock));
+    }
+  }, [stock, quantity]);
 
   // Fetch reviews from backend for specific product
   const fetchProductReviews = async (productId) => {
+    if (!productId || !backendUrl) {
+      console.error('Missing productId or backendUrl');
+      return;
+    }
+
     setLoadingReviews(true);
     try {
-      console.log('Fetching reviews for product ID:', productId);
+      console.log('📡 Fetching reviews for product ID:', productId);
       const response = await fetch(`${backendUrl}/api/comments?productId=${productId}`);
       
       console.log('Response status:', response.status);
@@ -81,36 +123,78 @@ const Product = () => {
       } else {
         const errorText = await response.text();
         console.error('Failed to fetch reviews:', errorText);
+        toast.error('Failed to load reviews');
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
+      toast.error('Error loading reviews');
     } finally {
       setLoadingReviews(false);
     }
   };
 
-  const stock = productData ? productData.quantity : 0;
-
-  // Render stock status
   const renderStockStatus = () => {
     if (stock === 0) {
-      return <p className="p-4 text-red-500">Out of Stock</p>;
+      return (
+       
+          <p className="text-red-500 font-medium">Out of Stock</p>
+     
+      );
+    } else if (stock < 5) {
+      return (
+        <div>
+          <p className="text-red-500 font-medium">Only {stock} item{stock !== 1 ? 's' : ''} left!</p>
+          <p className="text-red-400 text-sm mt-1">Hurry, low stock</p>
+        </div>
+      );
     } else if (stock < 10) {
-      return <p className="p-4 text-red-500">{stock} items left</p>;
+      return (
+        <div >
+          <p className="text-orange-500">{stock} items left</p>
+          <p className="text-orange-400 text-sm mt-1">Limited stock available</p>
+        </div>
+      );
     } else if (stock < 20) {
-      return <p className="p-4 text-orange-500">Limited items left</p>;
+      return (
+        <div >
+          <p className="text-yellow-600">Limited items left</p>
+        </div>
+      );
     } else {
-      return <p className="p-4 text-green-500">In Stock</p>;
+      return (
+        <div >
+          <p className="text-green-500 font-medium">In Stock</p>
+          <p className="text-green-600 text-sm mt-1">Available for immediate shipping</p>
+        </div>
+      );
     }
   };
 
   const handleQuantityChange = (e) => {
     let value = Number(e.target.value);
+    
+    // Handle invalid inputs
     if (isNaN(value) || value < 1) {
       value = 1;
     }
+    
+    // Ensure value doesn't exceed stock
     value = Math.min(value, stock);
+    
     setQuantity(value);
+  };
+
+  // Add direct increment/decrement handlers
+  const incrementQuantity = () => {
+    if (quantity < stock) {
+      setQuantity(prev => prev + 1);
+    }
+  };
+
+  const decrementQuantity = () => {
+    if (quantity > 1) {
+      setQuantity(prev => prev - 1);
+    }
   };
 
   // Handle multiple image uploads - store files for backend upload
@@ -128,6 +212,10 @@ const Product = () => {
 
   // Remove review image
   const removeReviewImage = (index) => {
+    // Revoke the object URL to prevent memory leaks
+    if (reviewImages[index]?.url) {
+      URL.revokeObjectURL(reviewImages[index].url);
+    }
     setReviewImages(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -141,11 +229,17 @@ const Product = () => {
     console.log('Comment:', comment);
 
     if (!user || !user._id) {
-      console.log('❌ No valid user found');
+      toast.error('Please login to submit a review');
       return;
     }
 
-    if (rating === 0 || comment.trim() === '') {
+    if (rating === 0) {
+      toast.error('Please select a rating');
+      return;
+    }
+
+    if (comment.trim() === '') {
+      toast.error('Please write a review comment');
       return;
     }
 
@@ -164,16 +258,8 @@ const Product = () => {
         formData.append('reviewImages', imageData.file);
       });
 
-      console.log('📤 Submitting review with data:', {
-        productId,
-        userId: user._id,
-        rating,
-        comment
-      });
-
       const currentToken = token || localStorage.getItem('token');
-      console.log('Using token:', currentToken);
-
+      
       const response = await fetch(`${backendUrl}/api/comments`, {
         method: 'POST',
         body: formData,
@@ -182,11 +268,8 @@ const Product = () => {
         }
       });
 
-      console.log('📨 Response status:', response.status);
-
       if (response.ok) {
         const newComment = await response.json();
-        console.log('✅ Review submitted successfully:', newComment);
         
         // Transform backend response to frontend format
         const newReview = {
@@ -213,16 +296,19 @@ const Product = () => {
         setReviews((prevReviews) => [newReview, ...prevReviews]);
         setRating(0);
         setComment('');
+        // Clean up object URLs
+        reviewImages.forEach(image => URL.revokeObjectURL(image.url));
         setReviewImages([]);
         
-        // Refresh reviews to ensure we have the latest data
-        fetchProductReviews(productId);
+        toast.success('Review submitted successfully!');
       } else {
         const error = await response.json();
         console.error('❌ Failed to submit review:', error);
+        toast.error('Failed to submit review');
       }
     } catch (error) {
       console.error('❌ Error submitting review:', error);
+      toast.error('Error submitting review');
     } finally {
       setUploading(false);
     }
@@ -241,6 +327,7 @@ const Product = () => {
   // YouTube-like like functionality
   const handleLikeReview = async (reviewId) => {
     if (!user || !user._id) {
+      toast.error('Please login to like reviews');
       return;
     }
 
@@ -249,45 +336,27 @@ const Product = () => {
       const review = reviews.find(r => r.id === reviewId);
       const { hasLiked, hasDisliked } = getUserInteractionStatus(review);
 
-      let response;
-      
-      // If already liked, remove the like (toggle off)
+      let endpoint = '';
+      let method = 'PATCH';
+
       if (hasLiked) {
-        response = await fetch(`${backendUrl}/api/comments/${reviewId}/remove-like`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${currentToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ userId: user._id })
-        });
-      } 
-      // If disliked, switch to like (remove dislike and add like)
-      else if (hasDisliked) {
-        response = await fetch(`${backendUrl}/api/comments/${reviewId}/like`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${currentToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ userId: user._id })
-        });
-      }
-      // If neither, add like
-      else {
-        response = await fetch(`${backendUrl}/api/comments/${reviewId}/like`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${currentToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ userId: user._id })
-        });
+        endpoint = 'remove-like';
+      } else if (hasDisliked) {
+        endpoint = 'like';
+      } else {
+        endpoint = 'like';
       }
 
+      const response = await fetch(`${backendUrl}/api/comments/${reviewId}/${endpoint}`, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: user._id })
+      });
+
       if (response.ok) {
-        const result = await response.json();
-        
         // Update the review with new counts and user arrays
         setReviews(prevReviews => 
           prevReviews.map(review => {
@@ -318,15 +387,18 @@ const Product = () => {
       } else {
         const error = await response.json();
         console.error('Failed to update like:', error);
+        toast.error('Failed to update like');
       }
     } catch (error) {
       console.error('Error updating like:', error);
+      toast.error('Error updating like');
     }
   };
 
   // YouTube-like dislike functionality
   const handleDislikeReview = async (reviewId) => {
     if (!user || !user._id) {
+      toast.error('Please login to dislike reviews');
       return;
     }
 
@@ -335,45 +407,27 @@ const Product = () => {
       const review = reviews.find(r => r.id === reviewId);
       const { hasLiked, hasDisliked } = getUserInteractionStatus(review);
 
-      let response;
-      
-      // If already disliked, remove the dislike (toggle off)
+      let endpoint = '';
+      let method = 'PATCH';
+
       if (hasDisliked) {
-        response = await fetch(`${backendUrl}/api/comments/${reviewId}/remove-dislike`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${currentToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ userId: user._id })
-        });
-      } 
-      // If liked, switch to dislike (remove like and add dislike)
-      else if (hasLiked) {
-        response = await fetch(`${backendUrl}/api/comments/${reviewId}/dislike`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${currentToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ userId: user._id })
-        });
-      }
-      // If neither, add dislike
-      else {
-        response = await fetch(`${backendUrl}/api/comments/${reviewId}/dislike`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${currentToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ userId: user._id })
-        });
+        endpoint = 'remove-dislike';
+      } else if (hasLiked) {
+        endpoint = 'dislike';
+      } else {
+        endpoint = 'dislike';
       }
 
+      const response = await fetch(`${backendUrl}/api/comments/${reviewId}/${endpoint}`, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: user._id })
+      });
+
       if (response.ok) {
-        const result = await response.json();
-        
         // Update the review with new counts and user arrays
         setReviews(prevReviews => 
           prevReviews.map(review => {
@@ -404,9 +458,11 @@ const Product = () => {
       } else {
         const error = await response.json();
         console.error('Failed to update dislike:', error);
+        toast.error('Failed to update dislike');
       }
     } catch (error) {
       console.error('Error updating dislike:', error);
+      toast.error('Error updating dislike');
     }
   };
 
@@ -454,14 +510,6 @@ const Product = () => {
   // Get the reviews to display (10 initially or all)
   const displayedReviews = showAllReviews ? filteredReviews : filteredReviews.slice(0, 10);
 
-  if (!productData) {
-    return <div>Loading...</div>;
-  }
-
-  const discountPrice = productData.discount 
-    ? productData.price * (1 - productData.discount / 100) 
-    : null;
-
   // Render rating stars
   const renderRating = (ratingValue = 0) => {
     const stars = [];
@@ -494,8 +542,18 @@ const Product = () => {
       toast.error('This product is out of stock');
       return;
     }
-    addToCart(productData._id, quantity);
-    setQuantity(1);
+    
+    // Final validation to ensure quantity doesn't exceed stock
+    const finalQuantity = Math.min(quantity, stock);
+    
+    // If quantity was adjusted, update the state and show a message
+    if (finalQuantity !== quantity) {
+      setQuantity(finalQuantity);
+      toast.info(`Quantity adjusted to available stock: ${finalQuantity}`);
+    }
+    
+    addToCart(productData._id, finalQuantity);
+    setQuantity(1); // Reset to 1 after adding to cart
     toast.success('Product added to cart!');
   };
 
@@ -515,19 +573,60 @@ const Product = () => {
     return stars;
   };
 
+  // Show error state
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.history.back()}
+            className="btn bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (loading || !productData) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading product...</p>
+            <p className="text-sm text-gray-500">Product ID: {productId}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const discountPrice = productData.discount 
+    ? productData.price * (1 - productData.discount / 100) 
+    : null;
+
   return (
-    <div className="border-t-2 pt-10">
+    <div className="container mx-auto px-4 border-t-2 pt-10">
       <div className="flex flex-col gap-12 sm:flex-row sm:gap-12">
         <div className="flex flex-1 flex-col-reverse gap-3 sm:flex-row">
           {/* Thumbnail Images */}
           <div className="flex w-full justify-between overflow-x-auto sm:w-[18%] sm:flex-col sm:justify-normal sm:overflow-y-auto">
-            {productData.image.map((item, index) => (
+            {productData.image?.map((item, index) => (
               <img
                 key={index}
                 src={item}
                 alt={`Product Thumbnail ${index + 1}`}
-                className="w-[24%] shrink-0 cursor-pointer sm:mb-3 sm:w-full"
+                className="w-[24%] shrink-0 cursor-pointer sm:mb-3 sm:w-full object-cover h-20 sm:h-24"
                 onClick={() => setImage(item)} 
+                onError={(e) => {
+                  console.error(`Error loading image: ${item}`);
+                  e.target.src = 'https://via.placeholder.com/150?text=Image+Error';
+                }}
               />
             ))}
           </div>
@@ -541,9 +640,13 @@ const Product = () => {
               </div>
             )}
             <img
-              src={image}
-              alt="Main Product"
-              className="h-auto w-full"
+              src={image || productData.image?.[0]}
+              alt={productData.name}
+              className="h-auto w-full object-cover max-h-96"
+              onError={(e) => {
+                console.error(`Error loading main image: ${image}`);
+                e.target.src = 'https://via.placeholder.com/500?text=Product+Image';
+              }}
             />
           </div>
         </div>
@@ -566,27 +669,67 @@ const Product = () => {
             )}
           </div>
           <p className="mt-5 text-gray-500 md:w-4/5">{productData.description}</p>
+          
           <div className="my-8 flex items-center gap-4">
-            <p>Quantity</p>
+            <p className="font-medium">Quantity</p>
             <div className="flex items-center gap-2">
+              <button
+                onClick={decrementQuantity}
+                disabled={quantity <= 1 || stock === 0}
+                className={`w-8 h-8 rounded border border-gray-300 flex items-center justify-center ${
+                  quantity <= 1 || stock === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+                }`}
+              >
+                -
+              </button>
               <input
                 className="w-16 rounded border-2 border-gray-300 px-2 py-1 text-center text-sm"
                 type="number"
                 value={quantity}
                 min={1}
-                max={stock} 
+                max={stock}
                 onChange={handleQuantityChange}
+                onBlur={(e) => {
+                  // Final validation on blur
+                  let value = Number(e.target.value);
+                  if (isNaN(value) || value < 1) value = 1;
+                  if (value > stock) value = stock;
+                  setQuantity(value);
+                }}
+                disabled={stock === 0}
               />
+              <button
+                onClick={incrementQuantity}
+                disabled={quantity >= stock || stock === 0}
+                className={`w-8 h-8 rounded border border-gray-300 flex items-center justify-center ${
+                  quantity >= stock || stock === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+                }`}
+              >
+                +
+              </button>
+             
             </div>
           </div>
+          
           {renderStockStatus()}
+          
           <button
             onClick={handleAddToCart}
-            className={`btn ${stock === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`btn mt-4 ${
+              stock === 0 
+                ? 'opacity-50 cursor-not-allowed bg-gray-400' 
+                : 'hover:bg-black hover:text-white transition-colors'
+            }`}
             disabled={stock === 0}
           >
-            {stock === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
+            {stock === 0 
+              ? 'OUT OF STOCK' 
+              : quantity > stock 
+                ? `ADD ${stock} TO CART` 
+                : `ADD TO CART`
+            }
           </button>
+          
           <hr className="mt-8 sm:w-4/5" />
           <div className="mt-5 flex flex-col gap-1 text-sm text-gray-500">
             <p>100% Original product.</p>
@@ -713,7 +856,7 @@ const Product = () => {
                     ))}
                   </div>
                   <button
-                    className={`btn mt-4 ${uploading ? 'opacity-50 cursor-not-allowed bg-' : ''}`}
+                    className={`btn mt-4 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     onClick={handleSubmitReview}
                     disabled={uploading}
                   >
@@ -831,7 +974,7 @@ const Product = () => {
         </div>
       )}
 
-      <RelatedProduct category={productData.category} />
+      {productData.category && <RelatedProduct category={productData.category} />}
     </div>
   );
 };
