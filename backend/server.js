@@ -19,6 +19,8 @@ import commentRoutes from './routes/commentRoutes.js'
 import deliverySettingsRoutes from './routes/deliverySettingsRoutes.js';
 import blogRoutes from './routes/blogRoutes.js'
 import teamRoutes from './routes/teamRoutes.js';
+import businessDetailsRoutes from './routes/businessDetailsRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
 
 // App Config    
 const app = express();
@@ -47,6 +49,8 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/delivery-settings", deliverySettingsRoutes);
 app.use("/api/blogs",blogRoutes)
 app.use('/api/teams', teamRoutes);
+app.use('/api/business-details', businessDetailsRoutes);
+app.use('/api/contact', contactRoutes);
 
 app.get('/', (req, res) => {
     res.send("API Working ✅");

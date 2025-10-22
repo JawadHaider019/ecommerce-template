@@ -96,7 +96,7 @@ const About = () => {
           </div>
 
           {/* Pull Quote */}
-          <div className="my-12 p-8 bg-green-50 border-l-4 border-green-500">
+          <div className="my-12 p-8 bg-gray-100 border-l-4 border-green-500">
             <FaQuoteLeft className="text-green-400 text-2xl mb-4" />
             <p className="text-gray-700 italic text-xl leading-relaxed font-light">
               "We knew there had to be a better way — something real, pure, and honest. So, we began to experiment."
@@ -119,7 +119,7 @@ const About = () => {
                 Today, <strong>Natura Bliss</strong> stands proudly as <strong>Pakistan's first all-natural personal care brand</strong>, creating <strong>pure, handcrafted, and chemical-free</strong> products designed to nourish, protect, and enhance your skin, hair, and overall well-being.
               </p>
             </div>
-            <div className="bg-green-50 p-8 border border-green-200">
+            <div className="bg-gray-100 p-8 border border-green-200">
               <FaQuoteLeft className="text-green-400 text-3xl mb-4" />
               <p className="text-gray-700 italic text-lg leading-relaxed">
                 "What nature creates is what's best for humanity. Your skin's best friend is nature — and we're just the messenger helping you reconnect."

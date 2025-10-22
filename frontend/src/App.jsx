@@ -16,10 +16,12 @@ import SearchBar from './components/SearchBar'
 import { ToastContainer } from 'react-toastify'
 import Footer from './components/Footer'
 import 'react-toastify/dist/ReactToastify.css'
+import Favicon from './components/Favicon' 
 
 const App = () => {
   return (
     <div className="px-4 sm:px-[5vw] md:px-[7vw] lg:px-[9vw]">
+      <Favicon /> {/* ✅ Add Favicon component here */}
       <ToastContainer/>
       <Navbar/>
       <SearchBar/>
@@ -44,4 +46,3 @@ const App = () => {
 }
 
 export default App
-

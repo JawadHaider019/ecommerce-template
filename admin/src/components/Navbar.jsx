@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -6,28 +6,90 @@ import {
   faPlus,
   faList,
   faShoppingCart,
-  faTachometerAlt,
   faBars,
   faTimes,
-    faLayerGroup,
+  faLayerGroup,
+  faStore
 } from "@fortawesome/free-solid-svg-icons";
-import { assets } from "../assets/assets";
+import axios from "axios";
+import { backendUrl } from "../App";
+import { assets } from "../assets/assets"; // Import your assets
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [adminLogo, setAdminLogo] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // Fetch admin logo from backend
+  useEffect(() => {
+    const fetchAdminLogo = async () => {
+      try {
+        console.log('🔄 Fetching admin logo for navbar...');
+        const response = await axios.get(`${backendUrl}/api/business-details`);
+        
+        if (response.data.success && response.data.data?.logos?.admin?.url) {
+          setAdminLogo(response.data.data.logos.admin.url);
+          console.log('✅ Admin logo loaded for navbar:', response.data.data.logos.admin.url);
+        } else {
+          console.log('ℹ️ No admin logo found, will use asset logo');
+          setAdminLogo(""); // This will trigger the asset logo fallback
+        }
+      } catch (error) {
+        console.error('❌ Error fetching admin logo:', error);
+        setAdminLogo(""); // This will trigger the asset logo fallback
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdminLogo();
+  }, []);
+
+  // Logo display component
+  const LogoDisplay = ({ isMobile = false }) => {
+    if (loading) {
+      return (
+        <div className={`animate-pulse bg-gray-300 rounded flex items-center justify-center ${isMobile ? 'w-20 h-8' : 'w-32 h-10'}`}>
+          <FontAwesomeIcon icon={faStore} className="text-gray-400 text-sm" />
+        </div>
+      );
+    }
+
+    // If we have a backend admin logo, use it
+    if (adminLogo) {
+      return (
+        <img 
+          src={adminLogo} 
+          alt="Admin Logo" 
+          className={isMobile ? "w-20 h-auto object-contain" : "w-32 h-auto object-contain"}
+          onError={(e) => {
+            console.error('❌ Failed to load admin logo from backend, using asset logo');
+            // If backend logo fails to load, show asset logo instead
+            e.target.style.display = 'none';
+            // The parent component will show the asset logo as fallback
+          }}
+        />
+      );
+    }
+
+    // Fallback to your original asset logo when no backend logo is available
+    return (
+      <img
+        src={assets.logo}
+        alt="Logo"
+        className={isMobile ? "w-20 h-auto object-contain" : "w-32 h-auto object-contain"}
+      />
+    );
+  };
 
   return (
     <>
       {/* Mobile Header with Logo + Settings + Hamburger */}
       <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50 p-3 shadow-sm">
         <div className="flex justify-between items-center">
-          {/* Logo links to login by default */}
+          {/* Logo links to dashboard */}
           <Link to="/" className="p-1">
-            <img
-              src={assets.logo}
-              alt="Logo"
-              className="w-20 h-auto object-contain"
-            />
+            <LogoDisplay isMobile={true} />
           </Link>
 
           <div className="flex items-center gap-4">
@@ -35,7 +97,7 @@ const Navbar = () => {
             <Link to="/settings" className="p-2">
               <FontAwesomeIcon
                 icon={faCog}
-                className="text-gray-600 text-xl hover:text-black-600 transition"
+                className="text-gray-600 text-xl hover:text-black transition"
               />
             </Link>
 
@@ -63,14 +125,14 @@ const Navbar = () => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
-                    ? "text-black-600 border-l-4 border-black-500"
+                    ? "text-black border-l-4 border-black"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 }`
               }
               onClick={() => setIsMenuOpen(false)}
             >
               <FontAwesomeIcon icon={faLayerGroup} />
-              <span className="font-medium"> Content Management</span>
+              <span className="font-medium">Content Management</span>
             </NavLink>
 
             <NavLink
@@ -78,7 +140,7 @@ const Navbar = () => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
-                    ? "text-black-600 border-l-4 border-black-500"
+                    ? "text-black border-l-4 border-black"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 }`
               }
@@ -93,7 +155,7 @@ const Navbar = () => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
-                    ? "text-black-600 border-l-4 border-black-500"
+                    ? "text-black border-l-4 border-black"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 }`
               }
@@ -108,7 +170,7 @@ const Navbar = () => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
-                    ? "text-black-600 border-l-4 border-black-500"
+                    ? "text-black border-l-4 border-black"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 }`
               }
@@ -125,14 +187,10 @@ const Navbar = () => {
       <div className="hidden md:block w-full bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between py-4">
-            {/* Logo links to login by default */}
+            {/* Logo links to dashboard */}
             <div className="flex-shrink-0">
               <Link to="/" className="p-2 block">
-                <img
-                  src={assets.logo}
-                  alt="Logo"
-                  className="w-32 h-auto object-contain"
-                />
+                <LogoDisplay isMobile={false} />
               </Link>
             </div>
 
@@ -148,8 +206,8 @@ const Navbar = () => {
                   }`
                 }
               >
-                <FontAwesomeIcon icon={ faLayerGroup} />
-                <span className="font-medium"> Content Management</span>
+                <FontAwesomeIcon icon={faLayerGroup} />
+                <span className="font-medium">Content Management</span>
               </NavLink>
 
               <NavLink

@@ -16,6 +16,7 @@ import ContentManagement from './components/ContentManagement/ContentManagement.
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
 export const currency = 'Rs.'
+import Favicon from './components/Favicon.jsx';
 
 const App = () => {
     const { token, loading } = useAuth();
@@ -34,6 +35,7 @@ const App = () => {
 
     return (
         <div className='bg-gray-50 min-h-screen'>
+              <Favicon />
             <ToastContainer />
             
             {/* Simple conditional rendering - no protected routes */}
