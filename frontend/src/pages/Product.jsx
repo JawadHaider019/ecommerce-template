@@ -24,6 +24,30 @@ const Product = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Email masking function
+  const maskEmail = (email) => {
+    if (!email || typeof email !== 'string') return 'Unknown User';
+    
+    // If it's already masked or doesn't look like an email, return as is
+    if (email.includes('***@') || !email.includes('@')) return email;
+    
+    // Check if it's a valid email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return email;
+    
+    const [localPart, domain] = email.split('@');
+    
+    if (localPart.length === 1) {
+      return `${localPart}***@${domain}`;
+    }
+    
+    // Keep first character, mask the rest of local part
+    const firstChar = localPart[0];
+    const maskedLocalPart = firstChar + '***';
+    
+    return `${maskedLocalPart}@${domain}`;
+  };
+
   // Debug component state
   useEffect(() => {
     console.log('🔍 Product Component Debug:');
@@ -103,7 +127,7 @@ const Product = () => {
           comment: comment.content,
           images: comment.reviewImages?.map(img => img.url) || [],
           date: new Date(comment.date).toLocaleDateString(),
-          author: comment.author,
+          author: comment.email,
           likes: comment.likes || 0,
           dislikes: comment.dislikes || 0,
           likedBy: comment.likedBy?.map(user => user._id || user) || [],
@@ -136,9 +160,7 @@ const Product = () => {
   const renderStockStatus = () => {
     if (stock === 0) {
       return (
-       
-          <p className="text-red-500 font-medium">Out of Stock</p>
-     
+        <p className="text-red-500 font-medium">Out of Stock</p>
       );
     } else if (stock < 5) {
       return (
@@ -149,20 +171,20 @@ const Product = () => {
       );
     } else if (stock < 10) {
       return (
-        <div >
+        <div>
           <p className="text-orange-500">{stock} items left</p>
           <p className="text-orange-400 text-sm mt-1">Limited stock available</p>
         </div>
       );
     } else if (stock < 20) {
       return (
-        <div >
+        <div>
           <p className="text-yellow-600">Limited items left</p>
         </div>
       );
     } else {
       return (
-        <div >
+        <div>
           <p className="text-green-500 font-medium">In Stock</p>
           <p className="text-green-600 text-sm mt-1">Available for immediate shipping</p>
         </div>
@@ -883,7 +905,7 @@ const Product = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {renderRating(review.rating)}
-                            <span className="font-medium text-sm">{review.author}</span>
+                            <span className="font-medium text-sm">{maskEmail(review.author)}</span>
                           </div>
                           <p className="text-sm text-gray-500">{review.date}</p>
                         </div>
@@ -906,7 +928,7 @@ const Product = () => {
                             <div className="mb-3 bg-blue-50 rounded-lg p-3 border border-blue-100">
                               <div className="flex items-center gap-2 mb-1">
                                 <FaUserShield className="text-black" size={14} />
-                                <span className="font-medium text-sm text-black">{review.reply.author}</span>
+                                <span className="font-medium text-sm text-black">{maskEmail(review.reply.author)}</span>
                                 <span className="text-xs text-gray-500">{review.reply.date}</span>
                               </div>
                               <p className="text-sm text-gray-700">{review.reply.content}</p>

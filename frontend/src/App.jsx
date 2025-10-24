@@ -1,4 +1,4 @@
-import {Routes,Route} from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import Collection from './pages/Collection'
@@ -21,8 +21,35 @@ import Favicon from './components/Favicon'
 const App = () => {
   return (
     <div className="px-4 sm:px-[5vw] md:px-[7vw] lg:px-[9vw]">
-      <Favicon /> {/* ✅ Add Favicon component here */}
-      <ToastContainer/>
+      <Favicon />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+        style={{
+          // Success toast - black background with white text
+          '--toastify-color-success': '#000000',
+          '--toastify-text-color-success': '#ffffff',
+          // Error toast - red background with white text
+          '--toastify-color-error': '#dc2626', 
+          '--toastify-text-color-error': '#ffffff',
+          // Progress bar colors
+          '--toastify-color-progress-success': '#10b981',
+          '--toastify-color-progress-error': '#fca5a5',
+        }}
+        toastStyle={{
+          fontSize: '14px',
+          fontWeight: '500',
+          borderRadius: '8px',
+        }}
+      />
       <Navbar/>
       <SearchBar/>
       <Routes>

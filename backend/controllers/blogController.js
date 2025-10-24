@@ -1,6 +1,7 @@
 import { Blog } from '../models/blogModel.js';
 import { v2 as cloudinary } from "cloudinary";
 import fs from 'fs';
+import { notifyNewBlog } from '../controllers/newsletterController.js'; // ADDED IMPORT
 
 // 🟢 Blog Controllers
 
@@ -85,6 +86,18 @@ export const createBlog = async (req, res) => {
 
     const blog = new Blog(blogData);
     await blog.save();
+
+    // ✅ ADDED: Send newsletter notification if blog is published
+    if (blogData.status === 'published') {
+      try {
+        await notifyNewBlog(blog);
+        console.log('📢 New blog notification sent to subscribers');
+      } catch (notificationError) {
+        console.error('❌ Failed to send blog notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
+
     res.status(201).json({ success: true, message: 'Blog created successfully', data: blog });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Error creating blog', error: error.message });
@@ -109,8 +122,23 @@ export const updateBlog = async (req, res) => {
     if (updateData.category && !Array.isArray(updateData.category)) updateData.category = [updateData.category];
     if (updateData.tags && !Array.isArray(updateData.tags)) updateData.tags = [updateData.tags];
 
+    const existingBlog = await Blog.findById(req.params.id);
+    if (!existingBlog) return res.status(404).json({ success: false, message: 'Blog not found' });
+
+    const wasPublished = existingBlog.status === 'published';
+
     const blog = await Blog.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
-    if (!blog) return res.status(404).json({ success: false, message: 'Blog not found' });
+
+    // ✅ ADDED: Send newsletter notification if status changed to published
+    if (updateData.status === 'published' && !wasPublished) {
+      try {
+        await notifyNewBlog(blog);
+        console.log('📢 New blog notification sent to subscribers');
+      } catch (notificationError) {
+        console.error('❌ Failed to send blog notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
 
     res.json({ success: true, message: 'Blog updated successfully', data: blog });
   } catch (error) {
@@ -144,10 +172,32 @@ export const togglePublishStatus = async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id);
     if (!blog) return res.status(404).json({ success: false, message: 'Blog not found' });
+    
+    const wasPublished = blog.status === 'published';
     blog.status = blog.status === 'published' ? 'draft' : 'published';
-    if (blog.status === 'published' && !blog.publishDate) blog.publishDate = new Date();
+    
+    if (blog.status === 'published' && !blog.publishDate) {
+      blog.publishDate = new Date();
+    }
+    
     await blog.save();
-    res.json({ success: true, message: `Blog ${blog.status === 'published' ? 'published' : 'unpublished'} successfully`, data: blog });
+
+    // ✅ ADDED: Send newsletter notification when blog is published (only if it wasn't already published)
+    if (blog.status === 'published' && !wasPublished) {
+      try {
+        await notifyNewBlog(blog);
+        console.log('📢 New blog notification sent to subscribers');
+      } catch (notificationError) {
+        console.error('❌ Failed to send blog notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Blog ${blog.status === 'published' ? 'published' : 'unpublished'} successfully`, 
+      data: blog 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error updating blog status', error: error.message });
   }
@@ -225,6 +275,7 @@ export const createCategory = async (req, res) => {
     res.status(400).json({ success: false, message: 'Error creating category', error: error.message });
   }
 };
+
 export const updateCategory = async (req, res) => {
   try {
     const { newName } = req.body;

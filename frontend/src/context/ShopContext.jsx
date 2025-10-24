@@ -1,6 +1,7 @@
 import { createContext, useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import Loader from '../components/Loader';
 
 export const ShopContext = createContext();
 
@@ -26,16 +27,45 @@ const ShopContextProvider = ({ children }) => {
     freeDeliveryAbove: 0
   });
   const [deliverySettingsLoading, setDeliverySettingsLoading] = useState(false);
+  
+  const [loading, setLoading] = useState({
+    products: { status: false, message: "Loading products..." },
+    categories: { status: false, message: "Loading categories..." },
+    deals: { status: false, message: "Loading deals..." },
+    general: { status: false, message: "Updating data..." },
+    cart: { status: false, message: "Updating cart..." },
+    reviews: { status: false, message: "Loading reviews..." },
+    user: { status: false, message: "Loading user data..." }
+  });
 
-  // Function to decode JWT token and get user info
+  const setLoadingState = useCallback((key, status, message = null) => {
+    setLoading(prev => ({
+      ...prev,
+      [key]: {
+        status,
+        message: message || prev[key]?.message || "Loading..."
+      }
+    }));
+  }, []);
+
+  const isLoadingAny = useCallback(() => {
+    return Object.values(loading).some(item => item.status === true);
+  }, [loading]);
+
+  const getLoadingMessage = useCallback(() => {
+    const activeLoaders = Object.entries(loading).filter(([_, item]) => item.status);
+    if (activeLoaders.length > 0) {
+      return activeLoaders[0][1].message;
+    }
+    return "Loading...";
+  }, [loading]);
+
   const decodeToken = useCallback((token) => {
     try {
       if (!token) return null;
       
       const payload = token.split('.')[1];
       const decoded = JSON.parse(atob(payload));
-      
-      console.log('Decoded token:', decoded);
       
       return decoded;
     } catch (error) {
@@ -44,13 +74,13 @@ const ShopContextProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch user data from token
   const fetchUserData = useCallback(async () => {
     if (!token) {
       setUser(null);
       return;
     }
 
+    setLoadingState('user', true, "Loading user profile...");
     try {
       const decoded = decodeToken(token);
       
@@ -59,20 +89,20 @@ const ShopContextProvider = ({ children }) => {
           _id: decoded.id,
           isLoggedIn: true
         });
-        console.log('User set from token:', decoded.id);
       } else {
-        console.log('No user ID found in token');
         setUser(null);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
       setUser(null);
+    } finally {
+      setLoadingState('user', false);
     }
-  }, [token, decodeToken]);
+  }, [token, decodeToken, setLoadingState]);
 
-  // Fetch delivery settings from backend
   const fetchDeliverySettings = useCallback(async () => {
     setDeliverySettingsLoading(true);
+    setLoadingState('general', true, "Loading delivery settings...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/delivery-settings`);
       if (response.data) {
@@ -83,11 +113,12 @@ const ShopContextProvider = ({ children }) => {
       toast.error("Failed to load delivery settings");
     } finally {
       setDeliverySettingsLoading(false);
+      setLoadingState('general', false);
     }
-  }, [BACKEND_URL]);
+  }, [BACKEND_URL, setLoadingState]);
 
-  // Update delivery settings (admin function)
   const updateDeliverySettings = useCallback(async (settings) => {
+    setLoadingState('general', true, "Updating delivery settings...");
     try {
       const response = await axios.post(`${BACKEND_URL}/api/delivery-settings`, settings);
       if (response.data) {
@@ -99,10 +130,11 @@ const ShopContextProvider = ({ children }) => {
       console.error("Error updating delivery settings:", error);
       toast.error(error.response?.data?.error || "Failed to update delivery settings");
       return false;
+    } finally {
+      setLoadingState('general', false);
     }
-  }, [BACKEND_URL]);
+  }, [BACKEND_URL, setLoadingState]);
 
-  // Calculate average rating for a product or deal
   const calculateAverageRating = useCallback((reviews) => {
     if (!reviews || reviews.length === 0) return 0;
     
@@ -115,8 +147,8 @@ const ShopContextProvider = ({ children }) => {
     return Math.round(average * 10) / 10;
   }, []);
 
-  // Fetch product reviews and store them
   const fetchProductReviews = useCallback(async (productId) => {
+    setLoadingState('reviews', true, "Loading product reviews...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/comments?productId=${productId}`);
       
@@ -127,7 +159,7 @@ const ShopContextProvider = ({ children }) => {
           comment: comment.content,
           images: comment.reviewImages?.map(img => img.url) || [],
           date: new Date(comment.date).toLocaleDateString(),
-          author: comment.author || 'Anonymous',
+          author: comment.email,
           likes: comment.likes || 0,
           dislikes: comment.dislikes || 0
         }));
@@ -143,11 +175,13 @@ const ShopContextProvider = ({ children }) => {
     } catch (error) {
       console.error("Error fetching product reviews:", error);
       return [];
+    } finally {
+      setLoadingState('reviews', false);
     }
-  }, [BACKEND_URL]);
+  }, [BACKEND_URL, setLoadingState]);
 
-  // Fetch deal reviews and store them
   const fetchDealReviews = useCallback(async (dealId) => {
+    setLoadingState('reviews', true, "Loading deal reviews...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/comments?dealId=${dealId}`);
       
@@ -158,7 +192,7 @@ const ShopContextProvider = ({ children }) => {
           comment: comment.content,
           images: comment.reviewImages?.map(img => img.url) || [],
           date: new Date(comment.date).toLocaleDateString(),
-          author: comment.author || 'Anonymous',
+          author: comment.email,
           likes: comment.likes || 0,
           dislikes: comment.dislikes || 0
         }));
@@ -174,12 +208,14 @@ const ShopContextProvider = ({ children }) => {
     } catch (error) {
       console.error("Error fetching deal reviews:", error);
       return [];
+    } finally {
+      setLoadingState('reviews', false);
     }
-  }, [BACKEND_URL]);
+  }, [BACKEND_URL, setLoadingState]);
 
-  // Fetch all products with their ratings
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
+    setLoadingState('products', true, "Loading products...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/product/list`);
       
@@ -218,12 +254,13 @@ const ShopContextProvider = ({ children }) => {
       toast.error(error.response?.data?.message || "Failed to fetch products");
     } finally {
       setIsLoading(false);
+      setLoadingState('products', false);
     }
-  }, [BACKEND_URL, fetchProductReviews, calculateAverageRating]);
+  }, [BACKEND_URL, fetchProductReviews, calculateAverageRating, setLoadingState]);
 
-  // Fetch deals from backend with ratings
   const fetchDeals = useCallback(async () => {
     setDealsLoading(true);
+    setLoadingState('deals', true, "Loading deals...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/deal/list`);
       
@@ -274,16 +311,17 @@ const ShopContextProvider = ({ children }) => {
       return [];
     } finally {
       setDealsLoading(false);
+      setLoadingState('deals', false);
     }
-  }, [BACKEND_URL, fetchDealReviews, calculateAverageRating]);
+  }, [BACKEND_URL, fetchDealReviews, calculateAverageRating, setLoadingState]);
 
-  // Submit product review
   const submitReview = useCallback(async (reviewData) => {
     if (!token) {
       toast.error("Please login to submit a review");
       return false;
     }
 
+    setLoadingState('general', true, "Submitting review...");
     try {
       const decoded = decodeToken(token);
       if (!decoded || !decoded.id) {
@@ -320,16 +358,18 @@ const ShopContextProvider = ({ children }) => {
       console.error("Error submitting review:", error);
       toast.error(error.response?.data?.message || "Failed to submit review");
       return false;
+    } finally {
+      setLoadingState('general', false);
     }
-  }, [token, BACKEND_URL, fetchProductReviews, fetchProducts, decodeToken]);
+  }, [token, BACKEND_URL, fetchProductReviews, fetchProducts, decodeToken, setLoadingState]);
 
-  // Submit deal review
   const submitDealReview = useCallback(async (reviewData) => {
     if (!token) {
       toast.error("Please login to submit a review");
       return false;
     }
 
+    setLoadingState('general', true, "Submitting review...");
     try {
       const decoded = decodeToken(token);
       if (!decoded || !decoded.id) {
@@ -366,10 +406,11 @@ const ShopContextProvider = ({ children }) => {
       console.error("Error submitting deal review:", error);
       toast.error(error.response?.data?.message || "Failed to submit review");
       return false;
+    } finally {
+      setLoadingState('general', false);
     }
-  }, [token, BACKEND_URL, fetchDealReviews, fetchDeals, decodeToken]);
+  }, [token, BACKEND_URL, fetchDealReviews, fetchDeals, decodeToken, setLoadingState]);
 
-  // Get product rating and review count
   const getProductRatingInfo = useCallback((productId) => {
     const product = products.find(p => p._id === productId);
     if (product) {
@@ -381,7 +422,6 @@ const ShopContextProvider = ({ children }) => {
     return { rating: 0, reviewCount: 0 };
   }, [products]);
 
-  // Get deal rating and review count
   const getDealRatingInfo = useCallback((dealId) => {
     const deal = deals.find(d => d._id === dealId);
     if (deal) {
@@ -393,7 +433,6 @@ const ShopContextProvider = ({ children }) => {
     return { rating: 0, reviewCount: 0 };
   }, [deals]);
 
-  // Calculate delivery charge based on cart subtotal
   const getDeliveryCharge = useCallback((subtotal = 0) => {
     const { mode, fixedCharge, freeDeliveryAbove } = deliverySettings;
     
@@ -408,13 +447,11 @@ const ShopContextProvider = ({ children }) => {
     return fixedCharge;
   }, [deliverySettings]);
 
-  // Check if free delivery is available for current cart
   const isFreeDeliveryAvailable = useCallback((subtotal = 0) => {
     const { freeDeliveryAbove } = deliverySettings;
     return freeDeliveryAbove > 0 && subtotal < freeDeliveryAbove;
   }, [deliverySettings]);
 
-  // Get amount needed for free delivery
   const getAmountForFreeDelivery = useCallback((subtotal = 0) => {
     const { freeDeliveryAbove } = deliverySettings;
     if (freeDeliveryAbove > 0 && subtotal < freeDeliveryAbove) {
@@ -423,35 +460,29 @@ const ShopContextProvider = ({ children }) => {
     return 0;
   }, [deliverySettings]);
 
-  // Initialize token from localStorage on app start
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     if (storedToken) {
       setToken(storedToken);
-      console.log('Token loaded from localStorage:', storedToken);
     }
   }, []);
 
-  // Fetch user data when token changes
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
 
-  // Fetch initial data
   useEffect(() => {
     fetchProducts();
     fetchDeals();
     fetchDeliverySettings();
   }, [fetchProducts, fetchDeals, fetchDeliverySettings]);
 
-  // Get cart when token is available
   useEffect(() => {
     if (token) {
       getCart(token);
     }
   }, [token]);
 
-  // Update deal quantity in cart
   const updateDealQuantity = useCallback(async (dealId, quantity) => {
     if (!dealId || quantity < 0) return;
 
@@ -474,6 +505,7 @@ const ShopContextProvider = ({ children }) => {
     });
 
     if (token) {
+      setLoadingState('cart', true, "Updating cart...");
       try {
         await axios.post(
           `${BACKEND_URL}/api/cart/update-deal`,
@@ -482,26 +514,22 @@ const ShopContextProvider = ({ children }) => {
         );
       } catch (error) {
         toast.error(error.response?.data?.message || "Failed to update deal quantity");
+      } finally {
+        setLoadingState('cart', false);
       }
     }
-  }, [token, BACKEND_URL, deals]);
+  }, [token, BACKEND_URL, deals, setLoadingState]);
 
-  // Remove deal from cart
   const removeDealFromCart = useCallback(async (dealId) => {
     await updateDealQuantity(dealId, 0);
   }, [updateDealQuantity]);
 
-  // Add deal to cart
   const addDealToCart = useCallback(async (dealId, quantity = 1) => {
-    console.log('🎯 addDealToCart called:', { dealId, quantity });
-    
     if (!dealId || quantity < 1) {
-      console.log('❌ Invalid deal ID or quantity');
       return;
     }
 
     const deal = deals.find(d => d._id === dealId);
-    console.log('🔍 Deal found:', deal);
     
     if (!deal) {
       toast.error("Deal not found");
@@ -514,24 +542,21 @@ const ShopContextProvider = ({ children }) => {
       return;
     }
 
-    console.log('🔄 Updating cartDeals state');
     setCartDeals(prev => ({
       ...prev,
       [dealId]: (prev[dealId] || 0) + quantity
     }));
 
     if (token) {
+      setLoadingState('cart', true, "Adding to cart...");
       try {
-        console.log('📡 Making API call to add deal to cart');
-        const response = await axios.post(
+        await axios.post(
           `${BACKEND_URL}/api/cart/add-deal`,
           { dealId, quantity },
           { headers: { token } }
         );
-        console.log('✅ API Response:', response.data);
         toast.success("Deal added to cart!");
       } catch (error) {
-        console.error('❌ API Error:', error);
         toast.error(error.response?.data?.message || "Failed to add deal to cart");
         setCartDeals(prev => {
           const updated = { ...prev };
@@ -542,41 +567,35 @@ const ShopContextProvider = ({ children }) => {
           }
           return updated;
         });
+      } finally {
+        setLoadingState('cart', false);
       }
     } else {
       toast.success("Deal added to cart!");
     }
-  }, [token, BACKEND_URL, deals, cartDeals]);
+  }, [token, BACKEND_URL, deals, cartDeals, setLoadingState]);
 
-  // Enhanced addToCart with debugging
   const addToCart = useCallback(async (itemId, quantity = 1, itemType = 'product') => {
-    console.log('🛒 addToCart called:', { itemId, quantity, itemType });
-    
     if (itemType === 'deal') {
-      console.log('🎯 Routing to deal cart');
       await addDealToCart(itemId, quantity);
     } else {
-      console.log('📦 Routing to product cart');
       if (!itemId || quantity < 1) return;
 
-      console.log('🔄 Updating cartItems state');
       setCartItems(prev => ({
         ...prev,
         [itemId]: (prev[itemId] || 0) + quantity
       }));
 
       if (token) {
+        setLoadingState('cart', true, "Adding to cart...");
         try {
-          console.log('📡 Making API call to add product to cart');
-          const response = await axios.post(
+          await axios.post(
             `${BACKEND_URL}/api/cart/add`,
             { itemId, quantity },
             { headers: { token } }
           );
-          console.log('✅ API Response:', response.data);
           toast.success("Product added to cart!");
         } catch (error) {
-          console.error('❌ API Error:', error);
           toast.error(error.response?.data?.message || "Failed to add product to cart");
           setCartItems(prev => {
             const updated = { ...prev };
@@ -587,14 +606,15 @@ const ShopContextProvider = ({ children }) => {
             }
             return updated;
           });
+        } finally {
+          setLoadingState('cart', false);
         }
       } else {
         toast.success("Product added to cart!");
       }
     }
-  }, [token, BACKEND_URL, addDealToCart]);
+  }, [token, BACKEND_URL, addDealToCart, setLoadingState]);
 
-  // Enhanced update cart item quantity
   const updateCartItemQuantity = useCallback(async (itemId, quantity, itemType = 'product') => {
     if (itemType === 'deal') {
       await updateDealQuantity(itemId, quantity);
@@ -614,6 +634,7 @@ const ShopContextProvider = ({ children }) => {
       });
       
       if (token) {
+        setLoadingState('cart', true, "Updating cart...");
         try {
           await axios.post(
             `${BACKEND_URL}/api/cart/update`,
@@ -622,13 +643,15 @@ const ShopContextProvider = ({ children }) => {
           );
         } catch (error) {
           toast.error(error.message);
+        } finally {
+          setLoadingState('cart', false);
         }
       }
     }
-  }, [token, BACKEND_URL, updateDealQuantity]);
+  }, [token, BACKEND_URL, updateDealQuantity, setLoadingState]);
 
-  // Enhanced getCart to handle both products and deals
   const getCart = useCallback(async (token) => {
+    setLoadingState('cart', true, "Loading cart...");
     try {
       const response = await axios.get(
         `${BACKEND_URL}/api/cart/`,
@@ -644,17 +667,17 @@ const ShopContextProvider = ({ children }) => {
     } catch (error) {
       console.error("Error fetching cart:", error);
       toast.error(error.response?.data?.message || "Failed to fetch cart");
+    } finally {
+      setLoadingState('cart', false);
     }
-  }, [BACKEND_URL]);
+  }, [BACKEND_URL, setLoadingState]);
 
-  // Enhanced cart item count
   const getCartItemCount = useCallback(() => {
     const productCount = Object.values(cartItems).reduce((total, quantity) => total + quantity, 0);
     const dealCount = Object.values(cartDeals).reduce((total, quantity) => total + quantity, 0);
     return productCount + dealCount;
   }, [cartItems, cartDeals]);
 
-  // Enhanced subtotal calculation to include deals
   const getCartSubtotal = useCallback(() => {
     const productSubtotal = Object.entries(cartItems).reduce((total, [id, quantity]) => {
       const product = products.find(p => p._id === id);
@@ -669,7 +692,6 @@ const ShopContextProvider = ({ children }) => {
     return productSubtotal + dealSubtotal;
   }, [cartItems, cartDeals, products, deals]);
 
-  // Enhanced total discount calculation to include deals
   const getTotalDiscount = useCallback(() => {
     const productDiscount = Object.entries(cartItems).reduce((total, [id, quantity]) => {
       const product = products.find(p => p._id === id);
@@ -692,30 +714,25 @@ const ShopContextProvider = ({ children }) => {
     return productDiscount + dealDiscount;
   }, [cartItems, cartDeals, products, deals]);
 
-  // Get cart total (includes delivery)
   const getCartTotal = useCallback(() => {
     const subtotal = getCartSubtotal();
     const deliveryCharge = getDeliveryCharge(subtotal);
     return subtotal + deliveryCharge;
   }, [getCartSubtotal, getDeliveryCharge]);
 
-  // Get deal by ID
   const getDealById = useCallback((dealId) => {
     return deals.find(deal => deal._id === dealId);
   }, [deals]);
 
-  // Check if deal is in cart
   const isDealInCart = useCallback((dealId) => {
     return cartDeals[dealId] > 0;
   }, [cartDeals]);
 
-  // Get deal quantity in cart
   const getDealQuantityInCart = useCallback((dealId) => {
     return cartDeals[dealId] || 0;
   }, [cartDeals]);
 
   const contextValue = useMemo(() => ({
-    // State
     products,
     deals,
     isLoading,
@@ -731,14 +748,13 @@ const ShopContextProvider = ({ children }) => {
     productReviews,
     dealReviews,
     token,
-    
-    // Search handlers
+    loading,
+    isLoadingAny,
+    setLoadingState,
     setSearch,
     setShowSearch,
     setToken,
     setUser,
-    
-    // Cart handlers
     addToCart,
     addDealToCart,
     removeDealFromCart,
@@ -751,20 +767,14 @@ const ShopContextProvider = ({ children }) => {
     getTotalDiscount: getTotalDiscount,
     getTotalAmount: getCartTotal,
     getCart,
-    
-    // Deal cart helpers
     getDealById,
     isDealInCart,
     getDealQuantityInCart,
-    
-    // Delivery handlers
     getDeliveryCharge,
     isFreeDeliveryAvailable,
     getAmountForFreeDelivery,
     updateDeliverySettings,
     fetchDeliverySettings,
-    
-    // Rating and Review handlers
     fetchProductReviews,
     fetchDealReviews,
     submitReview,
@@ -772,8 +782,6 @@ const ShopContextProvider = ({ children }) => {
     getProductRatingInfo,
     getDealRatingInfo,
     calculateAverageRating,
-    
-    // Data fetching
     refetchProducts: fetchProducts,
     refetchDeals: fetchDeals
   }), [
@@ -790,6 +798,9 @@ const ShopContextProvider = ({ children }) => {
     productReviews,
     dealReviews,
     token,
+    loading,
+    isLoadingAny,
+    setLoadingState,
     addToCart,
     addDealToCart,
     removeDealFromCart,
@@ -823,8 +834,9 @@ const ShopContextProvider = ({ children }) => {
   return (
     <ShopContext.Provider value={contextValue}>
       {children}
+      {isLoadingAny() && <Loader message={getLoadingMessage()} />}
     </ShopContext.Provider>
   );
 };
 
-export default ShopContextProvider; // ✅ Make sure this export exists
+export default ShopContextProvider;

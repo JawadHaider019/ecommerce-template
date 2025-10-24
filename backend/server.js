@@ -21,7 +21,7 @@ import blogRoutes from './routes/blogRoutes.js'
 import teamRoutes from './routes/teamRoutes.js';
 import businessDetailsRoutes from './routes/businessDetailsRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
-
+import newsletterRoutes from './routes/NewsletterRoutes.js'
 // App Config    
 const app = express();
 const port = process.env.PORT || 4000;
@@ -51,7 +51,7 @@ app.use("/api/blogs",blogRoutes)
 app.use('/api/teams', teamRoutes);
 app.use('/api/business-details', businessDetailsRoutes);
 app.use('/api/contact', contactRoutes);
-
+app.use('/api/newsletter', newsletterRoutes);
 app.get('/', (req, res) => {
     res.send("API Working ✅");
 });

@@ -159,6 +159,33 @@ const deleteSubcategory = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+// Add this to your categoryController.js
+const getCategoriesDebug = async (req, res) => {
+  try {
+    const categories = await Category.find({});
+    console.log('=== ALL CATEGORIES IN DATABASE ===');
+    categories.forEach(cat => {
+      console.log(`Category: ${cat.name} (ID: ${cat._id})`);
+      console.log('Subcategories:', cat.subcategories.map(sub => ({
+        name: sub.name,
+        id: sub._id
+      })));
+      console.log('---');
+    });
+    
+    res.json({ 
+      success: true, 
+      categories: categories.map(cat => ({
+        _id: cat._id,
+        name: cat.name,
+        subcategories: cat.subcategories
+      }))
+    });
+  } catch (error) {
+    console.error('Debug categories error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
 
 export {
   getAllCategories,
@@ -167,5 +194,6 @@ export {
   updateCategory,
   updateSubcategory,
   deleteCategory,
-  deleteSubcategory
+  deleteSubcategory,
+  getCategoriesDebug
 };

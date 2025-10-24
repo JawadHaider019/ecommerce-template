@@ -3,16 +3,22 @@ import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
 import { FaStar, FaStarHalf, FaRegStar } from 'react-icons/fa';
 
-const ProductItem = ({ id, image, name, price, discount, rating }) => {
+const ProductItem = ({ id, image, name, price, discount, rating, status = 'published' }) => {
   const { currency } = useContext(ShopContext);
   const navigate = useNavigate();
+
+  // Don't render if product is not published
+  if (status !== 'published') {
+    console.log('🚫 Skipping draft product:', name);
+    return null;
+  }
 
   const handleClick = () => {
     navigate(`/product/${id}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Render rating stars - SAME LOGIC AS PRODUCT PAGE
+  // ... rest of your existing ProductItem code
   const renderRating = (ratingValue = 0) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -39,7 +45,6 @@ const ProductItem = ({ id, image, name, price, discount, rating }) => {
     return stars;
   };
 
-  // Determine the actual price to display
   const actualPrice = discount ? discount : price; 
 
   return (

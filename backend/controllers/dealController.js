@@ -1,5 +1,7 @@
 import { v2 as cloudinary } from "cloudinary";
 import dealModel from "../models/dealModel.js";
+import DealType from "../models/DealtypeModel.js";
+import { notifyNewDeal } from '../controllers/newsletterController.js'; // CORRECTED IMPORT
 
 // Configure Cloudinary
 cloudinary.config({
@@ -21,9 +23,26 @@ const addDeal = async (req, res) => {
       dealFinalPrice,
       dealStartDate,
       dealEndDate,
-      dealType 
+      dealType,
+      status // ADDED STATUS PARAMETER
     } = req.body;
     
+    // VALIDATE: Check if dealType exists in DealType collection
+    if (!dealType) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Deal type is required" 
+      });
+    }
+
+    const dealTypeExists = await DealType.findById(dealType);
+    if (!dealTypeExists) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid deal type" 
+      });
+    }
+
     // Get deal images from req.files
     const dealImage1 = req.files.dealImage1 && req.files.dealImage1[0];
     const dealImage2 = req.files.dealImage2 && req.files.dealImage2[0];
@@ -72,8 +91,8 @@ const addDeal = async (req, res) => {
       dealFinalPrice: Number(dealFinalPrice || 0),
       dealStartDate: dealStartDate ? new Date(dealStartDate) : new Date(),
       dealEndDate: dealEndDate ? new Date(dealEndDate) : null,
-      dealType: dealType || 'flash_sale', 
-      status: 'draft',
+      dealType: dealType,
+      status: status || 'draft', // Use provided status or default to draft
       date: Date.now()
     };
 
@@ -82,14 +101,27 @@ const addDeal = async (req, res) => {
     const deal = new dealModel(dealData);
     await deal.save();
 
-    console.log("Deal saved successfully with dealType");
-    console.log("Saved deal document:", deal); // Add this log to see the actual saved document
+    // POPULATE: Get the deal with populated dealType
+    const populatedDeal = await dealModel.findById(deal._id).populate('dealType');
 
-    // FIX: Return the actual saved document, not dealData
+    console.log("Deal saved successfully with dealType");
+    console.log("Saved deal document:", populatedDeal);
+
+    // ✅ ADDED: Send newsletter notification if deal is published
+    if (status === 'published') {
+      try {
+        await notifyNewDeal(populatedDeal);
+        console.log('📢 New deal notification sent to subscribers');
+      } catch (notificationError) {
+        console.error('❌ Failed to send deal notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
+
     res.json({ 
       success: true, 
       message: "Deal Created Successfully",
-      deal: deal // Return the saved MongoDB document
+      deal: populatedDeal
     });
 
   } catch (error) {
@@ -102,7 +134,6 @@ const addDeal = async (req, res) => {
 };
 
 // ---------------- Update Deal ----------------
-
 const updateDeal = async (req, res) => {
   try {
     const {
@@ -140,6 +171,17 @@ const updateDeal = async (req, res) => {
       });
     }
 
+    // VALIDATE: Check if dealType exists if provided
+    if (dealType) {
+      const dealTypeExists = await DealType.findById(dealType);
+      if (!dealTypeExists) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid deal type" 
+        });
+      }
+    }
+
     // ====== BASIC FIELD UPDATES ======
     const updateData = {
       dealName,
@@ -150,9 +192,13 @@ const updateDeal = async (req, res) => {
       dealFinalPrice: Number(dealFinalPrice || 0),
       dealStartDate: dealStartDate ? new Date(dealStartDate) : new Date(),
       dealEndDate: dealEndDate ? new Date(dealEndDate) : null,
-      dealType: dealType || "flash_sale",
       status: status || "draft",
     };
+
+    // Add dealType to update if provided
+    if (dealType) {
+      updateData.dealType = dealType;
+    }
 
     // ====== DEAL PRODUCTS ======
     if (dealProducts) {
@@ -237,13 +283,28 @@ const updateDeal = async (req, res) => {
     updateData.dealImages = finalImages;
 
     // ====== UPDATE IN DATABASE ======
-    const updatedDeal = await dealModel.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedDeal = await dealModel.findByIdAndUpdate(
+      id, 
+      updateData, 
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).populate('dealType');
 
     console.log("✅ DEAL UPDATED SUCCESSFULLY");
     console.log("Final image count:", finalImages.length);
+
+    // ✅ ADDED: Send newsletter notification if status changed to published
+    if (status === 'published' && existingDeal.status !== 'published') {
+      try {
+        await notifyNewDeal(updatedDeal);
+        console.log('📢 New deal notification sent to subscribers');
+      } catch (notificationError) {
+        console.error('❌ Failed to send deal notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
 
     res.json({
       success: true,
@@ -259,10 +320,102 @@ const updateDeal = async (req, res) => {
   }
 };
 
+// ---------------- Update Deal Status ----------------
+const updateDealStatus = async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    console.log("=== UPDATE DEAL STATUS ===");
+    console.log("Request body:", req.body);
+
+    if (!id || !status) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Deal ID and status are required" 
+      });
+    }
+
+    const validStatuses = ['draft', 'published', 'archived', 'scheduled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid status. Must be: draft, published, archived, or scheduled" 
+      });
+    }
+
+    const existingDeal = await dealModel.findById(id);
+    if (!existingDeal) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Deal not found" 
+      });
+    }
+
+    const updatedDeal = await dealModel.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    ).populate('dealType');
+
+    if (!updatedDeal) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Deal not found" 
+      });
+    }
+
+    console.log("Deal status updated successfully:", updatedDeal);
+
+    // ✅ ADDED: Send newsletter notification when status changes to published
+    if (status === 'published' && existingDeal.status !== 'published') {
+      try {
+        await notifyNewDeal(updatedDeal);
+        console.log('📢 New deal notification sent to subscribers');
+      } catch (notificationError) {
+        console.error('❌ Failed to send deal notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: "Deal status updated successfully",
+      deal: updatedDeal
+    });
+
+  } catch (error) {
+    console.error("Update Deal Status Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
 // ---------------- List Deals ----------------
 const listDeals = async (req, res) => {
   try {
-    const deals = await dealModel.find({}).sort({ date: -1 });
+    const deals = await dealModel.find({})
+      .populate('dealType')
+      .sort({ date: -1 });
+    
+    // DEBUG: Log what's being sent to frontend
+    console.log('=== LIST DEALS DEBUG ===');
+    console.log('Total deals:', deals.length);
+    deals.forEach((deal, index) => {
+      console.log(`Deal ${index + 1}:`, {
+        dealName: deal.dealName,
+        dealType: deal.dealType,
+        dealTypeExists: !!deal.dealType,
+        dealTypeType: typeof deal.dealType,
+        dealTypeData: deal.dealType ? {
+          _id: deal.dealType._id,
+          name: deal.dealType.name,
+          slug: deal.dealType.slug
+        } : 'NO DEAL TYPE'
+      });
+    });
+    
     res.json({ 
       success: true, 
       deals,
@@ -314,7 +467,13 @@ const removeDeal = async (req, res) => {
 // ---------------- Get Single Deal ----------------
 const singleDeal = async (req, res) => {
   try {
-    const { dealId } = req.body;
+    // Support both req.body and req.query for dealId
+    const dealId = req.body.dealId || req.query.dealId;
+    
+    console.log("=== SINGLE DEAL REQUEST ===");
+    console.log("Request body:", req.body);
+    console.log("Request query:", req.query);
+    console.log("Extracted dealId:", dealId);
     
     if (!dealId) {
       return res.status(400).json({ 
@@ -323,7 +482,8 @@ const singleDeal = async (req, res) => {
       });
     }
 
-    const deal = await dealModel.findById(dealId);
+    const deal = await dealModel.findById(dealId)
+      .populate('dealType');
     
     if (!deal) {
       return res.status(404).json({ 
@@ -332,65 +492,24 @@ const singleDeal = async (req, res) => {
       });
     }
 
+    console.log("=== SINGLE DEAL RESPONSE ===");
+    console.log("Deal found:", {
+      dealName: deal.dealName,
+      dealType: deal.dealType,
+      dealTypeExists: !!deal.dealType,
+      dealTypeData: deal.dealType ? {
+        _id: deal.dealType._id,
+        name: deal.dealType.name,
+        slug: deal.dealType.slug
+      } : 'NO DEAL TYPE'
+    });
+
     res.json({ 
       success: true, 
       deal 
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
-  }
-};
-
-// ---------------- Update Deal Status ----------------
-const updateDealStatus = async (req, res) => {
-  try {
-    const { id, status } = req.body;
-
-    console.log("=== UPDATE DEAL STATUS ===");
-    console.log("Request body:", req.body);
-
-    if (!id || !status) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Deal ID and status are required" 
-      });
-    }
-
-    const validStatuses = ['draft', 'published', 'archived', 'scheduled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid status. Must be: draft, published, archived, or scheduled" 
-      });
-    }
-
-    const updatedDeal = await dealModel.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
-
-    if (!updatedDeal) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Deal not found" 
-      });
-    }
-
-    console.log("Deal status updated successfully:", updatedDeal);
-
-    res.json({ 
-      success: true, 
-      message: "Deal status updated successfully",
-      deal: updatedDeal
-    });
-
-  } catch (error) {
-    console.error("Update Deal Status Error:", error);
+    console.error("Single Deal Error:", error);
     res.status(500).json({ 
       success: false, 
       message: error.message 

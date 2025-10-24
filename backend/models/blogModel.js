@@ -5,18 +5,20 @@ const blogSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   content: { type: String, required: true },
   excerpt: { type: String, default: '' },
-  category: [{ type: String, trim: true, default: 'General' }], // Array of categories
+  category: [{ type: String, trim: true, default: 'General' }],
   subcategory: { type: String, default: '' },
   imageUrl: { type: String, default: '' },
   videoUrl: { type: String, default: '' },
-  tags: [{ type: String, trim: true }], // Array of tags
+  tags: [{ type: String, trim: true }],
   author: { type: String, default: 'Admin' },
   readTime: { type: Number, default: 1 },
   featured: { type: Boolean, default: false },
   metaDescription: { type: String, default: '' },
   status: { type: String, enum: ['draft', 'published'], default: 'draft' },
   publishDate: { type: Date, default: null },
-  views: { type: Number, default: 0 }
+  views: { type: Number, default: 0 },
+  // New field to track if notification was sent
+  notificationSent: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Blog pre-save middleware

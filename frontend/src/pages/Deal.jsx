@@ -2,6 +2,7 @@ import { useContext, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import RelatedProduct from '../components/RelatedProduct';
+import RelatedDeals from '../components/RelatedDeals';
 import { FaStar, FaStarHalf, FaRegStar, FaThumbsUp, FaThumbsDown, FaTimes, FaUserShield } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
@@ -10,7 +11,7 @@ const Deal = () => {
   const { 
     backendUrl, 
     currency, 
-    addDealToCart, // Updated to use addDealToCart
+    addDealToCart,
     user, 
     token
   } = useContext(ShopContext);
@@ -29,6 +30,28 @@ const Deal = () => {
   const [filterRating, setFilterRating] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
+
+  // Email masking function
+  const maskEmail = (input) => {
+    if (!input || typeof input !== 'string') return 'Unknown User';
+    
+    // If it's already masked, return as is
+    if (input.includes('***')) return input;
+    
+    // If it contains @, treat as email
+    if (input.includes('@')) {
+      const [localPart, domain] = input.split('@');
+      const firstChar = localPart[0];
+      return `${firstChar}***@${domain}`;
+    }
+    
+    // Otherwise treat as username
+    if (input.length <= 2) {
+      return input + '***';
+    }
+    const visiblePart = input.substring(0, 2);
+    return `${visiblePart}***`;
+  };
 
   // Debug user authentication state
   useEffect(() => {
@@ -72,6 +95,8 @@ const Deal = () => {
             setImage(data.deal.dealImages[0]);
           }
           console.log('🎯 Deal data set:', data.deal);
+          console.log('🔍 Deal type:', data.deal.dealType);
+          console.log('🔍 Deal type structure:', typeof data.deal.dealType, data.deal.dealType);
           
           // Fetch deal reviews
           fetchDealReviews(dealId);
@@ -113,7 +138,7 @@ const Deal = () => {
           comment: comment.content,
           images: comment.reviewImages?.map(img => img.url) || [],
           date: new Date(comment.date).toLocaleDateString(),
-          author: comment.author,
+          author:comment.email,
           likes: comment.likes || 0,
           dislikes: comment.dislikes || 0,
           likedBy: comment.likedBy?.map(user => user._id || user) || [],
@@ -255,7 +280,7 @@ const Deal = () => {
           comment: newComment.content,
           images: newComment.reviewImages?.map(img => img.url) || [],
           date: new Date(newComment.date).toLocaleDateString(),
-          author: newComment.author,
+         author: comment.email,
           likes: newComment.likes || 0,
           dislikes: newComment.dislikes || 0,
           likedBy: newComment.likedBy?.map(user => user._id || user) || [],
@@ -264,7 +289,7 @@ const Deal = () => {
           reply: newComment.reply ? {
             id: newComment.reply._id || 'reply-' + newComment._id,
             content: newComment.reply.content,
-            author: newComment.reply.author || 'Admin',
+                       author: comment.reply.author || 'Admin',
             isAdmin: true,
             date: new Date(newComment.reply.date).toLocaleDateString()
           } : null
@@ -587,19 +612,65 @@ const Deal = () => {
     return stars;
   };
 
-  const getDealTypeBadge = (type) => {
-    const typeMap = {
-      'flash_sale': { label: 'Flash Sale', color: 'bg-red-500 text-white' },
-      'seasonal': { label: 'Seasonal', color: 'bg-green-500 text-white' },
-      'clearance': { label: 'Clearance', color: 'bg-orange-500 text-white' },
-      'bundle': { label: 'Bundle', color: 'bg-purple-500 text-white' },
-      'featured': { label: 'Featured', color: 'bg-blue-500 text-white' },
-      'buyonegetone': { label: 'BOGO', color: 'bg-pink-500 text-white' }
-    };
-    
-    return typeMap[type] || { label: type, color: 'bg-gray-500 text-white' };
-  };
+// FIXED: Improved deal type badge function to handle different data structures
+const getDealTypeBadge = (dealType) => {
+  console.log('🔍 Processing deal type:', dealType);
+  console.log('🔍 Type of dealType:', typeof dealType);
+  
+  // Handle different data structures from backend
+  let dealTypeSlug = '';
+  let dealTypeName = '';
+  
+  if (!dealType) {
+    console.log('🔍 No deal type provided');
+    return { label: 'DEAL', color: 'bg-gray-500 text-white' };
+  }
+  
+  if (typeof dealType === 'string') {
+    dealTypeSlug = dealType.toLowerCase();
+    dealTypeName = dealType;
+  } else if (typeof dealType === 'object' && dealType !== null) {
+    // Handle populated object structure from backend
+    if (dealType.slug) {
+      dealTypeSlug = dealType.slug.toLowerCase();
+      dealTypeName = dealType.name || dealType.slug;
+    } else if (dealType.name) {
+      dealTypeSlug = dealType.name.toLowerCase().replace(/\s+/g, '_');
+      dealTypeName = dealType.name;
+    } else if (dealType._id) {
+      // If it's just an ObjectId reference without population
+      console.log('🔍 Deal type is ObjectId reference, needs population');
+      return { label: 'DEAL', color: 'bg-gray-500 text-white' };
+    }
+  }
+  
+  console.log('🔍 Extracted deal type slug:', dealTypeSlug);
+  console.log('🔍 Extracted deal type name:', dealTypeName);
 
+  const typeMap = {
+    'flash_sale': { label: 'FLASH SALE', color: 'bg-red-500 text-white' },
+    'flash': { label: 'FLASH SALE', color: 'bg-red-500 text-white' },
+    'seasonal': { label: 'SEASONAL', color: 'bg-green-500 text-white' },
+    'clearance': { label: 'CLEARANCE', color: 'bg-orange-500 text-white' },
+    'bundle': { label: 'BUNDLE', color: 'bg-purple-500 text-white' },
+    'featured': { label: 'FEATURED', color: 'bg-blue-500 text-white' },
+    'buyonegetone': { label: 'BOGO', color: 'bg-pink-500 text-white' },
+    'bogo': { label: 'BOGO', color: 'bg-pink-500 text-white' },
+    'daily_deal': { label: 'DAILY DEAL', color: 'bg-indigo-500 text-white' },
+    'daily': { label: 'DAILY DEAL', color: 'bg-indigo-500 text-white' },
+    'weekly_special': { label: 'WEEKLY SPECIAL', color: 'bg-teal-500 text-white' },
+    'weekly': { label: 'WEEKLY SPECIAL', color: 'bg-teal-500 text-white' },
+    'special': { label: 'SPECIAL OFFER', color: 'bg-teal-500 text-white' }
+  };
+  
+  const badge = typeMap[dealTypeSlug] || { 
+    label: dealTypeName ? dealTypeName.toUpperCase() : 'DEAL', 
+    color: 'bg-gray-500 text-white' 
+  };
+  
+  console.log('🔍 Final badge:', badge);
+  return badge;
+};
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
@@ -690,6 +761,7 @@ const Deal = () => {
   }
 
   const dealType = getDealTypeBadge(dealData.dealType);
+  console.log('🎯 Final deal type badge:', dealType);
 
   return (
     <div className="border-t-2 pt-10">
@@ -723,12 +795,14 @@ const Deal = () => {
 
         <div className="flex-1 relative">
           <h1 className="mt-2 text-2xl font-medium">{dealData.dealName}</h1>
-          <div className={`w-[30%] text-center rounded-full px-2 py-1 text-sm font-medium ${dealType.color}`}>
+          
+          {/* Deal Type Badge */}
+          <div className={`inline-block text-center  px-3 py-1 text-xs font-bold ${dealType.color} mb-2`}>
             {dealType.label}
           </div>
           
           {/* Countdown Timer for Flash Sales */}
-          {dealData.dealType === 'flash_sale' && dealData.dealEndDate && (
+          {dealData.dealType && (dealData.dealType.slug === 'flash_sale' || dealData.dealType === 'flash_sale') && dealData.dealEndDate && (
             <CompactCountdownTimer endDate={new Date(dealData.dealEndDate)} />
           )}
           
@@ -815,6 +889,7 @@ const Deal = () => {
         </div>
       </div>
 
+      {/* Rest of the component remains the same... */}
       {/* Customer Reviews Section */}
       <div className="mt-20">
         <h2 className="text-2xl font-medium">Customer Reviews</h2>
@@ -971,7 +1046,8 @@ const Deal = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {renderRating(review.rating)}
-                            <span className="font-medium text-sm">{review.author}</span>
+                            {/* Author is already masked from the transformation */}
+                            <span className="font-medium text-sm">{maskEmail(review.author)}</span>
                           </div>
                           <p className="text-sm text-gray-500">{review.date}</p>
                         </div>
@@ -994,6 +1070,7 @@ const Deal = () => {
                             <div className="mb-3 bg-blue-50 rounded-lg p-3 border border-blue-100">
                               <div className="flex items-center gap-2 mb-1">
                                 <FaUserShield className="text-black" size={14} />
+                                {/* Reply author is already masked from the transformation */}
                                 <span className="font-medium text-sm text-black">{review.reply.author}</span>
                                 <span className="text-xs text-gray-500">{review.reply.date}</span>
                               </div>
@@ -1062,8 +1139,14 @@ const Deal = () => {
         </div>
       )}
 
-      {/* Only show RelatedProduct if category exists */}
+      {/* Show Related Products if category exists */}
       {dealData.category && <RelatedProduct category={dealData.category} />}
+      
+      {/* Show Related Deals at the end */}
+      <RelatedDeals 
+        category={dealData.category} 
+        currentDealId={dealId} 
+      />
     </div>
   );
 };

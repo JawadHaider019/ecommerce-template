@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import Title from "../components/Title";
-import { FaCalendarAlt, FaArrowRight, FaUser, FaClock, FaVideo, FaSpinner, FaTag, FaFire } from "react-icons/fa";
+import { FaCalendarAlt, FaArrowRight, FaUser, FaClock, FaVideo, FaTag, FaFire } from "react-icons/fa";
 import { useState, useEffect } from "react";
+import Loader from "../components/Loader";
 
 const Blog = () => {
   const [blogs, setBlogs] = useState([]);
@@ -37,6 +38,11 @@ const Blog = () => {
     fetchBlogs();
   }, []);
 
+  // Show loader while page is loading
+  if (loading) {
+    return <Loader />;
+  }
+
   // Separate featured and regular blogs
   const featuredBlogs = blogs.filter(blog => blog.featured && blog.status === 'published');
   const regularBlogs = blogs.filter(blog => !blog.featured && blog.status === 'published');
@@ -48,19 +54,6 @@ const Blog = () => {
   // Get regular blogs for different sections
   const latestBlogs = regularBlogs.slice(0, 6);
   const trendingBlogs = regularBlogs.slice(6, 12);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-center items-center py-20">
-            <FaSpinner className="animate-spin text-4xl text-gray-400 mr-3" />
-            <span className="text-gray-600 text-lg">Loading latest stories...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -188,16 +181,16 @@ const Blog = () => {
               <h3 className="text-lg font-bold text-gray-900 mb-4">Categories</h3>
               <div className="space-y-2">
                 {Array.from(new Set(blogs.flatMap(blog => blog.category || []))).slice(0, 8).map(category => (
-                  <Link
+                  <div
                     key={category}
-                    to={`/blog/category/${category.toLowerCase()}`}
+                 
                     className="flex items-center justify-between py-2 px-3   hover:bg-gray-50 transition-colors group"
                   >
                     <span className="text-gray-700 group-hover:text-gray-900">{category}</span>
                     <span className="text-gray-400 text-sm bg-gray-100 px-2 py-1 rounded-full">
                       {blogs.filter(blog => blog.category?.includes(category)).length}
                     </span>
-                  </Link>
+                  </div>
                 ))}
               </div>
             </div>

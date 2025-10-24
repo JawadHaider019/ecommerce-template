@@ -11,10 +11,16 @@ import {
   faPhone,
   faEnvelope,
   faClock,
-  faUserCog
+  faUserCog,
+  faDirections,
+  faExternalLinkAlt,
+  faPlus,
+  faMinus,
+  faLocationCrosshairs
 } from '@fortawesome/free-solid-svg-icons';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -49,20 +55,37 @@ const Contact = () => {
     }
   });
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [mapZoom, setMapZoom] = useState({});
 
-  // Fetch business details from backend
   useEffect(() => {
     const fetchBusinessDetails = async () => {
       try {
         console.log('🔄 Fetching business details for contact page...');
         const response = await axios.get(`${backendUrl}/api/business-details`);
 
+        console.log('📦 Full API response:', response.data);
+
         if (response.data.success && response.data.data) {
-          setBusinessInfo(response.data.data);
-          console.log('✅ Business details loaded for contact page:', response.data.data);
+          const data = response.data.data;
+          console.log('✅ Business details loaded:', {
+            email: data.contact?.customerSupport?.email,
+            phone: data.contact?.customerSupport?.phone,
+            mapLink: data.location?.googleMapsLink,
+            address: data.location?.displayAddress,
+            stores: data.multiStore?.stores?.length || 0
+          });
+
+          // Process map links to ensure they're embed URLs
+          const processedData = processMapLinks(data);
+          setBusinessInfo(processedData);
+        } else {
+          console.warn('⚠️ No data in response, using defaults');
         }
       } catch (error) {
         console.error('❌ Error fetching business details for contact page:', error);
+        console.log('📞 Using default contact information');
+        toast.error("Failed to load business information");
       } finally {
         setLoading(false);
       }
@@ -71,9 +94,137 @@ const Contact = () => {
     if (backendUrl) {
       fetchBusinessDetails();
     } else {
+      console.warn('🚫 No backend URL configured');
       setLoading(false);
     }
   }, []);
+
+  // Function to process map links - use direct embed URLs from backend
+  const processMapLinks = (data) => {
+    const processedData = { ...data };
+    
+    // Process main location map link
+    if (processedData.location?.googleMapsLink) {
+      // If it's already an embed URL, use it directly
+      if (processedData.location.googleMapsLink.includes('/embed?')) {
+        processedData.location.googleMapsEmbed = processedData.location.googleMapsLink;
+      } else {
+        // Convert regular URL to embed URL
+        processedData.location.googleMapsEmbed = convertToEmbedUrl(
+          processedData.location.googleMapsLink,
+          processedData.location.displayAddress
+        );
+      }
+    }
+    
+    // Process store map links
+    if (processedData.multiStore?.stores) {
+      for (let store of processedData.multiStore.stores) {
+        if (store.location?.googleMapsLink) {
+          // If it's already an embed URL, use it directly
+          if (store.location.googleMapsLink.includes('/embed?')) {
+            store.location.googleMapsEmbed = store.location.googleMapsLink;
+          } else {
+            // Convert regular URL to embed URL
+            store.location.googleMapsEmbed = convertToEmbedUrl(
+              store.location.googleMapsLink,
+              store.location.displayName
+            );
+          }
+        } else if (store.location) {
+          // Generate embed URL from address
+          store.location.googleMapsEmbed = generateEmbedUrlFromAddress(store.location);
+        }
+      }
+    }
+    
+    return processedData;
+  };
+
+  // Convert regular Google Maps URL to embed URL
+  const convertToEmbedUrl = (url, address) => {
+    if (!url) return generateDefaultEmbedUrl();
+    
+    try {
+      // If it's already an embed URL, return as is
+      if (url.includes('/embed?')) {
+        return url;
+      }
+      
+      // For regular Google Maps URLs, extract place information
+      if (url.includes('google.com/maps') || url.includes('maps.app.goo.gl')) {
+        const urlObj = new URL(url);
+        const placeId = urlObj.searchParams.get('place_id');
+        const query = urlObj.searchParams.get('q') || urlObj.searchParams.get('destination') || address;
+        
+        if (placeId) {
+          return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d13398.257699999999!2d72.4054!3d32.9295!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDU1JzQ2LjIiTiA3MsKwMjQnNTUuNCJF!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s&q=place_id:${placeId}&z=17`;
+        } else {
+          return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d13398.257699999999!2d72.4054!3d32.9295!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDU1JzQ2LjIiTiA3MsKwMjQnNTUuNCJF!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s&q=${encodeURIComponent(query)}&z=17`;
+        }
+      }
+      
+    } catch (error) {
+      console.warn('Error converting map URL:', error);
+    }
+    
+    // Fallback to default embed
+    return generateDefaultEmbedUrl();
+  };
+
+  // Generate default embed URL for Talagang location
+  const generateDefaultEmbedUrl = () => {
+    return 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d5970.447351128933!2d72.41338053887199!3d32.93395276948207!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3920958fc3ecf04d%3A0xaa7e232dc6b315f8!2sJamia%20Masjid%20Nizar%20Ali!5e0!3m2!1sen!2s!4v1761165761202!5m2!1sen!2s';
+  };
+
+  // Generate embed URL from address
+  const generateEmbedUrlFromAddress = (location) => {
+    if (!location) return generateDefaultEmbedUrl();
+    
+    const address = location.displayName || 
+                   (location.address ? 
+                    `${location.address.street}, ${location.address.city}, ${location.address.state}` : 
+                    'Talagang, Pakistan');
+    
+    return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d13398.257699999999!2d72.4054!3d32.9295!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDU1JzQ2LjIiTiA3MsKwMjQnNTUuNCJF!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s&q=${encodeURIComponent(address)}&z=17`;
+  };
+
+  // Function to update map zoom for a specific store
+  const updateMapZoom = (storeId, zoomChange) => {
+    setMapZoom(prev => {
+      const currentZoom = prev[storeId] || 17;
+      const newZoom = Math.max(8, Math.min(20, currentZoom + zoomChange));
+      return {
+        ...prev,
+        [storeId]: newZoom
+      };
+    });
+  };
+
+  // Function to get current map URL with zoom
+  const getMapUrlWithZoom = (store, storeId) => {
+    const baseUrl = store.location?.googleMapsEmbed || '';
+    const currentZoom = mapZoom[storeId] || 17;
+    
+    // Update zoom parameter while preserving other parameters
+    if (baseUrl.includes('?')) {
+      // Remove existing zoom parameter
+      let cleanUrl = baseUrl.replace(/[?&]z=\d+/g, '');
+      // Add current zoom
+      const separator = cleanUrl.includes('?') ? '&' : '?';
+      return `${cleanUrl}${separator}z=${currentZoom}`;
+    }
+    
+    return `${baseUrl}?z=${currentZoom}`;
+  };
+
+  // Function to reset map view to default
+  const resetMapView = (storeId) => {
+    setMapZoom(prev => ({
+      ...prev,
+      [storeId]: 17
+    }));
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -90,29 +241,111 @@ const Contact = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  // Connect contact form to backend
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Form submitted:', formData);
+    setSubmitting(true);
+
+    try {
+      console.log('📨 Submitting contact form:', formData);
+
+      const response = await axios.post(`${backendUrl}/api/contact`, formData);
+
+      if (response.data.success) {
+        toast.success("Message sent successfully! We'll get back to you soon.");
+        // Reset form
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          subject: '',
+          message: ''
+        });
+      } else {
+        toast.error(response.data.message || "Failed to send message");
+      }
+    } catch (error) {
+      console.error('❌ Error submitting contact form:', error);
+      toast.error(error.response?.data?.message || "Failed to send message. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // Helper function to format operating hours (same as in admin)
+  // Helper function to format operating hours with single day logic
   const formatOperatingHours = (operatingHours) => {
-    if (!operatingHours) return "Not specified";
-    
+    if (!operatingHours) return "Hours not set";
+
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
     const todayHours = operatingHours[today];
-    
+
+    // Count how many days the store is open
+    const openDays = days.filter(day => {
+      const dayHours = operatingHours[day];
+      return dayHours && !dayHours.closed && dayHours.open && dayHours.close;
+    });
+
+    // If store is open only one day
+    if (openDays.length === 1) {
+      const singleDay = openDays[0];
+      const dayHours = operatingHours[singleDay];
+      const dayName = singleDay.charAt(0).toUpperCase() + singleDay.slice(1);
+      return `Open on ${dayName} only: ${dayHours.open} - ${dayHours.close}`;
+    }
+
+    // Regular today's hours display
     if (todayHours?.closed) {
       return "Closed today";
     }
-    
+
     if (todayHours?.open && todayHours?.close) {
       return `Today: ${todayHours.open} - ${todayHours.close}`;
     }
-    
+
     return "Hours not set";
+  };
+
+  // Enhanced function to get detailed operating hours summary
+  const getOperatingHoursSummary = (operatingHours) => {
+    if (!operatingHours) return "Hours not specified";
+
+    const days = [
+      { key: 'monday', name: 'Monday' },
+      { key: 'tuesday', name: 'Tuesday' },
+      { key: 'wednesday', name: 'Wednesday' },
+      { key: 'thursday', name: 'Thursday' },
+      { key: 'friday', name: 'Friday' },
+      { key: 'saturday', name: 'Saturday' },
+      { key: 'sunday', name: 'Sunday' }
+    ];
+
+    // Count open days and get open days details
+    const openDays = days.filter(day => {
+      const dayHours = operatingHours[day.key];
+      return dayHours && !dayHours.closed && dayHours.open && dayHours.close;
+    });
+
+    // If only one day open
+    if (openDays.length === 1) {
+      const singleDay = openDays[0];
+      const dayHours = operatingHours[singleDay.key];
+      return `Open on ${singleDay.name} only: ${dayHours.open} - ${dayHours.close}`;
+    }
+
+    // If multiple days open, show today's status
+    const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+    const todayHours = operatingHours[today.key];
+
+    if (todayHours?.closed) {
+      return "Closed today";
+    }
+
+    if (todayHours?.open && todayHours?.close) {
+      return `Today: ${todayHours.open} - ${todayHours.close}`;
+    }
+
+    return "Check hours";
   };
 
   // Social media platforms configuration
@@ -143,39 +376,44 @@ const Contact = () => {
     }
   ];
 
+  // Debug: Check what data we have
+  console.log('🔍 Current businessInfo:', businessInfo);
+  console.log('📞 Phone:', businessInfo.contact?.customerSupport?.phone);
+  console.log('📧 Email:', businessInfo.contact?.customerSupport?.email);
+
   // Get stores from business info or use default locations
   const stores = businessInfo.multiStore?.stores && businessInfo.multiStore.stores.length > 0
     ? businessInfo.multiStore.stores
     : [
-        {
-          storeId: 'default-1',
-          storeName: 'Main Store',
-          storeType: 'retail',
-          location: {
-            displayName: 'Talagang, Pakistan',
-            address: {
-              street: 'Talagang',
-              city: 'Talagang',
-              state: 'Punjab',
-              zipCode: '00000'
-            },
-            googleMapsLink: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d53581.37547067252!2d72.36579725668948!3d32.92893183501323!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3920949ad1b6438b%3A0x7807a1c59442d6de!2sTalagang%2C%20Pakistan!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s'
+      {
+        storeId: 'default-1',
+        storeName: 'Main Store',
+        storeType: 'retail',
+        location: {
+          displayName: 'Near Nazar Ali Masjid, Talagang, Pakistan',
+          address: {
+            street: 'Near Nazar Ali Masjid',
+            city: 'Talagang',
+            state: 'Punjab',
+            zipCode: '48800'
           },
-          contact: {
-            phone: '+92-317 5546007',
-          },
-          operatingHours: {
-            monday: { open: "09:00", close: "18:00", closed: false },
-            tuesday: { open: "09:00", close: "18:00", closed: false },
-            wednesday: { open: "09:00", close: "18:00", closed: false },
-            thursday: { open: "09:00", close: "18:00", closed: false },
-            friday: { open: "09:00", close: "18:00", closed: false },
-            saturday: { open: "09:00", close: "18:00", closed: false },
-            sunday: { open: "09:00", close: "18:00", closed: true }
-          },
-          status: "active"
-        }
-      ];
+          googleMapsEmbed: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d5970.447351128933!2d72.41338053887199!3d32.93395276948207!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3920958fc3ecf04d%3A0xaa7e232dc6b315f8!2sJamia%20Masjid%20Nizar%20Ali!5e0!3m2!1sen!2s!4v1761165761202!5m2!1sen!2s'
+        },
+        contact: {
+          phone: businessInfo.contact?.customerSupport?.phone || '+92-317 5546007',
+        },
+        operatingHours: {
+          monday: { open: "09:00", close: "18:00", closed: false },
+          tuesday: { open: "09:00", close: "18:00", closed: false },
+          wednesday: { open: "09:00", close: "18:00", closed: false },
+          thursday: { open: "09:00", close: "18:00", closed: false },
+          friday: { open: "09:00", close: "18:00", closed: false },
+          saturday: { open: "09:00", close: "18:00", closed: false },
+          sunday: { open: "09:00", close: "18:00", closed: true }
+        },
+        status: "active"
+      }
+    ];
 
   if (loading) {
     return (
@@ -204,10 +442,10 @@ const Contact = () => {
 
       {/* Main Content - Form with Sidebar */}
       <div className="w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5">
           {/* Contact Form - 3 columns */}
           <div className="lg:col-span-3 p-4">
-            <div className="bg-white border border-gray-200">
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-2xl font-bold text-gray-900">Send Us a Message</h2>
                 <p className="text-gray-600 mt-1">Fill out the form below and we'll get back to you soon</p>
@@ -216,26 +454,26 @@ const Contact = () => {
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
                       placeholder="Enter your full name"
-                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white"
+                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-lg"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
                       placeholder="Enter your email address"
-                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white"
+                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-lg"
                       required
                     />
                   </div>
@@ -250,16 +488,16 @@ const Contact = () => {
                       value={formData.phone}
                       onChange={handleInputChange}
                       placeholder="Enter your phone number"
-                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white"
+                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-lg"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
                     <select
                       name="subject"
                       value={formData.subject}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white"
+                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-lg"
                       required
                     >
                       <option value="">Select a subject</option>
@@ -277,62 +515,67 @@ const Contact = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Your Message</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Your Message *</label>
                   <textarea
                     name="message"
                     value={formData.message}
                     onChange={handleInputChange}
                     placeholder="Tell us how we can help you..."
                     rows="5"
-                    className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white resize-none"
+                    className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white resize-none rounded-lg"
                     required
                   ></textarea>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full bg-black text-white py-3 px-6 font-semibold text-base hover:bg-gray-800 transition-all mt-4"
+                  disabled={submitting}
+                  className="w-full bg-black text-white py-3 px-6 font-semibold text-base hover:bg-gray-800 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
                 >
-                  Send Message
+                  {submitting ? 'Sending...' : 'Send Message'}
                 </button>
               </form>
             </div>
           </div>
 
-          {/* Sidebar - Contact Information - 1 column */}
-          <div className="lg:col-span-1 p-4 border-l border-gray-200">
-            <div className="bg-white p-4 border border-gray-200">
-              <h3 className="text-xl font-bold text-gray-900 mb-4 border-b border-gray-200 pb-3">
+          {/* Sidebar - Contact Information - 2 columns */}
+          <div className="lg:col-span-2 p-4">
+            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm sticky top-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-6 border-b border-gray-200 pb-4">
                 Contact Info
               </h3>
 
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <div className="bg-black w-9 h-9 flex items-center justify-center rounded-full">
+              <div className="space-y-6">
+                <div className="flex items-start space-x-4">
+                  <div className="bg-black w-12 h-12 flex items-center justify-center rounded-full flex-shrink-0">
                     <FontAwesomeIcon icon={faPhone} className="text-white text-lg" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 text-sm">Phone</h4>
-                    <p className="text-gray-600 text-sm mt-1">{businessInfo.contact?.customerSupport?.phone || "+92-317 5546007"}</p>
+                    <h4 className="font-semibold text-gray-900 text-base">Phone</h4>
+                    <p className="text-gray-600 text-base mt-1">
+                      {businessInfo.contact?.customerSupport?.phone || "+92-317 5546007"}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3">
-                  <div className="bg-black w-9 h-9 flex items-center justify-center rounded-full">
+                <div className="flex items-start space-x-4">
+                  <div className="bg-black w-12 h-12 flex items-center justify-center rounded-full flex-shrink-0">
                     <FontAwesomeIcon icon={faEnvelope} className="text-white text-lg" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 text-sm">Email</h4>
-                    <p className="text-gray-600 text-sm mt-1">{businessInfo.contact?.customerSupport?.email || "naturabliss@gmail.com"}</p>
+                    <h4 className="font-semibold text-gray-900 text-base">Email</h4>
+                    <p className="text-gray-600 text-base mt-1">
+                      {businessInfo.contact?.customerSupport?.email || "naturabliss@gmail.com"}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3">
-                  <div className="bg-black w-9 h-9 flex items-center justify-center rounded-full">
+                <div className="flex items-start space-x-4">
+                  <div className="bg-black w-12 h-12 flex items-center justify-center rounded-full flex-shrink-0">
                     <FontAwesomeIcon icon={faMapMarkerAlt} className="text-white text-lg" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 text-sm">Address</h4>
+                    <h4 className="font-semibold text-gray-900 text-base">Address</h4>
                     <p className="text-gray-600 text-sm mt-1 leading-relaxed">
                       {businessInfo.location?.displayAddress || "123 Natural Street, Green Valley, PK"}
                     </p>
@@ -341,9 +584,9 @@ const Contact = () => {
               </div>
 
               {/* Social Media */}
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <h4 className="font-semibold text-gray-900 mb-3 text-sm">Follow Us</h4>
-                <div className="flex space-x-2">
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <h4 className="font-semibold text-gray-900 mb-4 text-base">Follow Us</h4>
+                <div className="flex space-x-3">
                   {socialPlatforms.map((platform) => {
                     const socialUrl = businessInfo.socialMedia?.[platform.key];
                     const isActive = !!socialUrl;
@@ -354,18 +597,17 @@ const Contact = () => {
                         href={isActive ? socialUrl : "#"}
                         target={isActive ? "_blank" : "_self"}
                         rel={isActive ? "noopener noreferrer" : ""}
-                        className={`bg-black w-9 h-9 flex items-center justify-center rounded-full text-white hover:bg-gray-800 transition-all ${!isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`bg-black w-10 h-10 flex items-center justify-center rounded-full text-white hover:bg-gray-800 transition-all ${!isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                         aria-label={platform.label}
                         title={isActive ? `Follow us on ${platform.label}` : `${platform.label} link not set`}
                         onClick={!isActive ? (e) => e.preventDefault() : undefined}
                       >
-                        <FontAwesomeIcon icon={platform.icon} className="text-sm" />
+                        <FontAwesomeIcon icon={platform.icon} className="text-base" />
                       </a>
                     );
                   })}
                 </div>
 
-                {/* Social Media Status */}
                 <div className="mt-3 text-xs text-gray-500">
                   <p>
                     {Object.values(businessInfo.socialMedia || {}).filter(url => url).length > 0
@@ -381,99 +623,140 @@ const Contact = () => {
       </div>
 
       {/* Full Width Locations Section */}
-      <div className="w-full py-8 border-t border-gray-200">
+      <div className="w-full py-12 border-t border-gray-200">
         <div className="w-full px-4">
-          <div className="text-center mb-8">
+          <div className="text-center mb-12">
             <div className="text-3xl">
               <Title text1={'OUR'} text2={'LOCATIONS'} />
             </div>
-            <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
+            <p className="text-gray-600 mt-2 max-w-2xl mx-auto text-lg">
               Visit our stores and facilities across multiple locations
             </p>
           </div>
 
-          <div className={`w-full grid gap-6 ${stores.length === 1 ? 'grid-cols-1 max-w-4xl mx-auto' :
-              stores.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
-                stores.length === 3 ? 'grid-cols-1 lg:grid-cols-3' :
-                  stores.length >= 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
-                    'grid-cols-1'
+          <div className={`w-full grid gap-8 ${stores.length === 1 ? 'grid-cols-1 max-w-4xl mx-auto' :
+            stores.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
+              stores.length === 3 ? 'grid-cols-1 lg:grid-cols-3' :
+                stores.length >= 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
+                  'grid-cols-1'
             }`}>
-            {stores.map((store, index) => (
-              <div key={store.storeId || index} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 mb-4">
-                  <h4 className="font-semibold text-gray-900 text-lg">{store.storeName}</h4>
-                  {businessInfo.multiStore?.defaultStore === store.storeId && (
-                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
-                      Default Store
-                    </span>
-                  )}
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    store.storeType === 'retail' ? 'bg-blue-100 text-blue-800' :
-                    store.storeType === 'warehouse' ? 'bg-orange-100 text-orange-800' :
-                    'bg-purple-100 text-purple-800'
-                  }`}>
-                    {store.storeType || 'store'}
-                  </span>
-                </div>
+            {stores.map((store, index) => {
+              const storeId = store.storeId || `store-${index}`;
+              const currentZoom = mapZoom[storeId] || 17;
+              const mapUrl = getMapUrlWithZoom(store, storeId);
 
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-start space-x-2">
-                    <FontAwesomeIcon icon={faMapMarkerAlt} className="text-gray-600 mt-0.5 text-sm" />
-                    <div>
-                      <p className="text-gray-700 font-medium text-sm">{store.location?.displayName}</p>
-                      {store.location?.address && (
-                        <p className="text-gray-600 text-xs mt-1">
-                          {store.location.address.city}
-                        </p>
-                      )}
+              return (
+                <div key={storeId} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 group">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <h4 className="font-bold text-gray-900 text-lg group-hover:text-black transition-colors">
+                        {store.storeName}
+                      </h4>
                     </div>
-                  </div>
-
-                  {store.contact?.phone && (
-                    <div className="flex items-center space-x-2">
-                      <FontAwesomeIcon icon={faPhone} className="text-gray-600 text-sm" />
-                      <p className="text-gray-600 text-sm">{store.contact.phone}</p>
-                    </div>
-                  )}
-
-                  
-                  
-
-                  {store.operatingHours && (
-                    <div className="flex items-center space-x-2 text-sm">
-                      <FontAwesomeIcon icon={faClock} className="text-gray-500" />
-                      <span className="text-gray-600">{formatOperatingHours(store.operatingHours)}</span>
-                    </div>
-                  )}
-
-                  {store.status && (
-                    <div className="text-xs">
-                      <span className={`px-2 py-1 rounded ${
-                        store.status === 'active' ? 'bg-green-100 text-green-800' :
-                        store.status === 'inactive' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${store.storeType === 'retail' ? 'bg-blue-100 text-blue-800' :
+                        store.storeType === 'warehouse' ? 'bg-orange-100 text-orange-800' :
+                          'bg-purple-100 text-purple-800'
                       }`}>
-                        {store.status}
-                      </span>
+                      {store.storeType || 'store'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-4 mb-4">
+                    <div className="flex items-start space-x-3">
+                      <FontAwesomeIcon icon={faMapMarkerAlt} className="text-gray-600 mt-1 text-sm flex-shrink-0" />
+                      <div>
+                        <p className="text-gray-800 font-semibold text-sm">{store.location?.displayName}</p>
+                        {store.location?.address && (
+                          <p className="text-gray-600 text-md mt-1">
+                            {store.location.address.street && `${store.location.address.street} `}
+                          
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {store.contact?.phone && (
+                      <div className="flex items-center space-x-3">
+                        <FontAwesomeIcon icon={faPhone} className="text-gray-600 text-sm flex-shrink-0" />
+                        <p className="text-gray-700 text-sm">{store.contact.phone}</p>
+                      </div>
+                    )}
+
+                    {store.operatingHours && (
+                      <div className="flex items-start space-x-3 text-sm">
+                        <FontAwesomeIcon icon={faClock} className="text-gray-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-gray-600 font-medium">
+                            {getOperatingHoursSummary(store.operatingHours)}
+                          </span>
+                          {/* Show additional info for single day stores */}
+                          {(() => {
+                            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                            const openDays = days.filter(day => {
+                              const dayHours = store.operatingHours[day];
+                              return dayHours && !dayHours.closed && dayHours.open && dayHours.close;
+                            });
+                            
+                            if (openDays.length === 1) {
+                              return (
+                                <p className="text-gray-500 text-xs mt-1">
+                                  Closed on all other days
+                                </p>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
+                    {store.contact?.manager && (
+                      <div className="flex items-center space-x-3 text-sm">
+                        <FontAwesomeIcon icon={faUserCog} className="text-gray-500 flex-shrink-0" />
+                        <span className="text-gray-600">Manager: {store.contact.manager}</span>
+                      </div>
+                    )}
+
+                    {store.status && (
+                      <div className="flex justify-start">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${store.status === 'active' ? 'bg-green-100 text-green-800' :
+                            store.status === 'inactive' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                          }`}>
+                          {store.status === 'active' ? '✓ Open Now' : '✗ Closed'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Enhanced Map Card with External Zoom Controls */}
+                  {store.location?.googleMapsEmbed && (
+                    <div className="mt-4">
+                      <div className="border border-gray-200 rounded-lg overflow-hidden group/map">
+                     
+                       {/* Map Iframe */}
+                        <div className="relative">
+                          <iframe
+                            title={`Location - ${store.storeName}`}
+                            src={mapUrl}
+                            width="100%"
+                            height="350"
+                            style={{ border: 0 }}
+                            allowFullScreen
+                            loading="lazy"
+                            referrerPolicy="no-referrer-when-downgrade"
+                            className="transition-opacity group-hover/map:opacity-90"
+                            key={mapUrl} // Force re-render when URL changes
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover/map:bg-opacity-10 transition-all duration-300 pointer-events-none"></div>
+                        </div>
+
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {store.location?.googleMapsLink && (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <iframe
-                      title={`Location - ${store.storeName}`}
-                      src={store.location.googleMapsLink}
-                      width="100%"
-                      height="150"
-                      style={{ border: 0 }}
-                      allowFullScreen
-                      loading="lazy"
-                    ></iframe>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

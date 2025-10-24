@@ -40,7 +40,7 @@ import about_img from './about_img.png';
 import about_img2 from './about_img2.png';
 import contact_img from './contact_img.png';
 import cross_icon from './cross_icon.png';
-
+import fav from './fav.png'
 
 export const assets = {
   logo,
@@ -62,6 +62,7 @@ export const assets = {
   cross_icon,
   whyus,
   Newsletter,
+  fav,
 };
 
 export const bannerSlides = [

@@ -14,7 +14,7 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
     dealFinalPrice: deal.dealFinalPrice || 0,
     dealStartDate: deal.dealStartDate ? new Date(deal.dealStartDate).toISOString().split('T')[0] : '',
     dealEndDate: deal.dealEndDate ? new Date(deal.dealEndDate).toISOString().split('T')[0] : '',
-    dealType: deal.dealType || 'flash_sale',
+    dealType: deal.dealType || '',
     status: deal.status || 'draft'
   })
   
@@ -22,6 +22,45 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
   const [newImages, setNewImages] = useState([])
   const [removedImages, setRemovedImages] = useState([])
   const [dealProducts, setDealProducts] = useState(deal.dealProducts || [])
+  
+  // Fetch deal types from backend
+  const [dealTypes, setDealTypes] = useState([])
+  const [dealTypesLoading, setDealTypesLoading] = useState(true)
+
+  // Fetch deal types from backend
+  useEffect(() => {
+    const fetchDealTypes = async () => {
+      try {
+        setDealTypesLoading(true)
+        const response = await axios.get(backendUrl + '/api/deal-types')
+        if (response.data) {
+          setDealTypes(response.data)
+          
+          // Set default deal type if none is selected
+          if (!deal.dealType && response.data.length > 0) {
+            setFormData(prev => ({
+              ...prev,
+              dealType: response.data[0]._id
+            }))
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching deal types:', error)
+        toast.error('Failed to load deal types')
+      } finally {
+        setDealTypesLoading(false)
+      }
+    }
+
+    fetchDealTypes()
+  }, [deal.dealType])
+
+  // Helper function to get deal type name
+  const getDealTypeName = (dealTypeId) => {
+    if (!dealTypeId) return 'Select Deal Type'
+    const dealType = dealTypes.find(type => type._id === dealTypeId)
+    return dealType ? dealType.name : 'Unknown Deal Type'
+  }
 
   // Calculate total price from all products
   const calculateDealTotal = () => {
@@ -126,6 +165,7 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
       console.log("Calculated Total:", formData.dealTotal);
       console.log("Calculated Final Price:", formData.dealFinalPrice);
       console.log("Products to save:", dealProducts);
+      console.log("Deal Type being sent:", formData.dealType);
 
       // Create FormData
       const formDataToSend = new FormData()
@@ -140,7 +180,7 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
       formDataToSend.append('dealFinalPrice', formData.dealFinalPrice)
       formDataToSend.append('dealStartDate', formData.dealStartDate)
       formDataToSend.append('dealEndDate', formData.dealEndDate || '')
-      formDataToSend.append('dealType', formData.dealType)
+      formDataToSend.append('dealType', formData.dealType) // This should now be a valid ObjectId
       formDataToSend.append('status', formData.status)
       
       // Add products as JSON string
@@ -225,50 +265,52 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
             </button>
             <h2 className="text-2xl font-bold text-gray-900">
               {mode === 'view' ? 'Deal Details' : 'Edit Deal'}
-          
             </h2>
-            
           </div>
-     <div className="flex flex-wrap gap-3">
-  {mode === 'edit' && (
-    <div className="flex flex-wrap gap-3">
-      <button
-        onClick={handleSave}
-        disabled={loading}
-        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 font-medium flex items-center"
-      >
-        {loading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-            Saving...
-          </>
-        ) : (
-          'Save Changes'
-        )}
-      </button>
+          <div className="flex flex-wrap gap-3">
+            {mode === 'edit' && (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 font-medium flex items-center"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
 
-      <button
-        onClick={handleDelete}
-        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
-      >
-        Delete
-      </button>
-    </div>
-  )}
-</div>
-
+                <button
+                  onClick={handleDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Deal Details */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="p-6">
             {mode === 'view' ? (
-              <ViewMode deal={deal} />
+              <ViewMode 
+                deal={deal} 
+                getDealTypeName={getDealTypeName}
+              />
             ) : (
               <EditMode 
                 formData={formData}
                 onChange={handleChange}
                 loading={loading}
+                dealTypes={dealTypes}
+                dealTypesLoading={dealTypesLoading}
                 // Image management props
                 newImages={newImages}
                 removedImages={removedImages}
@@ -284,13 +326,12 @@ const DealDetails = ({ deal, mode, token, onBack, onSave }) => {
             )}
           </div>
         </div>
-        
       </div>
     </div>
   )
 }
 
-const ViewMode = ({ deal }) => {
+const ViewMode = ({ deal, getDealTypeName }) => {
   // Calculate prices for display
   const calculatedTotal = deal.dealProducts?.reduce((total, product) => 
     total + ((product.price || 0) * (product.quantity || 1)), 0
@@ -325,13 +366,7 @@ const ViewMode = ({ deal }) => {
           <div className="space-y-3">
             <DetailRow label="Deal Name" value={deal.dealName} />
             <DetailRow label="Description" value={deal.dealDescription} />
-            <DetailRow label="Deal Type" value={
-              deal.dealType === 'flash_sale' ? 'Flash Sale' :
-              deal.dealType === 'seasonal' ? 'Seasonal' :
-              deal.dealType === 'clearance' ? 'Clearance' :
-              deal.dealType === 'bundle' ? 'Bundle Deal' :
-              deal.dealType === 'featured' ? 'Featured' : 'Not specified'
-            } />
+            <DetailRow label="Deal Type" value={getDealTypeName(deal.dealType)} />
             <DetailRow label="Discount Type" value={deal.dealDiscountType} />
             <DetailRow 
               label="Discount Value" 
@@ -379,6 +414,8 @@ const EditMode = ({
   formData, 
   onChange, 
   loading,
+  dealTypes,
+  dealTypesLoading,
   newImages,
   removedImages,
   onImageUpload,
@@ -409,18 +446,25 @@ const EditMode = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Deal Type</label>
-            <select
-              name="dealType"
-              value={formData.dealType}
-              onChange={onChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="flash_sale">Flash Sale</option>
-              <option value="seasonal">Seasonal</option>
-              <option value="clearance">Clearance</option>
-              <option value="bundle">Bundle Deal</option>
-              <option value="featured">Featured</option>
-            </select>
+            {dealTypesLoading ? (
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 animate-pulse">
+                Loading deal types...
+              </div>
+            ) : (
+              <select
+                name="dealType"
+                value={formData.dealType}
+                onChange={onChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Select Deal Type</option>
+                {dealTypes.map((type) => (
+                  <option key={type._id} value={type._id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
@@ -524,7 +568,6 @@ const EditMode = ({
           </div>
         </div>
       </div>
-
 
       {/* Image Management */}
       <div className="border-t pt-6">
@@ -710,8 +753,7 @@ const EditMode = ({
         />
       </div>
 
-
-            {/* Price Summary */}
+      {/* Price Summary */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="font-medium text-blue-900 mb-3">Price Summary</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -741,19 +783,33 @@ const EditMode = ({
           </div>
         )}
       </div>
-
     </div>
-
   )
-  
-
 }
 
-const DetailRow = ({ label, value }) => (
-  <div className="flex justify-between py-2 border-b border-gray-100">
-    <span className="font-medium text-gray-600">{label}:</span>
-    <span className="text-gray-900">{value}</span>
-  </div>
-)
+// Fixed DetailRow component that safely handles object values
+const DetailRow = ({ label, value }) => {
+  // Safely convert value to display string
+  const displayValue = React.useMemo(() => {
+    if (value === null || value === undefined) {
+      return 'N/A';
+    }
+    if (typeof value === 'object') {
+      // If it's an object, try to get a meaningful string representation
+      if (value.name) return value.name;
+      if (value._id) return value._id;
+      if (value.toString) return value.toString();
+      return JSON.stringify(value); // fallback
+    }
+    return value;
+  }, [value]);
+
+  return (
+    <div className="flex justify-between py-2 border-b border-gray-100">
+      <span className="font-medium text-gray-600">{label}:</span>
+      <span className="text-gray-900">{displayValue}</span>
+    </div>
+  );
+}
 
 export default DealDetails

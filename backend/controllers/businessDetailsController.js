@@ -4,298 +4,77 @@ import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs/promises';
 import jwt from 'jsonwebtoken';
 
-// ========================
-// PUBLIC CONTROLLERS
-// ========================
-
-export const getBusinessDetails = async (req, res) => {
-  try {
-    console.log('GET /api/business-details called');
-    const businessDetails = await BusinessDetails.getBusinessDetails();
-    
-    console.log('Business details found:', {
-      id: businessDetails._id,
-      companyName: businessDetails.company.name
-    });
-    
-    res.json({
-      success: true,
-      data: businessDetails
-    });
-  } catch (error) {
-    console.error('Error fetching business details:', error);
-    res.json({
-      success: false,
-      message: 'Error fetching business details',
-      error: error.message
-    });
+// Helper function to extract embed URL from iframe HTML or return clean URL
+const extractEmbedUrl = (urlOrIframe) => {
+  if (!urlOrIframe) return '';
+  
+  console.log('🔍 Processing map link:', urlOrIframe);
+  
+  // If it's already a clean embed URL, return it
+  if (urlOrIframe.includes('/embed?') && !urlOrIframe.includes('<iframe')) {
+    console.log('✅ Already clean embed URL');
+    return urlOrIframe;
   }
+  
+  // If it's an iframe HTML, extract the src attribute
+  if (urlOrIframe.includes('<iframe')) {
+    console.log('🔄 Extracting from iframe HTML');
+    const srcMatch = urlOrIframe.match(/src="([^"]*)"/);
+    if (srcMatch && srcMatch[1]) {
+      console.log('✅ Extracted embed URL:', srcMatch[1]);
+      return srcMatch[1];
+    }
+  }
+  
+  // If it's a regular Google Maps URL, convert to embed
+  if (urlOrIframe.includes('google.com/maps') || urlOrIframe.includes('maps.app.goo.gl')) {
+    console.log('🔄 Converting regular URL to embed');
+    return convertToEmbedUrl(urlOrIframe);
+  }
+  
+  console.log('⚠️ Could not process map link, returning as is');
+  return urlOrIframe;
 };
 
-export const getActiveStores = async (req, res) => {
+// Convert regular Google Maps URL to embed URL
+const convertToEmbedUrl = (url) => {
   try {
-    const businessDetails = await BusinessDetails.getBusinessDetails();
-    const activeStores = businessDetails.multiStore.stores.filter(store => store.isActive);
+    const urlObj = new URL(url);
+    const placeId = urlObj.searchParams.get('place_id');
+    const query = urlObj.searchParams.get('q') || urlObj.searchParams.get('destination');
     
-    res.json({
-      success: true,
-      count: activeStores.length,
-      data: activeStores
-    });
+    if (placeId) {
+      return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d13398.257699999999!2d72.4054!3d32.9295!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDU1JzQ2LjIiTiA3MsKwMjQnNTUuNCJF!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s&q=place_id:${placeId}&z=17`;
+    } else if (query) {
+      return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d13398.257699999999!2d72.4054!3d32.9295!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDU1JzQ2LjIiTiA3MsKwMjQnNTUuNCJF!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s&q=${encodeURIComponent(query)}&z=17`;
+    }
   } catch (error) {
-    res.json({
-      success: false,
-      message: 'Error fetching stores',
-      error: error.message
-    });
+    console.error('Error converting URL:', error);
   }
+  
+  return url;
 };
 
-export const getStoreById = async (req, res) => {
-  try {
-    const { storeId } = req.params;
-    const businessDetails = await BusinessDetails.getBusinessDetails();
-    
-    const store = businessDetails.multiStore.stores.find(
-      s => s.storeId === storeId && s.isActive
-    );
-    
-    if (!store) {
-      return res.json({
-        success: false,
-        message: 'Store not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: store
-    });
-  } catch (error) {
-    res.json({
-      success: false,
-      message: 'Error fetching store',
-      error: error.message
+// Function to process map links in business details
+const processMapLinks = (data) => {
+  const processedData = { ...data };
+  
+  // Process main location map link
+  if (processedData.location?.googleMapsLink) {
+    processedData.location.googleMapsLink = extractEmbedUrl(processedData.location.googleMapsLink);
+  }
+  
+  // Process store map links
+  if (processedData.multiStore?.stores) {
+    processedData.multiStore.stores = processedData.multiStore.stores.map(store => {
+      if (store.location?.googleMapsLink) {
+        store.location.googleMapsLink = extractEmbedUrl(store.location.googleMapsLink);
+      }
+      return store;
     });
   }
-};
-
-// ========================
-// COMPANY-LEVEL CONTROLLERS
-// ========================
-export const updateCompanyDetails = async (req, res) => {
-  const uploadedFiles = [];
-
-  try {
-    console.log('=== UPDATE COMPANY DETAILS REQUEST ===');
-    console.log('Headers:', {
-      token: req.headers.token ? 'Present' : 'Missing',
-      contentType: req.headers['content-type']
-    });
-
-    // Check authentication first
-    if (!req.headers.token) {
-      console.log('❌ No token provided in headers');
-      return res.status(401).json({
-        success: false,
-        message: 'Not Authorized: No token provided'
-      });
-    }
-
-    // Verify token
-    let decoded;
-    try {
-      decoded = jwt.verify(req.headers.token, process.env.JWT_SECRET);
-      console.log('✅ Token verified for user:', decoded.email);
-    } catch (jwtError) {
-      console.log('❌ Token verification failed:', jwtError.message);
-      return res.status(401).json({
-        success: false,
-        message: 'Not Authorized: Invalid or expired token'
-      });
-    }
-
-    let businessDetails = await BusinessDetails.getBusinessDetails();
-    console.log('Found business details:', businessDetails._id);
-    
-    const { companyName, tagline, description, foundedYear, customerSupport, location, socialMedia, policies } = req.body;
-    
-    console.log('Received form data:', {
-      companyName,
-      tagline,
-      description: description ? `${description.substring(0, 50)}...` : 'Empty',
-      foundedYear,
-      hasCustomerSupport: !!customerSupport,
-      hasLocation: !!location,
-      hasSocialMedia: !!socialMedia,
-      hasPolicies: !!policies
-    });
-
-    // Log file information
-    if (req.files) {
-      console.log('📁 Files received:', Object.keys(req.files));
-      for (const fileType in req.files) {
-        console.log(`  ${fileType}:`, req.files[fileType].map(f => ({
-          originalname: f.originalname,
-          path: f.path,
-          size: f.size
-        })));
-      }
-    }
-
-    const updateData = {
-      company: {
-        ...businessDetails.company,
-        name: companyName || businessDetails.company.name,
-        tagline: tagline || businessDetails.company.tagline,
-        description: description || businessDetails.company.description,
-        foundedYear: foundedYear || businessDetails.company.foundedYear
-      }
-    };
-    
-    // Parse JSON strings if they exist
-    if (customerSupport) {
-      try {
-        updateData.contact = {
-          ...businessDetails.contact,
-          customerSupport: typeof customerSupport === 'string' ? JSON.parse(customerSupport) : customerSupport
-        };
-        console.log('✅ Processed customer support data');
-      } catch (parseError) {
-        console.error('❌ Error parsing customerSupport:', parseError);
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid customer support data format'
-        });
-      }
-    }
-    
-    if (location) {
-      try {
-        updateData.location = typeof location === 'string' ? JSON.parse(location) : location;
-        console.log('✅ Processed location data');
-      } catch (parseError) {
-        console.error('❌ Error parsing location:', parseError);
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid location data format'
-        });
-      }
-    }
-    
-    if (socialMedia) {
-      try {
-        updateData.socialMedia = typeof socialMedia === 'string' ? JSON.parse(socialMedia) : socialMedia;
-        console.log('✅ Processed social media data');
-      } catch (parseError) {
-        console.error('❌ Error parsing socialMedia:', parseError);
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid social media data format'
-        });
-      }
-    }
-    
-    if (policies) {
-      try {
-        updateData.policies = typeof policies === 'string' ? JSON.parse(policies) : policies;
-        console.log('✅ Processed policies data');
-      } catch (parseError) {
-        console.error('❌ Error parsing policies:', parseError);
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid policies data format'
-        });
-      }
-    }
-    
-    // Handle logo uploads with better error handling
-    if (req.files) {
-      updateData.logos = { ...businessDetails.logos };
-      
-      // Process website logo
-      if (req.files.websiteLogo && req.files.websiteLogo[0]) {
-        await processLogoUpload({
-          file: req.files.websiteLogo[0],
-          logoType: 'website',
-          businessDetails,
-          updateData,
-          uploadedFiles
-        });
-      }
-      
-      // Process admin logo
-      if (req.files.adminLogo && req.files.adminLogo[0]) {
-        await processLogoUpload({
-          file: req.files.adminLogo[0],
-          logoType: 'admin',
-          businessDetails,
-          updateData,
-          uploadedFiles
-        });
-      }
-      
-      // Process favicon
-      if (req.files.favicon && req.files.favicon[0]) {
-        await processLogoUpload({
-          file: req.files.favicon[0],
-          logoType: 'favicon',
-          businessDetails,
-          updateData,
-          uploadedFiles
-        });
-      }
-    }
-    
-    console.log('💾 Saving updated business details...');
-    businessDetails = await BusinessDetails.findByIdAndUpdate(
-      businessDetails._id,
-      updateData,
-      { new: true, runValidators: true }
-    );
-    
-    console.log('✅ Business details updated successfully');
-    
-    res.json({
-      success: true,
-      message: 'Company details updated successfully',
-      data: businessDetails
-    });
-  } catch (error) {
-    console.error('❌ Update company details error:', error);
-    
-    // Clean up uploaded files on error
-    await cleanupUploadedFiles(req.files, uploadedFiles);
-    
-    // Handle specific error types
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Not Authorized: Invalid token'
-      });
-    }
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Not Authorized: Token expired'
-      });
-    }
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation Error',
-        error: error.message
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      message: 'Error updating company details',
-      error: error.message
-    });
-  }
+  
+  return processedData;
 };
 
 // Helper function to process logo uploads
@@ -370,6 +149,452 @@ async function cleanupUploadedFiles(files, uploadedFiles) {
   }
 }
 
+export const getBusinessDetails = async (req, res) => {
+  try {
+    console.log('GET /api/business-details called');
+    let businessDetails = await BusinessDetails.getBusinessDetails();
+    
+    console.log('Business details found:', {
+      id: businessDetails._id,
+      companyName: businessDetails.company.name,
+      contactStructure: businessDetails.contact,
+      email: businessDetails.contact?.customerSupport?.email,
+      phone: businessDetails.contact?.customerSupport?.phone,
+      mapLink: businessDetails.location?.googleMapsLink
+    });
+
+    // FIX: Check if contact data is malformed and auto-fix it
+    let needsFix = false;
+    let fixedContactData;
+
+    if (typeof businessDetails.contact?.customerSupport === 'string') {
+      console.warn('⚠️ Malformed contact data detected, fixing structure...');
+      needsFix = true;
+      fixedContactData = {
+        customerSupport: {
+          phone: businessDetails.contact.customerSupport, // the phone number string
+          email: "naturabliss@gmail.com", // default email
+          hours: "24/7" // default hours
+        }
+      };
+      
+      // Auto-fix the database
+      businessDetails.contact = fixedContactData;
+      await businessDetails.save();
+      console.log('✅ Auto-fixed contact data structure in database');
+    } else {
+      // Use existing data if structure is correct
+      fixedContactData = businessDetails.contact || {
+        customerSupport: {
+          email: "naturabliss@gmail.com",
+          phone: "+92-317 5546007",
+          hours: "24/7"
+        }
+      };
+    }
+
+    // Process map links to ensure clean embed URLs
+    const processedData = processMapLinks(businessDetails.toObject());
+
+    // Ensure all required fields are present with proper fallbacks
+    const responseData = {
+      company: {
+        name: processedData.company?.name || "Natura Bliss",
+        tagline: processedData.company?.tagline || "Pure Natural Skincare",
+        description: processedData.company?.description || "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
+        foundedYear: processedData.company?.foundedYear || 2023
+      },
+      contact: fixedContactData,
+      location: {
+        displayAddress: processedData.location?.displayAddress || "123 Natural Street, Green Valley, PK",
+        googleMapsLink: processedData.location?.googleMapsLink || "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d53581.37547067252!2d72.36579725668948!3d32.92893183501323!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3920949ad1b6438b%3A0x7807a1c59442d6de!2sTalagang%2C%20Pakistan!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s"
+      },
+      socialMedia: processedData.socialMedia || {
+        facebook: "",
+        instagram: "",
+        tiktok: "",
+        whatsapp: ""
+      },
+      multiStore: processedData.multiStore || {
+        enabled: false,
+        stores: [],
+        defaultStore: null
+      },
+      logos: processedData.logos || {
+        website: { url: "", public_id: "" },
+        admin: { url: "", public_id: "" },
+        favicon: { url: "", public_id: "" }
+      },
+      policies: processedData.policies || {
+        shipping: "",
+        returns: "",
+        privacy: "",
+        terms: ""
+      }
+    };
+    
+    console.log('✅ Final response data contact:', responseData.contact);
+    console.log('✅ Processed map links:', {
+      mainLocation: responseData.location.googleMapsLink,
+      stores: responseData.multiStore.stores.map(store => ({
+        storeName: store.storeName,
+        mapLink: store.location?.googleMapsLink
+      }))
+    });
+    
+    res.json({
+      success: true,
+      data: responseData
+    });
+  } catch (error) {
+    console.error('Error fetching business details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching business details',
+      error: error.message
+    });
+  }
+};
+
+export const getActiveStores = async (req, res) => {
+  try {
+    const businessDetails = await BusinessDetails.getBusinessDetails();
+    const activeStores = businessDetails.multiStore.stores.filter(store => store.isActive);
+    
+    res.json({
+      success: true,
+      count: activeStores.length,
+      data: activeStores
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching stores',
+      error: error.message
+    });
+  }
+};
+
+export const getStoreById = async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const businessDetails = await BusinessDetails.getBusinessDetails();
+    
+    const store = businessDetails.multiStore.stores.find(
+      s => s.storeId === storeId && s.isActive
+    );
+    
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        message: 'Store not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: store
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching store',
+      error: error.message
+    });
+  }
+};
+
+export const updateCompanyDetails = async (req, res) => {
+  const uploadedFiles = [];
+
+  try {
+    console.log('=== UPDATE COMPANY DETAILS REQUEST ===');
+    console.log('Headers:', {
+      token: req.headers.token ? 'Present' : 'Missing',
+      contentType: req.headers['content-type']
+    });
+
+    // Check authentication first
+    if (!req.headers.token) {
+      console.log('❌ No token provided in headers');
+      return res.status(401).json({
+        success: false,
+        message: 'Not Authorized: No token provided'
+      });
+    }
+
+    // Verify token
+    let decoded;
+    try {
+      decoded = jwt.verify(req.headers.token, process.env.JWT_SECRET);
+      console.log('✅ Token verified for user:', decoded.email);
+    } catch (jwtError) {
+      console.log('❌ Token verification failed:', jwtError.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Not Authorized: Invalid or expired token'
+      });
+    }
+
+    let businessDetails = await BusinessDetails.getBusinessDetails();
+    console.log('Found business details:', businessDetails._id);
+    
+    const { companyName, tagline, description, foundedYear, customerSupport, location, socialMedia, policies } = req.body;
+    
+    console.log('Received form data:', {
+      companyName,
+      tagline,
+      description: description ? `${description.substring(0, 50)}...` : 'Empty',
+      foundedYear,
+      customerSupport: customerSupport ? (typeof customerSupport === 'string' ? 'String data' : 'Object data') : 'Empty',
+      hasLocation: !!location,
+      hasSocialMedia: !!socialMedia,
+      hasPolicies: !!policies
+    });
+
+    // Log file information
+    if (req.files) {
+      console.log('📁 Files received:', Object.keys(req.files));
+      for (const fileType in req.files) {
+        console.log(`  ${fileType}:`, req.files[fileType].map(f => ({
+          originalname: f.originalname,
+          path: f.path,
+          size: f.size
+        })));
+      }
+    }
+
+    const updateData = {
+      company: {
+        ...businessDetails.company,
+        name: companyName || businessDetails.company.name,
+        tagline: tagline || businessDetails.company.tagline,
+        description: description || businessDetails.company.description,
+        foundedYear: foundedYear || businessDetails.company.foundedYear
+      }
+    };
+    
+    // FIX: Properly handle customerSupport data structure
+    if (customerSupport) {
+      try {
+        let customerSupportData;
+        if (typeof customerSupport === 'string') {
+          customerSupportData = JSON.parse(customerSupport);
+        } else {
+          customerSupportData = customerSupport;
+        }
+        
+        // Ensure we have the proper structure
+        updateData.contact = {
+          customerSupport: {
+            email: customerSupportData.email || businessDetails.contact?.customerSupport?.email || "naturabliss@gmail.com",
+            phone: customerSupportData.phone || businessDetails.contact?.customerSupport?.phone || "+92-317 5546007",
+            hours: customerSupportData.hours || businessDetails.contact?.customerSupport?.hours || "24/7"
+          }
+        };
+        console.log('✅ Processed customer support data:', updateData.contact.customerSupport);
+      } catch (parseError) {
+        console.error('❌ Error parsing customerSupport:', parseError);
+        // If parsing fails, use existing data
+        updateData.contact = businessDetails.contact || {
+          customerSupport: {
+            email: "naturabliss@gmail.com",
+            phone: "+92-317 5546007",
+            hours: "24/7"
+          }
+        };
+      }
+    } else {
+      // Keep existing contact data if no new data provided
+      updateData.contact = businessDetails.contact || {
+        customerSupport: {
+          email: "naturabliss@gmail.com",
+          phone: "+92-317 5546007",
+          hours: "24/7"
+        }
+      };
+    }
+    
+    // Handle location data - EXTRACT EMBED URL HERE
+    if (location) {
+      try {
+        const locationData = typeof location === 'string' ? JSON.parse(location) : location;
+        
+        // Extract clean embed URL from iframe HTML if present
+        if (locationData.googleMapsLink) {
+          locationData.googleMapsLink = extractEmbedUrl(locationData.googleMapsLink);
+          console.log('✅ Extracted clean embed URL for location:', locationData.googleMapsLink);
+        }
+        
+        updateData.location = {
+          ...businessDetails.location,
+          ...locationData
+        };
+        console.log('✅ Processed location data with clean embed URL:', updateData.location);
+      } catch (parseError) {
+        console.error('❌ Error parsing location:', parseError);
+        updateData.location = businessDetails.location || {
+          displayAddress: "123 Natural Street, Green Valley, PK",
+          googleMapsLink: ""
+        };
+      }
+    } else {
+      updateData.location = businessDetails.location || {
+        displayAddress: "123 Natural Street, Green Valley, PK",
+        googleMapsLink: ""
+      };
+    }
+    
+    // Handle social media data
+    if (socialMedia) {
+      try {
+        updateData.socialMedia = {
+          ...businessDetails.socialMedia,
+          ...(typeof socialMedia === 'string' ? JSON.parse(socialMedia) : socialMedia)
+        };
+        console.log('✅ Processed social media data');
+      } catch (parseError) {
+        console.error('❌ Error parsing socialMedia:', parseError);
+        updateData.socialMedia = businessDetails.socialMedia || {
+          facebook: "",
+          instagram: "",
+          tiktok: "",
+          whatsapp: ""
+        };
+      }
+    } else {
+      updateData.socialMedia = businessDetails.socialMedia || {
+        facebook: "",
+        instagram: "",
+        tiktok: "",
+        whatsapp: ""
+      };
+    }
+    
+    // Handle policies data
+    if (policies) {
+      try {
+        updateData.policies = {
+          ...businessDetails.policies,
+          ...(typeof policies === 'string' ? JSON.parse(policies) : policies)
+        };
+        console.log('✅ Processed policies data');
+      } catch (parseError) {
+        console.error('❌ Error parsing policies:', parseError);
+        updateData.policies = businessDetails.policies || {
+          shipping: "",
+          returns: "",
+          privacy: "",
+          terms: ""
+        };
+      }
+    } else {
+      updateData.policies = businessDetails.policies || {
+        shipping: "",
+        returns: "",
+        privacy: "",
+        terms: ""
+      };
+    }
+    
+    // Handle logo uploads
+    if (req.files) {
+      updateData.logos = { ...businessDetails.logos };
+      
+      // Process website logo
+      if (req.files.websiteLogo && req.files.websiteLogo[0]) {
+        await processLogoUpload({
+          file: req.files.websiteLogo[0],
+          logoType: 'website',
+          businessDetails,
+          updateData,
+          uploadedFiles
+        });
+      }
+      
+      // Process admin logo
+      if (req.files.adminLogo && req.files.adminLogo[0]) {
+        await processLogoUpload({
+          file: req.files.adminLogo[0],
+          logoType: 'admin',
+          businessDetails,
+          updateData,
+          uploadedFiles
+        });
+      }
+      
+      // Process favicon
+      if (req.files.favicon && req.files.favicon[0]) {
+        await processLogoUpload({
+          file: req.files.favicon[0],
+          logoType: 'favicon',
+          businessDetails,
+          updateData,
+          uploadedFiles
+        });
+      }
+    } else {
+      updateData.logos = businessDetails.logos || {
+        website: { url: "", public_id: "" },
+        admin: { url: "", public_id: "" },
+        favicon: { url: "", public_id: "" }
+      };
+    }
+    
+    console.log('💾 Saving updated business details...');
+    console.log('Update data structure:', JSON.stringify(updateData, null, 2));
+    
+    businessDetails = await BusinessDetails.findByIdAndUpdate(
+      businessDetails._id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+    
+    console.log('✅ Business details updated successfully');
+    console.log('Updated contact data:', businessDetails.contact);
+    
+    res.json({
+      success: true,
+      message: 'Company details updated successfully',
+      data: businessDetails
+    });
+  } catch (error) {
+    console.error('❌ Update company details error:', error);
+    
+    // Clean up uploaded files on error
+    await cleanupUploadedFiles(req.files, uploadedFiles);
+    
+    // Handle specific error types
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Not Authorized: Invalid token'
+      });
+    }
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Not Authorized: Token expired'
+      });
+    }
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error',
+        error: error.message
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Error updating company details',
+      error: error.message
+    });
+  }
+};
+
 export const updateContactDetails = async (req, res) => {
   try {
     console.log('=== UPDATE CONTACT DETAILS REQUEST ===');
@@ -396,6 +621,14 @@ export const updateContactDetails = async (req, res) => {
     
     const { customerSupport } = req.body;
     
+    // Ensure contact structure exists
+    if (!businessDetails.contact) {
+      businessDetails.contact = {};
+    }
+    if (!businessDetails.contact.customerSupport) {
+      businessDetails.contact.customerSupport = {};
+    }
+    
     businessDetails.contact.customerSupport = {
       ...businessDetails.contact.customerSupport,
       ...customerSupport
@@ -414,11 +647,11 @@ export const updateContactDetails = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error updating contact details',
       error: error.message
@@ -458,7 +691,7 @@ export const updateSocialMedia = async (req, res) => {
     await businessDetails.save();
     
     res.json({
-      success: false,
+      success: true,
       message: 'Social media updated successfully',
       data: businessDetails
     });
@@ -468,11 +701,11 @@ export const updateSocialMedia = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error updating social media',
       error: error.message
@@ -522,21 +755,17 @@ export const updatePolicies = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error updating policies',
       error: error.message
     });
   }
 };
-
-// ========================
-// STORE MANAGEMENT CONTROLLERS
-// ========================
 
 export const addStore = async (req, res) => {
   try {
@@ -562,12 +791,22 @@ export const addStore = async (req, res) => {
 
     let businessDetails = await BusinessDetails.getBusinessDetails();
     
+    // Process map link in store data
+    const storeData = { ...req.body };
+    if (storeData.location?.googleMapsLink) {
+      storeData.location.googleMapsLink = extractEmbedUrl(storeData.location.googleMapsLink);
+      console.log('✅ Extracted clean embed URL for store:', storeData.location.googleMapsLink);
+    }
+    
     const newStore = {
       storeId: `STORE${Date.now()}`,
-      ...req.body,
+      ...storeData,
       isActive: true,
-      status: 'active'
+      status: 'active',
+      createdAt: new Date()
     };
+    
+    console.log('✅ Processed store data with clean embed URL:', newStore.location?.googleMapsLink);
     
     // Handle store logo using your upload middleware
     if (req.file) {
@@ -581,6 +820,18 @@ export const addStore = async (req, res) => {
       };
       
       await fs.unlink(req.file.path);
+    }
+    
+    // Ensure multiStore structure exists
+    if (!businessDetails.multiStore) {
+      businessDetails.multiStore = {
+        enabled: false,
+        stores: [],
+        defaultStore: null
+      };
+    }
+    if (!businessDetails.multiStore.stores) {
+      businessDetails.multiStore.stores = [];
     }
     
     businessDetails.multiStore.stores.push(newStore);
@@ -607,11 +858,11 @@ export const addStore = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error adding store',
       error: error.message
@@ -649,16 +900,26 @@ export const updateStore = async (req, res) => {
     );
     
     if (storeIndex === -1) {
-      return res.json({
+      return res.status(404).json({
         success: false,
         message: 'Store not found'
       });
     }
     
+    // Process map link in update data
+    const updateData = { ...req.body };
+    if (updateData.location?.googleMapsLink) {
+      updateData.location.googleMapsLink = extractEmbedUrl(updateData.location.googleMapsLink);
+      console.log('✅ Extracted clean embed URL for store update:', updateData.location.googleMapsLink);
+    }
+    
     businessDetails.multiStore.stores[storeIndex] = {
       ...businessDetails.multiStore.stores[storeIndex],
-      ...req.body
+      ...updateData,
+      updatedAt: new Date()
     };
+    
+    console.log('✅ Updated store with clean embed URL:', businessDetails.multiStore.stores[storeIndex].location?.googleMapsLink);
     
     await businessDetails.save();
     
@@ -673,11 +934,11 @@ export const updateStore = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error updating store',
       error: error.message
@@ -715,14 +976,14 @@ export const updateStoreLogo = async (req, res) => {
     );
     
     if (storeIndex === -1) {
-      return res.json({
+      return res.status(404).json({
         success: false,
         message: 'Store not found'
       });
     }
     
     if (!req.file) {
-      return res.json({
+      return res.status(400).json({
         success: false,
         message: 'No logo file provided'
       });
@@ -760,11 +1021,11 @@ export const updateStoreLogo = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error updating store logo',
       error: error.message
@@ -802,7 +1063,7 @@ export const toggleStoreStatus = async (req, res) => {
     );
     
     if (storeIndex === -1) {
-      return res.json({
+      return res.status(404).json({
         success: false,
         message: 'Store not found'
       });
@@ -810,6 +1071,9 @@ export const toggleStoreStatus = async (req, res) => {
     
     businessDetails.multiStore.stores[storeIndex].isActive = 
       !businessDetails.multiStore.stores[storeIndex].isActive;
+    
+    businessDetails.multiStore.stores[storeIndex].status = 
+      businessDetails.multiStore.stores[storeIndex].isActive ? 'active' : 'inactive';
     
     await businessDetails.save();
     
@@ -824,11 +1088,11 @@ export const toggleStoreStatus = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error updating store status',
       error: error.message
@@ -866,7 +1130,7 @@ export const deleteStore = async (req, res) => {
     );
     
     if (storeIndex === -1) {
-      return res.json({
+      return res.status(404).json({
         success: false,
         message: 'Store not found'
       });
@@ -900,11 +1164,11 @@ export const deleteStore = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error deleting store',
       error: error.message
@@ -942,7 +1206,7 @@ export const setDefaultStore = async (req, res) => {
     );
     
     if (!storeExists) {
-      return res.json({
+      return res.status(404).json({
         success: false,
         message: 'Store not found'
       });
@@ -962,11 +1226,11 @@ export const setDefaultStore = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error setting default store',
       error: error.message
@@ -1013,21 +1277,17 @@ export const toggleMultiStore = async (req, res) => {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Not Authorized Login Again'
+        message: 'Not Authorized: Please login again'
       });
     }
     
-    res.json({
+    res.status(500).json({
       success: false,
       message: 'Error toggling multi-store',
       error: error.message
     });
   }
 };
-
-// ========================
-// LOGO DELETION CONTROLLER
-// ========================
 
 export const deleteLogo = async (req, res) => {
   try {
@@ -1073,7 +1333,7 @@ export const deleteLogo = async (req, res) => {
     // Check if logo exists
     const existingLogo = businessDetails.logos[logoType];
     if (!existingLogo || !existingLogo.public_id) {
-      return res.json({
+      return res.status(404).json({
         success: false,
         message: `No ${logoType} logo found to delete`
       });

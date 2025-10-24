@@ -9,7 +9,6 @@ import {
   faExternalLinkAlt, faFilter, faVideo, faPlay, faWarning
 } from '@fortawesome/free-solid-svg-icons';
 
-
 // Custom Alert Component
 const CustomAlert = ({ type, message, onClose, duration = 5000 }) => {
   const [isVisible, setIsVisible] = useState(true);
@@ -42,32 +41,7 @@ const CustomAlert = ({ type, message, onClose, duration = 5000 }) => {
     warning: faExclamationTriangle,
     info: faInfoCircle
   };
-// Add these file upload handlers for edit mode
-const handleEditImageUpload = (event) => {
-  const file = event.target.files[0];
-  if (file && file.type.startsWith('image/')) {
-    currentFileRef.current = file;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setEditingBlog({ ...editingBlog, imageUrl: e.target.result });
-      addAlert('success', 'Image selected for upload!');
-    };
-    reader.readAsDataURL(file);
-  }
-};
 
-const handleEditVideoUpload = (event) => {
-  const file = event.target.files[0];
-  if (file && file.type.startsWith('video/')) {
-    currentFileRef.current = file;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setEditingBlog({ ...editingBlog, videoUrl: e.target.result });
-      addAlert('success', 'Video selected for upload!');
-    };
-    reader.readAsDataURL(file);
-  }
-};
   if (!isVisible) return null;
 
   return (
@@ -86,6 +60,7 @@ const handleEditVideoUpload = (event) => {
     </div>
   );
 };
+
 // Enhanced Markdown renderer component with video and link support
 const MarkdownRenderer = ({ content }) => {
   if (!content) return null;
@@ -268,6 +243,7 @@ const apiRequest = async (endpoint, options = {}) => {
     throw error;
   }
 };
+
 // Blog API calls
 const blogApi = {
   getAllBlogs: async (filters = {}) => {
@@ -359,7 +335,7 @@ const categoryApi = {
   createCategory: async (name) => {
     return apiRequest('/categories', {
       method: 'POST',
-      body: { name }, // This will be stringified by apiRequest
+      body: { name },
     });
   },
 
@@ -377,12 +353,11 @@ const categoryApi = {
   },
 };
 
-
 // Enhanced BlogsTab Component with Backend API Integration
 const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
   const [newBlog, setNewBlog] = useState({
     title: '', content: '', excerpt: '', category: [], subcategory: '',
-    imageUrl: '', videoUrl: '', tags: [], author: 'Admin',
+    imageUrl: '', tags: [], author: 'Admin',
     readTime: '1', featured: false, metaDescription: '', status: 'draft'
   });
   const [editingBlog, setEditingBlog] = useState(null);
@@ -410,7 +385,6 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
 
   const fileInputRef = useRef(null);
-  const videoInputRef = useRef(null);
   const contentTextareaRef = useRef(null);
   const editContentTextareaRef = useRef(null);
   const currentFileRef = useRef(null);
@@ -420,22 +394,22 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
     loadCategories();
   }, []);
 
-// Add this function near your other API functions
-const loadBlogs = async (filters = {}) => {
-  setIsLoadingBlogs(true);
-  try {
-    const result = await blogApi.getAllBlogs(filters);
-    if (result.success) {
-      setBlogs(result.data);
-    } else {
-      addAlert('error', 'Failed to load blogs');
+  const loadBlogs = async (filters = {}) => {
+    setIsLoadingBlogs(true);
+    try {
+      const result = await blogApi.getAllBlogs(filters);
+      if (result.success) {
+        setBlogs(result.data);
+      } else {
+        addAlert('error', 'Failed to load blogs');
+      }
+    } catch (error) {
+      addAlert('error', 'Error loading blogs: ' + error.message);
+    } finally {
+      setIsLoadingBlogs(false);
     }
-  } catch (error) {
-    addAlert('error', 'Error loading blogs: ' + error.message);
-  } finally {
-    setIsLoadingBlogs(false);
-  }
-};
+  };
+
   // Load categories
   const loadCategories = async () => {
     try {
@@ -468,15 +442,13 @@ const loadBlogs = async (filters = {}) => {
     setAlerts(prev => prev.filter(alert => alert.id !== id));
   };
 
-
-
   // Calculate read time
   useEffect(() => {
     const readTime = calculateReadTime(newBlog.content);
     setNewBlog(prev => ({ ...prev, readTime: readTime.toString() }));
   }, [newBlog.content]);
 
-  // File upload handlers
+  // File upload handler (only image)
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (file && file.type.startsWith('image/')) {
@@ -485,19 +457,6 @@ const loadBlogs = async (filters = {}) => {
       reader.onload = (e) => {
         setNewBlog({ ...newBlog, imageUrl: e.target.result });
         addAlert('success', 'Image selected for upload!');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleVideoUpload = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith('video/')) {
-      currentFileRef.current = file;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setNewBlog({ ...newBlog, videoUrl: e.target.result });
-        addAlert('success', 'Video selected for upload!');
       };
       reader.readAsDataURL(file);
     }
@@ -593,7 +552,6 @@ const loadBlogs = async (filters = {}) => {
         cursorOffset = 4;
         break;
       case 'image': formattedText = `![${selectedText || 'image'}](${selectedText || 'image-url'})`; cursorOffset = 2; break;
-      case 'video': formattedText = `![video](${selectedText || 'video-url'})`; cursorOffset = 10; break;
       default: formattedText = selectedText;
     }
 
@@ -617,65 +575,65 @@ const loadBlogs = async (filters = {}) => {
   const generateExcerpt = (content) => {
     return content?.length > 150 ? content.substring(0, 150) + '...' : content || '';
   };
-const quickAddBlog = async (status = 'published') => {
-  if (!newBlog.content.trim()) {
-    addAlert('error', 'Please add some content to your blog post');
-    return;
-  }
 
-  // Enhanced category validation
-  const selectedCategory = Array.isArray(newBlog.category) ? newBlog.category[0] : newBlog.category;
-  if (!selectedCategory || selectedCategory.trim() === '') {
-    addAlert('error', 'Please select a category for your blog post');
-    return;
-  }
+  const quickAddBlog = async (status = 'published') => {
+    if (!newBlog.content.trim()) {
+      addAlert('error', 'Please add some content to your blog post');
+      return;
+    }
 
-  const blogData = {
-    title: newBlog.title || `Blog Post ${blogs.length + 1}`,
-    content: newBlog.content,
-    excerpt: newBlog.excerpt || generateExcerpt(newBlog.content),
-    category: [selectedCategory], // Ensure it's always an array
-    tags: newBlog.tags,
-    author: newBlog.author,
-    featured: newBlog.featured,
-    metaDescription: newBlog.metaDescription || generateExcerpt(newBlog.content),
-    status: status,
-    // Add image and video URLs if they exist
-    ...(newBlog.imageUrl && { imageUrl: newBlog.imageUrl }),
-    ...(newBlog.videoUrl && { videoUrl: newBlog.videoUrl }),
-    readTime: calculateReadTime(newBlog.content)
+    // Enhanced category validation
+    const selectedCategory = Array.isArray(newBlog.category) ? newBlog.category[0] : newBlog.category;
+    if (!selectedCategory || selectedCategory.trim() === '') {
+      addAlert('error', 'Please select a category for your blog post');
+      return;
+    }
+
+    const blogData = {
+      title: newBlog.title || `Blog Post ${blogs.length + 1}`,
+      content: newBlog.content,
+      excerpt: newBlog.excerpt || generateExcerpt(newBlog.content),
+      category: [selectedCategory],
+      tags: newBlog.tags,
+      author: newBlog.author,
+      featured: newBlog.featured,
+      metaDescription: newBlog.metaDescription || generateExcerpt(newBlog.content),
+      status: status,
+      ...(newBlog.imageUrl && { imageUrl: newBlog.imageUrl }),
+      readTime: calculateReadTime(newBlog.content)
+    };
+
+    console.log('Submitting blog data:', blogData);
+
+    setIsLoading(true);
+    try {
+      const file = currentFileRef.current;
+      const result = await blogApi.createBlog(blogData, file);
+
+      if (result.success) {
+        setBlogs([result.data, ...blogs]);
+        // Reset form completely
+        setNewBlog({
+          title: '', content: '', excerpt: '', category: [], subcategory: '',
+          imageUrl: '', tags: [], author: 'Admin',
+          readTime: '1', featured: false, metaDescription: '', status: 'draft'
+        });
+        currentFileRef.current = null;
+        setShowPreview(false);
+        addAlert('success', status === 'published' ? 'Blog published successfully!' : 'Blog saved as draft');
+        
+        // Reload categories to update counts
+        await loadCategories();
+      } else {
+        addAlert('error', result.message || 'Failed to create blog');
+      }
+    } catch (error) {
+      addAlert('error', 'Error creating blog: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  console.log('Submitting blog data:', blogData);
-
-  setIsLoading(true);
-  try {
-    const file = currentFileRef.current;
-    const result = await blogApi.createBlog(blogData, file);
-
-    if (result.success) {
-      setBlogs([result.data, ...blogs]);
-      // Reset form completely
-      setNewBlog({
-        title: '', content: '', excerpt: '', category: [], subcategory: '',
-        imageUrl: '', videoUrl: '', tags: [], author: 'Admin',
-        readTime: '1', featured: false, metaDescription: '', status: 'draft'
-      });
-      currentFileRef.current = null;
-      setShowPreview(false);
-      addAlert('success', status === 'published' ? 'Blog published successfully!' : 'Blog saved as draft');
-      
-      // Reload categories to update counts
-      await loadCategories();
-    } else {
-      addAlert('error', result.message || 'Failed to create blog');
-    }
-  } catch (error) {
-    addAlert('error', 'Error creating blog: ' + error.message);
-  } finally {
-    setIsLoading(false);
-  }
-};
   const updateBlog = async () => {
     if (!editingBlog?.content.trim()) {
       addAlert('error', 'Please add some content to your blog post');
@@ -692,15 +650,13 @@ const quickAddBlog = async (status = 'published') => {
       title: editingBlog.title,
       content: editingBlog.content,
       excerpt: editingBlog.excerpt || generateExcerpt(editingBlog.content),
-      category: editingBlog.category, // Use the array directly
+      category: editingBlog.category,
       tags: editingBlog.tags,
       author: editingBlog.author,
       featured: editingBlog.featured,
       metaDescription: editingBlog.metaDescription || generateExcerpt(editingBlog.content),
       readTime: calculateReadTime(editingBlog.content),
-      // Add image and video URLs if they exist
-      ...(editingBlog.imageUrl && { imageUrl: editingBlog.imageUrl }),
-      ...(editingBlog.videoUrl && { videoUrl: editingBlog.videoUrl })
+      ...(editingBlog.imageUrl && { imageUrl: editingBlog.imageUrl })
     };
 
     setIsLoading(true);
@@ -781,77 +737,43 @@ const quickAddBlog = async (status = 'published') => {
     }
   };
 
-// Update the filtered blogs to use API filtering
-useEffect(() => {
-  const filters = {};
-  if (searchTerm) filters.search = searchTerm;
-  if (statusFilter !== 'all') filters.status = statusFilter;
-  if (contentTypeFilter !== 'all') filters.contentType = contentTypeFilter;
+  useEffect(() => {
+    const filters = {};
+    if (searchTerm) filters.search = searchTerm;
+    if (statusFilter !== 'all') filters.status = statusFilter;
+    if (contentTypeFilter !== 'all') filters.contentType = contentTypeFilter;
 
-  loadBlogs(filters);
-}, [searchTerm, statusFilter, contentTypeFilter]);
+    loadBlogs(filters);
+  }, [searchTerm, statusFilter, contentTypeFilter]);
 
-  // Media preview (image and video)
+  // Media preview (image only)
   const renderMediaPreview = () => {
-    const hasMedia = newBlog.imageUrl || newBlog.videoUrl;
-
-    if (!hasMedia) return null;
+    if (!newBlog.imageUrl) return null;
 
     return (
       <div className="mt-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="text-lg font-semibold text-gray-900">Media Preview</h4>
-          <div className="flex space-x-2">
-            {newBlog.imageUrl && (
-              <button
-                onClick={() => {
-                  setNewBlog(prev => ({ ...prev, imageUrl: '' }));
-                  addAlert('info', 'Image removed');
-                }}
-                className="text-red-500 hover:text-red-700 transition-colors text-sm flex items-center"
-              >
-                <FontAwesomeIcon icon={faTimes} className="mr-1" />
-                Remove Image
-              </button>
-            )}
-            {newBlog.videoUrl && (
-              <button
-                onClick={() => {
-                  setNewBlog(prev => ({ ...prev, videoUrl: '' }));
-                  addAlert('info', 'Video removed');
-                }}
-                className="text-red-500 hover:text-red-700 transition-colors text-sm flex items-center"
-              >
-                <FontAwesomeIcon icon={faTimes} className="mr-1" />
-                Remove Video
-              </button>
-            )}
-          </div>
+          <h4 className="text-lg font-semibold text-gray-900">Image Preview</h4>
+          <button
+            onClick={() => {
+              setNewBlog(prev => ({ ...prev, imageUrl: '' }));
+              addAlert('info', 'Image removed');
+            }}
+            className="text-red-500 hover:text-red-700 transition-colors text-sm flex items-center"
+          >
+            <FontAwesomeIcon icon={faTimes} className="mr-1" />
+            Remove Image
+          </button>
         </div>
 
-        {newBlog.imageUrl && (
-          <div className="rounded-lg overflow-hidden border border-gray-200">
-            <img src={newBlog.imageUrl} alt="Preview" className="w-full h-48 object-cover" />
-          </div>
-        )}
-
-        {newBlog.videoUrl && (
-          <div className="rounded-lg overflow-hidden border border-gray-200">
-            <video
-              controls
-              className="w-full h-48 object-cover"
-              poster={newBlog.imageUrl}
-            >
-              <source src={newBlog.videoUrl} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-          </div>
-        )}
+        <div className="rounded-lg overflow-hidden border border-gray-200">
+          <img src={newBlog.imageUrl} alt="Preview" className="w-full h-48 object-cover" />
+        </div>
       </div>
     );
   };
 
-  // Formatting toolbar component with video and link buttons
+  // Formatting toolbar component (video button removed)
   const FormattingToolbar = ({ isEditMode = false }) => (
     <div className="flex flex-wrap gap-1 mb-4 p-3 bg-gray-50 rounded-lg">
       <div className="flex gap-1 border-r border-gray-300 pr-2 mr-2">
@@ -888,9 +810,6 @@ useEffect(() => {
         <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-200 rounded text-gray-600 transition-colors" title="Add Image">
           <FontAwesomeIcon icon={faImage} />
         </button>
-        <button onClick={() => videoInputRef.current?.click()} className="p-2 hover:bg-gray-200 rounded text-gray-600 transition-colors" title="Add Video">
-          <FontAwesomeIcon icon={faVideo} />
-        </button>
         <button onClick={openLinkModal} className="p-2 hover:bg-gray-200 rounded text-gray-600 transition-colors" title="Add Link">
           <FontAwesomeIcon icon={faLink} />
         </button>
@@ -898,100 +817,87 @@ useEffect(() => {
     </div>
   );
 
-const addCategory = async () => {
-  if (newCategoryName.trim()) {
-    // Create tempCategory in the correct scope
-    const tempCategory = { 
-      name: newCategoryName.trim(), 
-      blogCount: 0,
-      _id: `temp-${Date.now()}` // temporary ID for immediate display
-    };
-    
-    try {
-      console.log('Adding category:', newCategoryName.trim());
+  const addCategory = async () => {
+    if (newCategoryName.trim()) {
+      const tempCategory = { 
+        name: newCategoryName.trim(), 
+        blogCount: 0,
+        _id: `temp-${Date.now()}`
+      };
       
-      // Immediately add the new category to local state for instant UI update
-      setLocalCategories(prev => [...prev, tempCategory]);
-      
-      const result = await categoryApi.createCategory(newCategoryName.trim());
-      console.log('Category add result:', result);
-      
-      if (result.success) {
-        // Replace the temporary category with the actual one from server
-        const actualCategory = { 
-          name: result.data?.name || newCategoryName.trim(), 
-          blogCount: result.data?.blogCount || 0,
-          _id: result.data?._id || `cat-${Date.now()}`
-        };
+      try {
+        console.log('Adding category:', newCategoryName.trim());
         
-        setLocalCategories(prev => 
-          prev.map(cat => 
-            cat._id === tempCategory._id 
-              ? actualCategory
-              : cat
-          )
-        );
+        setLocalCategories(prev => [...prev, tempCategory]);
         
-        setNewCategoryName('');
-        setIsAddingCategory(false);
-        addAlert('success', 'Category added successfully!');
+        const result = await categoryApi.createCategory(newCategoryName.trim());
+        console.log('Category add result:', result);
         
-        // Also reload from server to ensure complete consistency
-        setTimeout(() => {
-          loadCategories();
-        }, 100);
-      } else {
-        // If API call failed, remove the temporary category
+        if (result.success) {
+          const actualCategory = { 
+            name: result.data?.name || newCategoryName.trim(), 
+            blogCount: result.data?.blogCount || 0,
+            _id: result.data?._id || `cat-${Date.now()}`
+          };
+          
+          setLocalCategories(prev => 
+            prev.map(cat => 
+              cat._id === tempCategory._id 
+                ? actualCategory
+                : cat
+            )
+          );
+          
+          setNewCategoryName('');
+          setIsAddingCategory(false);
+          addAlert('success', 'Category added successfully!');
+          
+          setTimeout(() => {
+            loadCategories();
+          }, 100);
+        } else {
+          setLocalCategories(prev => prev.filter(cat => cat._id !== tempCategory._id));
+          addAlert('error', result.message || 'Failed to add category');
+        }
+      } catch (error) {
+        console.error('Error adding category:', error);
         setLocalCategories(prev => prev.filter(cat => cat._id !== tempCategory._id));
-        addAlert('error', result.message || 'Failed to add category');
-      }
-    } catch (error) {
-      console.error('Error adding category:', error);
-      // If API call failed, remove the temporary category
-      setLocalCategories(prev => prev.filter(cat => cat._id !== tempCategory._id));
-      
-      // Handle specific error cases
-      if (error.message.includes('Category already exists')) {
-        addAlert('error', 'This category name already exists. Please choose a different name.');
-      } else {
-        addAlert('error', 'Error adding category: ' + error.message);
+        
+        if (error.message.includes('Category already exists')) {
+          addAlert('error', 'This category name already exists. Please choose a different name.');
+        } else {
+          addAlert('error', 'Error adding category: ' + error.message);
+        }
       }
     }
-  }
-};
-  // Also update the deleteCategory function to be more immediate
+  };
+
   const deleteCategory = async (categoryName) => {
     if (window.confirm('Are you sure you want to delete this category?')) {
       try {
-        // Immediately remove from local state for instant UI update
         setLocalCategories(prev => prev.filter(cat => cat.name !== categoryName));
 
         const result = await categoryApi.deleteCategory(categoryName);
         if (result.success) {
           addAlert('success', result.message || 'Category deleted successfully!');
 
-          // Reload from server to ensure consistency
           setTimeout(() => {
             loadCategories();
           }, 100);
         } else {
-          // If deletion failed, reload categories to restore the deleted one
           addAlert('error', result.message || 'Failed to delete category');
           await loadCategories();
         }
       } catch (error) {
-        // If deletion failed, reload categories to restore the deleted one
         addAlert('error', 'Error deleting category: ' + error.message);
         await loadCategories();
       }
     }
   };
 
-  // Update the updateCategory function as well
   const updateCategory = async () => {
     if (editingCategory && editingCategory.name.trim()) {
       try {
-        // Immediately update local state
         setLocalCategories(prev =>
           prev.map(cat =>
             cat.name === editingCategory.oldName
@@ -1005,17 +911,14 @@ const addCategory = async () => {
           setEditingCategory(null);
           addAlert('success', result.message || 'Category updated successfully!');
 
-          // Reload from server to ensure consistency
           setTimeout(() => {
             loadCategories();
           }, 100);
         } else {
-          // If update failed, reload categories to restore original name
           addAlert('error', result.message || 'Failed to update category');
           await loadCategories();
         }
       } catch (error) {
-        // If update failed, reload categories to restore original name
         addAlert('error', 'Error updating category: ' + error.message);
         await loadCategories();
       }
@@ -1023,29 +926,25 @@ const addCategory = async () => {
   };
 
   const CategorySelect = ({ value, onChange, isEditMode = false }) => {
-    // Handle both array and string values - ensure we always work with the first element
     const selectedValue = Array.isArray(value) ? (value[0] || '') : (value || '');
 
     const handleChange = (e) => {
       const selectedCategory = e.target.value;
       if (selectedCategory) {
-        // Always set category as an array with one element
         onChange([selectedCategory]);
       } else {
         onChange([]);
       }
     };
 
-    // Handle dropdown focus to load categories if needed
     const handleFocus = async () => {
       if (localCategories.length === 0 && !isLoadingCategories) {
         await loadCategories();
       }
     };
 
-    // Sort categories alphabetically for better UX and ensure they have names
     const sortedCategories = [...localCategories]
-      .filter(category => category && category.name) // Filter out any invalid categories
+      .filter(category => category && category.name)
       .sort((a, b) => a.name.localeCompare(b.name));
 
     return (
@@ -1087,7 +986,6 @@ const addCategory = async () => {
           <p className="text-red-500 text-xs mt-1">Please select a category</p>
         )}
         
-        {/* Loading indicator */}
         {isLoadingCategories && (
           <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center rounded-lg z-10">
             <FontAwesomeIcon icon={faSpinner} className="animate-spin text-gray-400 mr-2" />
@@ -1097,6 +995,7 @@ const addCategory = async () => {
       </div>
     );
   };
+
   const CategoryManagementModal = () => {
     if (!isAddingCategory && !editingCategory) return null;
 
@@ -1209,7 +1108,6 @@ const addCategory = async () => {
     );
   };
 
-
   // Simplified Blog Card Component for Manage Posts
   const BlogCard = ({ blog }) => {
     const hasVideo = blog.videoUrl || blog.content?.includes('![video](');
@@ -1218,32 +1116,15 @@ const addCategory = async () => {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300">
         <div className="relative">
-          {/* Video Thumbnail */}
-          {hasVideo && (
-            <div className="h-32 bg-gray-900 overflow-hidden relative">
-              <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-                <FontAwesomeIcon icon={faPlay} className="text-white text-2xl" />
-              </div>
-              {blog.imageUrl && (
-                <img src={blog.imageUrl} alt={blog.title} className="w-full h-full object-cover opacity-70" />
-              )}
-              {!blog.imageUrl && (
-                <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center">
-                  <FontAwesomeIcon icon={faVideo} className="text-gray-400 text-xl" />
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Image Thumbnail */}
-          {!hasVideo && hasImage && (
+          {hasImage && (
             <div className="h-32 bg-gray-200 overflow-hidden">
               <img src={blog.imageUrl} alt={blog.title} className="w-full h-full object-cover" />
             </div>
           )}
 
           {/* No media placeholder */}
-          {!hasVideo && !hasImage && (
+          {!hasImage && (
             <div className="h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
               <FontAwesomeIcon icon={faImage} className="text-gray-400 text-xl" />
             </div>
@@ -1252,12 +1133,6 @@ const addCategory = async () => {
           {blog.featured && (
             <div className="absolute top-2 right-2 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
               Featured
-            </div>
-          )}
-
-          {hasVideo && (
-            <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-              Video
             </div>
           )}
         </div>
@@ -1341,56 +1216,52 @@ const addCategory = async () => {
     );
   };
 
-  // Enhanced Search and Filter Component with video filters
-
-const EnhancedSearchFilter = () => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div className="relative sm:col-span-2 lg:col-span-2">
-        <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-3 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search posts by title, content, or tags..."
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+  // Enhanced Search and Filter Component
+  const EnhancedSearchFilter = () => (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="relative sm:col-span-2 lg:col-span-2">
+          <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-3 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search posts by title, content, or tags..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <select
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All Status</option>
+          <option value='published'>Published</option>
+          <option value='draft'>Draft</option>
+        </select>
+        <select
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
+          value={contentTypeFilter}
+          onChange={(e) => setContentTypeFilter(e.target.value)}
+        >
+          <option value="all">All Content</option>
+          <option value="image">Image Posts</option>
+          <option value="text-only">Text Only</option>
+        </select>
       </div>
-      <select
-        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
-        value={statusFilter}
-        onChange={(e) => setStatusFilter(e.target.value)}
-      >
-        <option value="all">All Status</option>
-        <option value='published'>Published</option>
-        <option value='draft'>Draft</option>
-      </select>
-      <select
-        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
-        value={contentTypeFilter}
-        onChange={(e) => setContentTypeFilter(e.target.value)}
-      >
-        <option value="all">All Content</option>
-        <option value="image">Image Posts</option>
-        <option value="video">Video Posts</option>
-        <option value="text-only">Text Only</option>
-        <option value="media">All Media</option>
-      </select>
+      <div className="mt-3 text-sm text-gray-600 flex items-center">
+        <FontAwesomeIcon icon={faGlobe} className="mr-2" />
+        {blogs.length} posts
+        {contentTypeFilter !== 'all' && (
+          <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+            {contentTypeFilter === 'image' && 'Image Only'}
+            {contentTypeFilter === 'text-only' && 'Text Only'}
+          </span>
+        )}
+      </div>
     </div>
-    <div className="mt-3 text-sm text-gray-600 flex items-center">
-      <FontAwesomeIcon icon={faGlobe} className="mr-2" />
-      {blogs.length} posts
-      {contentTypeFilter !== 'all' && (
-        <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-          {contentTypeFilter === 'image' && 'Image Only'}
-          {contentTypeFilter === 'video' && 'Video Only'}
-          {contentTypeFilter === 'text-only' && 'Text Only'}
-          {contentTypeFilter === 'media' && 'All Media'}
-        </span>
-      )}
-    </div>
-  </div>
-);
+  );
+
   // Enhanced LinkModal with complete isolation
   const LinkModal = () => {
     const [localLinkData, setLocalLinkData] = useState({ text: '', url: '' });
@@ -1550,18 +1421,6 @@ const EnhancedSearchFilter = () => (
                   <img src={viewingBlog.imageUrl} alt={viewingBlog.title} className="w-full h-full object-cover" />
                 </div>
               )}
-              {viewingBlog.videoUrl && (
-                <div className="w-full h-64 bg-gray-900 overflow-hidden">
-                  <video
-                    controls
-                    className="w-full h-full object-cover"
-                    poster={viewingBlog.imageUrl}
-                  >
-                    <source src={viewingBlog.videoUrl} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                </div>
-              )}
               <div className="p-6">
                 <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
                   <span className="flex items-center">
@@ -1625,7 +1484,6 @@ const EnhancedSearchFilter = () => (
         if (result.success) {
           setBlogs(blogs.filter(blog => blog._id !== blogToDelete._id));
           addAlert('success', 'Blog deleted successfully!');
-          // Reload categories to update counts
           await loadCategories();
         } else {
           addAlert('error', result.message || 'Failed to delete blog');
@@ -1738,71 +1596,56 @@ const EnhancedSearchFilter = () => (
     );
   };
 
-// Edit Modal (updated with video support)
-const renderEditSection = () => {
-  if (!editingBlog) return null;
+  // Edit Modal (video upload removed)
+  const renderEditSection = () => {
+    if (!editingBlog) return null;
 
-  // Add these file upload handlers for edit mode
-  const handleEditImageUpload = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      currentFileRef.current = file;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setEditingBlog({ ...editingBlog, imageUrl: e.target.result });
-        addAlert('success', 'Image selected for upload!');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+    const handleEditImageUpload = (event) => {
+      const file = event.target.files[0];
+      if (file && file.type.startsWith('image/')) {
+        currentFileRef.current = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setEditingBlog({ ...editingBlog, imageUrl: e.target.result });
+          addAlert('success', 'Image selected for upload!');
+        };
+        reader.readAsDataURL(file);
+      }
+    };
 
-  const handleEditVideoUpload = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith('video/')) {
-      currentFileRef.current = file;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setEditingBlog({ ...editingBlog, videoUrl: e.target.result });
-        addAlert('success', 'Video selected for upload!');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-gray-900">Edit Blog Post</h3>
-            <button onClick={() => setEditingBlog(null)} className="text-gray-400 hover:text-gray-600 p-2 transition-colors">
-              <FontAwesomeIcon icon={faTimes} />
-            </button>
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40">
+        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-gray-900">Edit Blog Post</h3>
+              <button onClick={() => setEditingBlog(null)} className="text-gray-400 hover:text-gray-600 p-2 transition-colors">
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="p-6 space-y-4">
-          <input
-            type="text"
-            placeholder="Blog post title..."
-            className="w-full px-4 py-3 text-lg font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
-            value={editingBlog.title}
-            onChange={(e) => setEditingBlog({ ...editingBlog, title: e.target.value })}
-          />
+          <div className="p-6 space-y-4">
+            <input
+              type="text"
+              placeholder="Blog post title..."
+              className="w-full px-4 py-3 text-lg font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
+              value={editingBlog.title}
+              onChange={(e) => setEditingBlog({ ...editingBlog, title: e.target.value })}
+            />
 
-          <FormattingToolbar isEditMode={true} />
+            <FormattingToolbar isEditMode={true} />
 
-          <textarea
-            ref={editContentTextareaRef}
-            placeholder="Blog content..."
-            rows="8"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors resize-none text-base leading-relaxed"
-            value={editingBlog.content}
-            onChange={(e) => setEditingBlog({ ...editingBlog, content: e.target.value })}
-          />
+            <textarea
+              ref={editContentTextareaRef}
+              placeholder="Blog content..."
+              rows="8"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors resize-none text-base leading-relaxed"
+              value={editingBlog.content}
+              onChange={(e) => setEditingBlog({ ...editingBlog, content: e.target.value })}
+            />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Image Upload */}
+            {/* Image Upload Only */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Featured Image
@@ -1843,129 +1686,79 @@ const renderEditSection = () => {
               )}
             </div>
 
-            {/* Video Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Featured Video
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => videoInputRef.current?.click()}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center justify-center gap-2"
-                >
-                  <FontAwesomeIcon icon={faUpload} />
-                  Upload Video
-                </button>
-                {editingBlog.videoUrl && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingBlog({ ...editingBlog, videoUrl: '' });
-                      addAlert('info', 'Video removed');
-                    }}
-                    className="px-4 py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm flex items-center"
-                  >
-                    <FontAwesomeIcon icon={faTimes} />
-                  </button>
-                )}
-              </div>
-              {editingBlog.videoUrl && (
-                <div className="mt-2">
-                  <video 
-                    controls 
-                    className="w-full h-32 object-cover rounded-lg border"
-                    poster={editingBlog.imageUrl}
-                  >
-                    <source src={editingBlog.videoUrl} type="video/mp4" />
-                  </video>
-                  <p className="text-xs text-gray-500 mt-1 truncate">
-                    Current video: {editingBlog.videoUrl.substring(0, 50)}...
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <CategorySelect
-              value={editingBlog.category}
-              onChange={(newCategoryArray) => setEditingBlog({ ...editingBlog, category: newCategoryArray })}
-              isEditMode={true}
-            />
-
-            <div>
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  placeholder="Add tags..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
-                  onKeyPress={(e) => e.key === 'Enter' && e.target.value.trim() && setEditingBlog({
-                    ...editingBlog,
-                    tags: [...(editingBlog.tags || []), e.target.value.trim()]
-                  })}
-                />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {editingBlog.tags?.map((tag, index) => (
-                  <span key={`${tag}-${index}`} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm flex items-center">
-                    {tag}
-                    <button onClick={() => {
-                      const newTags = editingBlog.tags.filter((_, i) => i !== index);
-                      setEditingBlog({ ...editingBlog, tags: newTags });
-                    }} className="ml-2 hover:text-gray-600 transition-colors">
-                      <FontAwesomeIcon icon={faTimes} size="xs" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <label className="flex items-center text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={editingBlog.featured || false}
-                onChange={(e) => setEditingBlog({ ...editingBlog, featured: e.target.checked })}
-                className="w-4 h-4 text-black rounded focus:ring-black mr-2"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CategorySelect
+                value={editingBlog.category}
+                onChange={(newCategoryArray) => setEditingBlog({ ...editingBlog, category: newCategoryArray })}
+                isEditMode={true}
               />
-              Featured Post
-            </label>
-          </div>
-        </div>
 
-        <div className="p-6 border-t border-gray-200">
-          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-            <button onClick={() => setEditingBlog(null)} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-              Cancel
-            </button>
-            <button onClick={updateBlog} disabled={isLoading} className="flex-1 px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
-              {isLoading ? <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" /> : null}
-              Update Post
-            </button>
-          </div>
-        </div>
+              <div>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    placeholder="Add tags..."
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
+                    onKeyPress={(e) => e.key === 'Enter' && e.target.value.trim() && setEditingBlog({
+                      ...editingBlog,
+                      tags: [...(editingBlog.tags || []), e.target.value.trim()]
+                    })}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {editingBlog.tags?.map((tag, index) => (
+                    <span key={`${tag}-${index}`} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm flex items-center">
+                      {tag}
+                      <button onClick={() => {
+                        const newTags = editingBlog.tags.filter((_, i) => i !== index);
+                        setEditingBlog({ ...editingBlog, tags: newTags });
+                      }} className="ml-2 hover:text-gray-600 transition-colors">
+                        <FontAwesomeIcon icon={faTimes} size="xs" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-        {/* Hidden file inputs for edit mode */}
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          className="hidden" 
-          accept="image/*" 
-          onChange={handleEditImageUpload} 
-        />
-        <input 
-          type="file" 
-          ref={videoInputRef} 
-          className="hidden" 
-          accept="video/*" 
-          onChange={handleEditVideoUpload} 
-        />
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editingBlog.featured || false}
+                  onChange={(e) => setEditingBlog({ ...editingBlog, featured: e.target.checked })}
+                  className="w-4 h-4 text-black rounded focus:ring-black mr-2"
+                />
+                Featured Post
+              </label>
+            </div>
+          </div>
+
+          <div className="p-6 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+              <button onClick={() => setEditingBlog(null)} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={updateBlog} disabled={isLoading} className="flex-1 px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                {isLoading ? <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" /> : null}
+                Update Post
+              </button>
+            </div>
+          </div>
+
+          {/* Hidden file input for edit mode */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept="image/*" 
+            onChange={handleEditImageUpload} 
+          />
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4">
       {/* Alerts */}
@@ -2033,7 +1826,7 @@ const renderEditSection = () => {
 
               <textarea
                 ref={contentTextareaRef}
-                placeholder="Start writing your amazing blog post... (Use **bold**, *italic*, # heading, - lists, [text](url) for links, ![video](url) for videos)"
+                placeholder="Start writing your amazing blog post... (Use **bold**, *italic*, # heading, - lists, [text](url) for links)"
                 rows="12"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black resize-none font-sans text-base leading-relaxed transition-colors"
                 value={newBlog.content}
@@ -2129,7 +1922,6 @@ const renderEditSection = () => {
               </div>
 
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-              <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleVideoUpload} />
             </div>
           </div>
 
@@ -2144,18 +1936,6 @@ const renderEditSection = () => {
                   {newBlog.imageUrl && (
                     <div className="w-full h-48 bg-gray-200 overflow-hidden">
                       <img src={newBlog.imageUrl} alt={newBlog.title} className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                  {newBlog.videoUrl && (
-                    <div className="w-full h-48 bg-gray-900 overflow-hidden">
-                      <video
-                        controls
-                        className="w-full h-full object-cover"
-                        poster={newBlog.imageUrl}
-                      >
-                        <source src={newBlog.videoUrl} type="video/mp4" />
-                        Your browser does not support the video tag.
-                      </video>
                     </div>
                   )}
                   <div className="p-4">

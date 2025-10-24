@@ -15,7 +15,11 @@ import {
   faCheckCircle,
   faTimesCircle,
   faPhone,
-  faSpinner
+  faSpinner,
+  faTag,
+  faCube,
+  faChevronDown,
+  faChevronUp
 } from '@fortawesome/free-solid-svg-icons';
 
 const Orders = () => {
@@ -25,14 +29,15 @@ const Orders = () => {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+  const [expandedDeals, setExpandedDeals] = useState({});
 
   // Define tabs with their configurations
   const tabs = [
-    { id: 'all', label: 'All Orders', count: 0, icon: faList },
+    { id: 'all', label: 'All', count: 0, icon: faList },
     { id: 'pending', label: 'Pending', count: 0, icon: faClock },
     { id: 'packing', label: 'Packing', count: 0, icon: faBox },
     { id: 'shipped', label: 'Shipped', count: 0, icon: faShippingFast },
-    { id: 'out_for_delivery', label: 'Out for Delivery', count: 0, icon: faMotorcycle },
+    { id: 'out_for_delivery', label: 'Delivery', count: 0, icon: faMotorcycle },
     { id: 'delivered', label: 'Delivered', count: 0, icon: faCheckCircle },
     { id: 'cancelled', label: 'Cancelled', count: 0, icon: faTimesCircle },
   ];
@@ -62,7 +67,6 @@ const Orders = () => {
       });
 
       if (response.data.success) {
-        console.log('📦 Raw orders data from API:', response.data.orders);
         const ordersData = response.data.orders || [];
         setOrders(ordersData);
         filterOrdersByTab(activeTab, ordersData);
@@ -167,6 +171,15 @@ const Orders = () => {
     filterOrdersByTab(tabId);
   };
 
+  // Toggle deal expansion
+  const toggleDealExpansion = (orderId, dealName) => {
+    const key = `${orderId}-${dealName}`;
+    setExpandedDeals(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
   // 🔄 Update order status
   const statusHandler = async (event, orderId) => {
     const newStatus = event.target.value;
@@ -223,35 +236,33 @@ const Orders = () => {
     }
   }, [orders]);
 
-  // Helper function to get item name
-  const getItemName = (item) => {
-    if (item.itemType === 'deal') {
-      return item.dealName || 'Deal Item';
-    }
-    return item.name || 'Product Item';
-  };
+  // Group items by deal
+  const groupItemsByDeal = (items) => {
+    const dealGroups = {};
+    const regularItems = [];
+    
+    items.forEach(item => {
+      if (item.isFromDeal === true) {
+        const dealKey = item.dealName || 'Unknown Deal';
+        if (!dealGroups[dealKey]) {
+          dealGroups[dealKey] = {
+            dealName: dealKey,
+            dealDescription: item.dealDescription,
+            dealImage: item.dealImage,
+            items: [],
+            totalQuantity: 0,
+            totalPrice: 0
+          };
+        }
+        dealGroups[dealKey].items.push(item);
+        dealGroups[dealKey].totalQuantity += item.quantity || 1;
+        dealGroups[dealKey].totalPrice += (item.price || 0) * (item.quantity || 1);
+      } else {
+        regularItems.push(item);
+      }
+    });
 
-  // Helper function to get item price
-  const getItemPrice = (item) => {
-    if (item.itemType === 'deal') {
-      return item.unitPrice || item.dealFinalPrice || 0;
-    }
-    return item.discountprice || item.price || 0;
-  };
-
-  // Helper function to get original price for deals
-  const getOriginalPrice = (item) => {
-    if (item.itemType === 'deal') {
-      return item.dealTotal || item.unitPrice || 0;
-    }
-    return item.price || item.discountprice || 0;
-  };
-
-  // Helper function to calculate item total
-  const calculateItemTotal = (item) => {
-    const price = getItemPrice(item);
-    const quantity = item.quantity || 1;
-    return price * quantity;
+    return { dealGroups, regularItems };
   };
 
   // Get status badge color
@@ -259,19 +270,19 @@ const Orders = () => {
     switch (status) {
       case 'Order Placed':
       case 'Pending':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-50 text-blue-700 border border-blue-200';
       case 'Packing':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-amber-50 text-amber-700 border border-amber-200';
       case 'Shipped':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-purple-50 text-purple-700 border border-purple-200';
       case 'Out for delivery':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-orange-50 text-orange-700 border border-orange-200';
       case 'Delivered':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-50 text-green-700 border border-green-200';
       case 'Cancelled':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-50 text-red-700 border border-red-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-50 text-gray-700 border border-gray-200';
     }
   };
 
@@ -296,13 +307,24 @@ const Orders = () => {
     }
   };
 
+  // Tooltip component
+  const Tooltip = ({ children, text }) => (
+    <div className="relative group">
+      {children}
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none">
+        {text}
+        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+      </div>
+    </div>
+  );
+
   // 🌀 Loading spinner
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <FontAwesomeIcon icon={faSpinner} className="animate-spin h-12 w-12 text-blue-500 mx-auto" />
-          <p className="mt-4 text-gray-600">Loading orders...</p>
+          <FontAwesomeIcon icon={faSpinner} className="animate-spin h-8 w-8 text-gray-600 mx-auto" />
+          <p className="mt-3 text-gray-600 text-sm">Loading orders...</p>
         </div>
       </div>
     );
@@ -311,15 +333,15 @@ const Orders = () => {
   // If no token and not loading, show message
   if (!token) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
+          <div className="mx-auto h-16 w-16 text-gray-400 mb-3">
             <img src={assets.parcel_icon} alt="No access" className="opacity-50" />
           </div>
-          <p className="text-gray-500 text-lg mb-4">Please login to view orders</p>
+          <p className="text-gray-600 text-sm mb-3">Please login to view orders</p>
           <button
             onClick={() => navigate('/')}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+            className="bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors text-sm"
           >
             Go to Login
           </button>
@@ -332,50 +354,46 @@ const Orders = () => {
 
   // 📋 Render orders
   return (
-    <div className="min-h-screen bg-gray-50 py-2 px-4">
+    <div className="min-h-screen bg-gray-50 py-4 px-3 sm:py-6 sm:px-4">
       <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-          <h3 className="text-2xl font-bold text-gray-900 text-left mb-4 sm:mb-0">Order Management</h3>
-          <div className="text-sm text-gray-600 bg-white px-3 py-2 rounded-lg border">
-            Showing <span className="font-semibold">{filteredOrders.length}</span> of <span className="font-semibold">{orders.length}</span> orders
+          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 text-left mb-3 sm:mb-0">Order Management</h3>
+          <div className="text-sm text-gray-600 bg-white px-3 py-2 rounded-lg border border-gray-200">
+            Showing <span className="font-semibold text-gray-900">{filteredOrders.length}</span> of <span className="font-semibold text-gray-900">{orders.length}</span> orders
           </div>
         </div>
 
-        {/* Tabs Navigation - Modern Design */}
+        {/* Tabs Navigation - Compact but Readable */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden">
           <div className="flex overflow-x-auto scrollbar-hide">
             {updatedTabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`flex items-center px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap ${activeTab === tab.id
-                    ? 'border-black text-black bg-gray-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              <Tooltip key={tab.id} text={`${tab.label} (${tab.count})`}>
+                <button
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`flex items-center px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
+                    activeTab === tab.id
+                      ? 'border-gray-900 text-gray-900 bg-gray-50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
-              >
-                <FontAwesomeIcon icon={tab.icon} className="mr-2 text-sm" />
-                {tab.label}
-                {tab.count > 0 && (
-                  <span
-                    className={`ml-2 px-2 py-1 text-xs rounded-full min-w-6 text-center ${activeTab === tab.id
-                        ? 'bg-black text-white'
-                        : 'bg-gray-200 text-gray-600'
-                      }`}
-                  >
+                >
+                  <FontAwesomeIcon icon={tab.icon} className="text-sm sm:text-base mr-2 sm:mr-3" />
+                  <span className="hidden sm:inline text-sm">{tab.label}</span>
+                  <span className="hidden sm:inline ml-2 px-2 py-1 text-xs rounded-full min-w-6 text-center bg-gray-200 text-gray-600">
                     {tab.count}
                   </span>
-                )}
-              </button>
+                </button>
+              </Tooltip>
             ))}
           </div>
         </div>
 
         {filteredOrders.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
-              <img src={assets.parcel_icon} alt="No orders" className="opacity-50" />
+          <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="mx-auto h-20 w-20 sm:h-24 sm:w-24 text-gray-300 mb-4">
+              <img src={assets.parcel_icon} alt="No orders" className="opacity-40" />
             </div>
-            <p className="text-gray-500 text-lg mb-2">
+            <p className="text-gray-500 text-base sm:text-lg mb-2 font-medium">
               {activeTab === 'all' ? 'No orders found' : `No ${activeTab.replace('_', ' ')} orders`}
             </p>
             <p className="text-gray-400 text-sm">
@@ -383,15 +401,14 @@ const Orders = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {filteredOrders.map((order) => {
-              // Separate regular items and deal items based on itemType
-              const regularItems = order.items?.filter(item => item.itemType !== 'deal') || [];
-              const dealItems = order.items?.filter(item => item.itemType === 'deal') || [];
-              const allItems = [...regularItems, ...dealItems];
+              const { dealGroups, regularItems } = groupItemsByDeal(order.items || []);
+              const allDeals = Object.values(dealGroups);
+              const totalItemsCount = order.items?.length || 0;
 
-              const subtotal = allItems.reduce(
-                (sum, item) => sum + calculateItemTotal(item),
+              const subtotal = (order.items || []).reduce(
+                (sum, item) => sum + ((item.price || 0) * (item.quantity || 1)),
                 0
               );
               const total = subtotal + (order.deliveryCharges || 0);
@@ -399,212 +416,278 @@ const Orders = () => {
               return (
                 <div
                   key={order._id}
-                  className={`bg-white rounded-xl shadow-md overflow-hidden border ${order.status === 'Cancelled' ? 'border-red-200 bg-red-50' : 'border-gray-200'
-                    }`}
+                  className={`bg-white rounded-xl shadow-sm overflow-hidden border ${
+                    order.status === 'Cancelled' ? 'border-red-200' : 'border-gray-200'
+                  }`}
                 >
-                  {/* Header */}
-                  <div className={`px-6 py-4 border-b ${order.status === 'Cancelled' ? 'bg-red-100 border-red-200' : 'bg-gray-50 border-gray-200'
-                    }`}>
+                  {/* Header - Improved Styling */}
+                  <div className={`px-4 sm:px-6 py-4 border-b ${
+                    order.status === 'Cancelled' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
+                  }`}>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center">
-                        <img
-                          src={assets.parcel_icon}
-                          alt="Order"
-                          className="h-8 w-8 mr-3"
-                        />
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <h4 className={`text-lg font-semibold ${order.status === 'Cancelled' ? 'text-red-800' : 'text-gray-800'
-                              }`}>
+                      <div className="flex items-center mb-3 sm:mb-0">
+                        <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
+                          <img
+                            src={assets.parcel_icon}
+                            alt="Order"
+                            className="h-5 w-5 opacity-60"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                            <h4 className={`text-lg font-semibold ${
+                              order.status === 'Cancelled' ? 'text-red-800' : 'text-gray-900'
+                            }`}>
                               Order #{order._id.substring(0, 7)}
                             </h4>
+                            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${getStatusBadgeColor(order.status)}`}>
+                              <FontAwesomeIcon icon={getStatusIcon(order.status)} className="mr-2" />
+                              {order.status}
+                            </span>
                           </div>
 
                           {order.cancellationReason && (
-                            <p className="text-sm text-red-600 mt-1">
-                              Cancellation Reason: {order.cancellationReason}
-
+                            <p className="text-sm text-red-600 mt-2">
+                              <span className="font-medium">Cancellation Reason:</span> {order.cancellationReason}
                             </p>
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-col items-end mt-2 sm:mt-0">
-                        <span className="text-sm text-gray-500">
+                      <div className="flex flex-col items-start sm:items-end">
+                        <span className="text-sm text-gray-500 font-medium">
                           {new Date(order.date).toLocaleDateString()}
                         </span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-400">
                           {new Date(order.date).toLocaleTimeString()}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Content */}
-
-                  <div className="p-6 flex flex-col xl:flex-row gap-6">
-                    {/* Items */}
-                    <div className="xl:flex-1">
-                      <h5 className="text-md font-medium text-gray-700 mb-3">
-                        Order Items ({allItems.length})
-                      </h5>
-                      <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
-                        {allItems.map((item, idx) => {
-                          const isDeal = item.itemType === 'deal';
-                          const itemTotal = calculateItemTotal(item);
-                          const itemPrice = getItemPrice(item);
-                          const originalPrice = getOriginalPrice(item);
-                          const hasDiscount = originalPrice > itemPrice;
-
+                  {/* Content - Improved Padding */}
+                  <div className="p-4 sm:p-6 flex flex-col lg:flex-row gap-6 sm:gap-8">
+                    {/* Items Section */}
+                    <div className="lg:flex-1">
+                      {/* Items Summary Header */}
+                      <div className="flex items-center justify-between mb-4">
+                        <h5 className="text-lg font-semibold text-gray-900">
+                          Order Items ({totalItemsCount})
+                        </h5>
+                        <div className="flex gap-3">
+                          {allDeals.length > 0 && (
+                            <span className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm border border-gray-200">
+                              <FontAwesomeIcon icon={faTag} className="mr-2" />
+                              {allDeals.length} Deal{allDeals.length !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                          {regularItems.length > 0 && (
+                            <span className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm border border-gray-200">
+                              <FontAwesomeIcon icon={faCube} className="mr-2" />
+                              {regularItems.length} Product{regularItems.length !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 rounded-xl p-4 max-h-80 overflow-y-auto border border-gray-200">
+                        {/* Render Deals */}
+                        {allDeals.map((deal, dealIndex) => {
+                          const isExpanded = expandedDeals[`${order._id}-${deal.dealName}`];
+                          
                           return (
-                            <div
-                              key={idx}
-                              className={`flex justify-between items-center py-3 border-b border-gray-300 last:border-0`}
-                            >
-                              <div className="flex-1">
-                                <div className="flex items-center">
-                                  <p className="font-medium text-sm text-gray-900">
-                                    {getItemName(item)}
-                                  </p>
-                                  {isDeal ? (
-                                    <span className="ml-2 text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded-full">
-                                      Deal
-                                    </span>
-                                  ): <span className="ml-2 text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">
-                                      Product
-                                    </span>}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Qty: {item.quantity || 1}
-                                </p>
-                                {isDeal && item.dealDescription && (
-                                  <p className="text-xs text-orange-600 mt-1 line-clamp-2">
-                                    {item.dealDescription}
-                                  </p>
-                                )}
-                                {isDeal && item.dealProducts && (
-                                  <div className="mt-1">
-                                    <p className="text-xs text-gray-600 font-medium">Includes:</p>
-                                    {item.dealProducts.map((product, pIdx) => (
-                                      <p key={pIdx} className="text-xs text-gray-500 ml-2">
-                                        • {product.name} x {product.quantity}
+                            <div key={dealIndex} className="mb-4 last:mb-0">
+                              {/* Deal Header */}
+                              <div 
+                                className={`flex justify-between items-center p-4 rounded-lg border cursor-pointer transition-colors ${
+                                  isExpanded ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-200 hover:bg-gray-50'
+                                }`}
+                                onClick={() => toggleDealExpansion(order._id, deal.dealName)}
+                              >
+                                <div className="flex items-center flex-1 min-w-0">
+                                  <span className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded text-sm font-medium mr-4 border border-amber-200">
+                                    <FontAwesomeIcon icon={faTag} className="mr-2" />
+                                    Deal
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-gray-900 text-base">
+                                      {deal.dealName}
+                                    </p>
+                                    {deal.dealDescription && (
+                                      <p className="text-sm text-gray-600 mt-1">
+                                        {deal.dealDescription}
                                       </p>
-                                    ))}
+                                    )}
                                   </div>
-                                )}
+                                </div>
+                                <div className="flex items-center space-x-3 ml-4">
+                                  <div className="text-right">
+                                    <p className="font-semibold text-gray-900 text-base">
+                                      {currency}{deal.totalPrice.toFixed(2)}
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      {deal.totalQuantity} item{deal.totalQuantity !== 1 ? 's' : ''}
+                                    </p>
+                                  </div>
+                                  <FontAwesomeIcon 
+                                    icon={isExpanded ? faChevronUp : faChevronDown} 
+                                    className="text-gray-400 text-lg" 
+                                  />
+                                </div>
                               </div>
-                              <div className="text-right min-w-20">
-                                <p className="text-sm font-medium text-gray-900">
-                                  {currency}
-                                  {itemTotal.toFixed(2)}
-                                </p>
-                                {hasDiscount && itemPrice > 0 && (
-                                  <p className="text-xs line-through text-gray-400">
-                                    {currency}
-                                    {(originalPrice * (item.quantity || 1)).toFixed(2)}
-                                  </p>
-                                )}
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {currency}
-                                  {itemPrice.toFixed(2)} each
-                                </p>
-                              </div>
+
+                              {/* Deal Items - Collapsible */}
+                              {isExpanded && (
+                                <div className="mt-3 space-y-3 pl-6 border-l-2 border-amber-200 ml-3">
+                                  {deal.items.map((item, itemIndex) => (
+                                    <div key={itemIndex} className="flex justify-between items-center py-3 px-4 bg-white rounded-lg border border-gray-200">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-gray-900 text-base">
+                                          {item.name}
+                                        </p>
+                                        <div className="flex items-center space-x-4 mt-2">
+                                          <span className="text-sm text-gray-500">
+                                            Qty: {item.quantity || 1}
+                                          </span>
+                                          <span className="text-sm text-gray-500">
+                                            • {currency}{item.price?.toFixed(2)} each
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="text-right ml-4">
+                                        <p className="font-semibold text-gray-900 text-base">
+                                          {currency}{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
+
+                        {/* Render Regular Products */}
+                        {regularItems.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center py-4 px-4 bg-white rounded-lg border border-gray-200 mb-3 last:mb-0">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center mb-2">
+                                <p className="font-semibold text-gray-900 text-base">
+                                  {item.name}
+                                </p>
+                                <span className="ml-3 bg-blue-50 text-blue-700 px-3 py-1 rounded text-sm border border-blue-200">
+                                  <FontAwesomeIcon icon={faCube} className="mr-2" />
+                                  Product
+                                </span>
+                              </div>
+                              {item.description && (
+                                <p className="text-sm text-gray-600 mb-2 leading-relaxed">
+                                  {item.description}
+                                </p>
+                              )}
+                              <div className="flex items-center space-x-4">
+                                <span className="text-sm text-gray-500">
+                                  Qty: {item.quantity || 1}
+                                </span>
+                                <span className="text-sm text-gray-500">
+                                  • {currency}{item.price?.toFixed(2)} each
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right ml-4">
+                              <p className="font-semibold text-gray-900 text-lg">
+                                {currency}{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    {/* Middle Section - Address & Summary */}
-                    <div className="flex flex-col md:flex-row xl:flex-col gap-6 xl:flex-1">
-                      {/* Address */}
-                      <div>
-                        <h5 className="text-md font-medium text-gray-700 mb-3">Delivery Address</h5>
-                        <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                          <p className="font-medium">
-                            {order.address?.firstName} {order.address?.lastName}
-                          </p>
-                          <p>{order.address?.street}</p>
-                          <p>
-                            {order.address?.city}, {order.address?.state}
-                          </p>
-                          <p>{order.address?.zipcode}</p>
-                          <p className="mt-1">
-                            <FontAwesomeIcon icon={faPhone} className="mr-1 text-xs text-green-700" />
-                            {order.address?.phone}
-                          </p>
+                    {/* Right Section - Info & Actions */}
+                    <div className="flex flex-col gap-6 lg:w-80">
+                      {/* Address & Payment */}
+                      <div className="space-y-6">
+                        {/* Address */}
+                        <div>
+                          <h5 className="text-lg font-semibold text-gray-900 mb-3">Delivery Address</h5>
+                          <div className="bg-gray-50 rounded-xl p-4 text-sm border border-gray-200">
+                            <p className="font-semibold text-gray-900 mb-2">
+                              {order.address?.firstName} {order.address?.lastName}
+                            </p>
+                            <p className="text-gray-600 mb-1">{order.address?.street}</p>
+                            <p className="text-gray-600 mb-1">
+                              {order.address?.city}, {order.address?.state}
+                            </p>
+                            <p className="text-gray-600 mb-3">{order.address?.zipcode}</p>
+                            <p className="text-gray-600">
+                              <FontAwesomeIcon icon={faPhone} className="mr-2 text-gray-400" />
+                              {order.address?.phone}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div >
-                        <h5 className="text-md font-medium text-gray-700 mb-3">
-                          Payment Information
-                        </h5>
-                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 text-md font-medium">
-                          <div className="flex justify-between">
-                            <span>Method:</span>
-                            <span className="font-medium capitalize">{order.paymentMethod}</span>
+
+                        {/* Payment */}
+                        <div>
+                          <h5 className="text-lg font-semibold text-gray-900 mb-3">Payment Information</h5>
+                          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-600">Method:</span>
+                              <span className="font-semibold text-gray-900 capitalize">{order.paymentMethod}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                    </div>
-
-                    {/* Right Section - Payment & Status */}
-                    <div className="flex flex-col md:flex-row xl:flex-col gap-6 xl:flex-1">
-
-                      {/* Summary */}
-                      <div>
-                        <h5 className="text-md font-medium text-gray-700 mb-3">Order Summary</h5>
-                        <div className={`rounded-lg p-4 border text-sm ${order.status === 'Cancelled' ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'
+                      {/* Order Summary & Actions */}
+                      <div className="space-y-6">
+                        {/* Summary */}
+                        <div>
+                          <h5 className="text-lg font-semibold text-gray-900 mb-3">Order Summary</h5>
+                          <div className={`rounded-xl p-4 border text-sm ${
+                            order.status === 'Cancelled' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
                           }`}>
-                          <div className="flex justify-between mb-3">
-                            <span>Subtotal:</span>
-                            <span className="font-medium">
-                              {currency}
-                              {subtotal.toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between mb-3">
-                            <span>Delivery Fee:</span>
-                            <span className="font-medium">
-                              {currency}
-                              {(order.deliveryCharges || 0).toFixed(2)}
-                            </span>
-                          </div>
-
-                          <div className={`pt-2 mt-2 border-t flex justify-between font-semibold ${order.status === 'Cancelled' ? 'border-red-200 text-red-700' : 'border-green-200 text-green-700'
-                            }`}>
-                            <span>Total:</span>
-                            <span>
-                              {currency}
-                              {total.toFixed(2)}
-                            </span>
+                            <div className="flex justify-between mb-3">
+                              <span className="text-gray-600">Subtotal:</span>
+                              <span className="font-semibold text-gray-900">{currency}{subtotal.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between mb-3">
+                              <span className="text-gray-600">Delivery Fee:</span>
+                              <span className="font-semibold text-gray-900">
+                                {order.deliveryCharges === 0 ? 'FREE' : `${currency}${order.deliveryCharges.toFixed(2)}`}
+                              </span>
+                            </div>
+                            <div className="pt-3 mt-3 border-t border-gray-300 flex justify-between font-semibold">
+                              <span className="text-gray-900">Total:</span>
+                              <span className="text-gray-900">{currency}{total.toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div>
-                        <h5 className="text-md font-medium text-gray-700 mb-3">Update Status</h5>
-                        <select
-                          onChange={(e) => statusHandler(e, order._id)}
-                          value={order.status}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black bg-white shadow-sm"
-                          disabled={order.status === 'Cancelled'}
-                        >
-                          <option value="Order Placed">Order Placed</option>
-                          <option value="Packing">Packing</option>
-                          <option value="Shipped">Shipped</option>
-                          <option value="Out for delivery">Out for Delivery</option>
-                          <option value="Delivered">Delivered</option>
-                          <option value="Cancelled">Cancelled</option>
-                        </select>
-                        {order.status === 'Cancelled' && (
-                          <p className="text-sm text-red-500 mt-2">
-                            This order has been cancelled and cannot be updated.
-                          </p>
-                        )}
+
+                        {/* Status Update */}
+                        <div>
+                          <h5 className="text-lg font-semibold text-gray-900 mb-3">Update Status</h5>
+                          <select
+                            onChange={(e) => statusHandler(e, order._id)}
+                            value={order.status}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-white shadow-sm text-sm"
+                            disabled={order.status === 'Cancelled'}
+                          >
+                            <option value="Order Placed">Order Placed</option>
+                            <option value="Packing">Packing</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Out for delivery">Out for Delivery</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                          {order.status === 'Cancelled' && (
+                            <p className="text-sm text-red-600 mt-2">
+                              This order has been cancelled and cannot be updated.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-
                 </div>
               );
             })}

@@ -233,7 +233,7 @@ const sendLowStockNotification = async (product) => {
   console.log(`🔔 Low stock notification sent for product ${product.name}`);
 };
 
-// Fixed placeOrder function with notifications
+// Fixed placeOrder function with improved product lookup AND DEAL IMAGE SUPPORT
 const placeOrder = async (req, res) => {
   try {
     console.log("🛒 ========== BACKEND ORDER PLACEMENT ==========");
@@ -261,39 +261,93 @@ const placeOrder = async (req, res) => {
     for (const item of items) {
       let product;
       
-      // Try multiple lookup methods
+      // ✅ IMPROVED PRODUCT LOOKUP - Handle both direct products and deal products
+      console.log(`🔍 Processing item:`, {
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        isFromDeal: item.isFromDeal || false,
+        dealName: item.dealName,
+        dealImage: item.dealImage,
+        dealDescription: item.dealDescription
+      });
+
+      // Try multiple ID fields for product lookup
       if (item.id) {
         product = await productModel.findById(item.id);
+        console.log(`🔍 Lookup by item.id (${item.id}):`, product ? `Found: ${product.name}` : 'Not found');
       }
-      if (!product && item.name) {
-        product = await productModel.findOne({ name: item.name, status: 'published' });
-      }
+      
       if (!product && item._id) {
         product = await productModel.findById(item._id);
+        console.log(`🔍 Lookup by item._id (${item._id}):`, product ? `Found: ${product.name}` : 'Not found');
+      }
+      
+      if (!product && item.productId) {
+        product = await productModel.findById(item.productId);
+        console.log(`🔍 Lookup by item.productId (${item.productId}):`, product ? `Found: ${product.name}` : 'Not found');
+      }
+      
+      // If still no product found by ID, try name lookup as fallback
+      if (!product && item.name) {
+        product = await productModel.findOne({ 
+          name: item.name, 
+          status: 'published' 
+        });
+        console.log(`🔍 Lookup by name (${item.name}):`, product ? `Found: ${product.name}` : 'Not found');
       }
 
+      // If product is still not found and it's from a deal, be more lenient
+      if (!product && item.isFromDeal) {
+        console.log(`⚠️ Deal product "${item.name}" not found, but continuing order`);
+        // Continue with order but use the item data as-is
+        validatedItems.push({
+          ...item,
+          id: item.id || item._id, // Use the original ID
+          name: item.name
+        });
+        continue;
+      }
+
+      // If product is not found and not from deal, return error
       if (!product) {
+        console.log(`❌ Product not found: ${item.name}`, item);
         return res.json({ success: false, message: `Product "${item.name}" not found` });
       }
 
+      // Validate product status
       if (product.status !== 'published') {
+        console.log(`❌ Product not available: ${product.name} (status: ${product.status})`);
         return res.json({ success: false, message: `Product "${product.name}" is not available` });
       }
 
+      // Validate stock
       if (product.quantity < item.quantity) {
+        console.log(`❌ Insufficient stock: ${product.name} (available: ${product.quantity}, requested: ${item.quantity})`);
         return res.json({ success: false, message: `Insufficient stock for "${product.name}". Available: ${product.quantity}, Requested: ${item.quantity}` });
       }
 
+      console.log(`✅ Validated product: ${product.name}, Qty: ${item.quantity}, Stock: ${product.quantity}`);
+
       validatedItems.push({
         ...item,
-        id: product._id.toString(),
+        id: product._id.toString(), // Ensure consistent ID field
+        name: product.name, // Use actual product name from database
         actualProduct: product
       });
     }
 
+    console.log(`📦 Validated ${validatedItems.length} items for order`);
+
     // Reduce inventory quantity
     console.log("📦 Reducing inventory quantity...");
     for (const validatedItem of validatedItems) {
+      // Skip inventory reduction for items that weren't found in database (deal items)
+      if (!validatedItem.actualProduct) {
+        console.log(`⚠️ Skipping inventory reduction for: ${validatedItem.name} (no product found in DB)`);
+        continue;
+      }
+
       const updateResult = await productModel.findByIdAndUpdate(
         validatedItem.id,
         { 
@@ -312,10 +366,29 @@ const placeOrder = async (req, res) => {
         if (updateResult.quantity <= 10 && updateResult.quantity > 0) {
           await sendLowStockNotification(updateResult);
         }
+        
+        // Check for out of stock
+        if (updateResult.quantity === 0) {
+          await createNotification({
+            userId: 'admin',
+            type: NOTIFICATION_TYPES.OUT_OF_STOCK,
+            title: '🛑 Out of Stock Alert',
+            message: `Product "${updateResult.name}" is now out of stock.`,
+            relatedId: updateResult._id.toString(),
+            relatedType: 'product',
+            isAdmin: true,
+            actionUrl: `/admin/products`,
+            priority: 'urgent',
+            metadata: {
+              productId: updateResult._id.toString(),
+              productName: updateResult.name
+            }
+          });
+        }
       }
     }
 
-    // Create order
+    // ✅ ENHANCED: Create order with COMPLETE DEAL DATA SUPPORT
     const orderData = {
       userId,
       items: validatedItems.map(item => ({
@@ -323,8 +396,12 @@ const placeOrder = async (req, res) => {
         name: item.name,
         quantity: item.quantity,
         price: item.price,
-        image: item.image || item.actualProduct?.image?.[0],
-        category: item.category || item.actualProduct?.category
+        image: item.image || item.actualProduct?.image?.[0], // Product image
+        category: item.category || item.actualProduct?.category,
+        isFromDeal: item.isFromDeal || false,
+        dealName: item.dealName || null,
+        dealImage: item.dealImage || null, // ✅ DEAL IMAGE INCLUDED
+        dealDescription: item.dealDescription || null // ✅ DEAL DESCRIPTION INCLUDED
       })),
       amount: Number(amount),
       address,
@@ -335,14 +412,29 @@ const placeOrder = async (req, res) => {
       date: Date.now(),
     };
 
+    console.log("📝 FINAL ORDER DATA SAVED:", {
+      totalItems: orderData.items.length,
+      dealItems: orderData.items.filter(item => item.isFromDeal).map(item => ({
+        name: item.name,
+        dealName: item.dealName,
+        dealImage: item.dealImage,
+        isFromDeal: item.isFromDeal
+      })),
+      regularItems: orderData.items.filter(item => !item.isFromDeal).length
+    });
+
     const newOrder = new orderModel(orderData);
     await newOrder.save();
+
+    console.log(`✅ Order created: ${newOrder._id} with ${newOrder.items.length} items`);
 
     // Clear user cart
     await userModel.findByIdAndUpdate(userId, { 
       cartData: {},
       cartDeals: {} 
     });
+
+    console.log(`✅ Cleared cart for user: ${userId}`);
 
     // 🆕 SEND ORDER PLACED NOTIFICATION
     await sendOrderPlacedNotification(newOrder);
@@ -376,6 +468,26 @@ const userOrders = async (req, res) => {
   try {
     const userId = req.userId;
     const orders = await orderModel.find({ userId }).sort({ date: -1 });
+    
+    // Enhanced logging for debugging deal images
+    console.log("📦 USER ORDERS RETRIEVED - DEAL IMAGE DEBUG:", {
+      totalOrders: orders.length,
+      orders: orders.map(order => ({
+        id: order._id,
+        totalItems: order.items.length,
+        dealItems: order.items.filter(item => item.isFromDeal).map(item => ({
+          name: item.name,
+          isFromDeal: item.isFromDeal,
+          dealName: item.dealName,
+          dealImage: item.dealImage,
+          productImage: item.image,
+          hasDealImage: !!item.dealImage,
+          hasProductImage: !!item.image
+        })),
+        regularItems: order.items.filter(item => !item.isFromDeal).length
+      }))
+    });
+    
     res.json({ success: true, orders });
   } catch (error) {
     console.error("❌ Error in userOrders:", error);
@@ -410,18 +522,22 @@ const updateStatus = async (req, res) => {
       updateData.cancelledAt = new Date();
       updateData.cancelledBy = "admin";
 
-      // Restore inventory
+      // Restore inventory for items that have actual products
       console.log("📦 Restoring inventory quantity for cancelled order...");
       for (const item of currentOrder.items) {
-        await productModel.findByIdAndUpdate(
-          item.id,
-          { 
-            $inc: { 
-              quantity: item.quantity,
-              totalSales: -item.quantity
-            } 
-          }
-        );
+        // Only restore inventory for items that were actually reduced
+        if (item.id) {
+          await productModel.findByIdAndUpdate(
+            item.id,
+            { 
+              $inc: { 
+                quantity: item.quantity,
+                totalSales: -item.quantity
+              } 
+            }
+          );
+          console.log(`✅ Restored stock for item: ${item.name}, Qty: ${item.quantity}`);
+        }
       }
 
       // 🆕 SEND ORDER CANCELLED NOTIFICATION
@@ -494,15 +610,19 @@ const cancelOrder = async (req, res) => {
     if (order.status === "Order Placed" || order.status === "Processing") {
       console.log("📦 Restoring inventory quantity...");
       for (const item of order.items) {
-        await productModel.findByIdAndUpdate(
-          item.id,
-          { 
-            $inc: { 
-              quantity: item.quantity,
-              totalSales: -item.quantity
-            } 
-          }
-        );
+        // Only restore inventory for items that have valid product IDs
+        if (item.id) {
+          await productModel.findByIdAndUpdate(
+            item.id,
+            { 
+              $inc: { 
+                quantity: item.quantity,
+                totalSales: -item.quantity
+              } 
+            }
+          );
+          console.log(`✅ Restored stock for: ${item.name}, Qty: ${item.quantity}`);
+        }
       }
     }
 
@@ -548,7 +668,10 @@ const getUserNotifications = async (req, res) => {
       .limit(parseInt(limit))
       .exec();
 
-    const unreadCount = await notificationModel.getUnreadCount(userId);
+    const unreadCount = await notificationModel.countDocuments({ 
+      userId, 
+      isRead: false 
+    });
 
     res.json({
       success: true,
@@ -605,7 +728,9 @@ const markNotificationAsRead = async (req, res) => {
       return res.json({ success: false, message: "Notification not found" });
     }
 
-    await notification.markAsRead();
+    notification.isRead = true;
+    notification.readAt = new Date();
+    await notification.save();
 
     res.json({
       success: true,
@@ -623,7 +748,13 @@ const markAllNotificationsAsRead = async (req, res) => {
   try {
     const userId = req.userId;
 
-    await notificationModel.markAllAsRead(userId);
+    await notificationModel.updateMany(
+      { userId, isRead: false },
+      { 
+        isRead: true,
+        readAt: new Date()
+      }
+    );
 
     res.json({
       success: true,

@@ -37,6 +37,7 @@ const Setting = () => {
     console.log('Setting component mounted with token:', token ? 'Present' : 'Missing');
   }, [token]);
 
+
   // Existing admin settings state
   const [settings, setSettings] = useState({
     email: "",
@@ -280,7 +281,25 @@ const Setting = () => {
 
     fetchBusinessDetails();
   }, []);
-
+    // Add this temporary useEffect to debug
+useEffect(() => {
+  console.log('🔍 Current contact data structure:', {
+    contact: businessDetails.contact,
+    customerSupport: businessDetails.contact?.customerSupport,
+    type: typeof businessDetails.contact?.customerSupport
+  });
+}, [businessDetails.contact]);
+// Add this to debug the contact data changes
+useEffect(() => {
+  console.log('🔍 DEBUG contact structure:', {
+    fullContact: businessDetails.contact,
+    customerSupport: businessDetails.contact?.customerSupport,
+    type: typeof businessDetails.contact?.customerSupport,
+    hasEmail: !!businessDetails.contact?.customerSupport?.email,
+    hasPhone: !!businessDetails.contact?.customerSupport?.phone,
+    hasHours: !!businessDetails.contact?.customerSupport?.hours
+  });
+}, [businessDetails.contact]);
   // ✅ FIXED: Loading timeout protection
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -314,22 +333,46 @@ const Setting = () => {
     }));
   };
 
-  // Handle business details change
-  const handleBusinessChange = (e) => {
-    const { name, value } = e.target;
-    const [section, field] = name.split('.');
+// ✅ FIXED: Handle business details change with proper nested structure
+const handleBusinessChange = (e) => {
+  const { name, value } = e.target;
+  const path = name.split('.');
+  
+  console.log('🔄 Business change:', { name, value, path });
+  
+  if (path.length === 3 && path[0] === 'contact' && path[1] === 'customerSupport') {
+    // Handle contact.customerSupport.email, contact.customerSupport.phone, contact.customerSupport.hours
+    const field = path[2]; // 'email', 'phone', or 'hours'
     
-    if (section && field) {
-      setBusinessDetails(prev => ({
-        ...prev,
-        [section]: {
-          ...prev[section],
+    setBusinessDetails(prev => ({
+      ...prev,
+      contact: {
+        ...prev.contact,
+        customerSupport: {
+          ...prev.contact.customerSupport,
           [field]: value
         }
-      }));
-    }
-  };
-
+      }
+    }));
+  } else if (path.length === 2) {
+    // Handle company.name, company.tagline, etc.
+    const [section, field] = path;
+    
+    setBusinessDetails(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  } else if (path.length === 1) {
+    // Handle top-level fields (if any)
+    setBusinessDetails(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }
+};
   const handleSocialMediaChange = (e) => {
     const { name, value } = e.target;
     setBusinessDetails(prev => ({
@@ -506,7 +549,6 @@ const handleSaveBusiness = async () => {
   try {
     setSavingBusiness(true);
     
-    // Use a different variable name to avoid conflict with state
     const formDataToSend = new FormData();
     
     // Add company info
@@ -515,8 +557,15 @@ const handleSaveBusiness = async () => {
     formDataToSend.append('description', businessDetails.company.description);
     formDataToSend.append('foundedYear', businessDetails.company.foundedYear.toString());
     
-    // Add contact info
-    formDataToSend.append('customerSupport', JSON.stringify(businessDetails.contact.customerSupport));
+    // ✅ FIX: Create proper customerSupport object structure
+    const customerSupportData = {
+      email: businessDetails.contact.customerSupport.email || "codewithjerry0o0@gmail.com",
+      phone: businessDetails.contact.customerSupport.phone || "+92-317 5546007",
+      hours: businessDetails.contact.customerSupport.hours || "24/7"
+    };
+    
+    console.log('📞 Customer support data being sent:', customerSupportData);
+    formDataToSend.append('customerSupport', JSON.stringify(customerSupportData));
     
     // Add location
     formDataToSend.append('location', JSON.stringify(businessDetails.location));
@@ -543,7 +592,7 @@ const handleSaveBusiness = async () => {
       } : 'No file'
     });
 
-    // Add logos - only if they are actual File objects and different from current previews
+    // Add logos
     if (logos.website instanceof File) {
       formDataToSend.append('websiteLogo', logos.website);
       console.log('✅ Added website logo to form data');
@@ -567,6 +616,7 @@ const handleSaveBusiness = async () => {
 
     console.log('💾 Saving business details...', {
       companyName: businessDetails.company.name,
+      customerSupport: customerSupportData, // Log the actual object
       websiteLogo: logos.website instanceof File,
       adminLogo: logos.admin instanceof File,
       favicon: logos.favicon instanceof File,
@@ -584,6 +634,8 @@ const handleSaveBusiness = async () => {
     for (let pair of formDataToSend.entries()) {
       if (pair[1] instanceof File) {
         console.log(`  ${pair[0]}: File(${pair[1].name}, ${pair[1].type}, ${pair[1].size} bytes)`);
+      } else if (pair[0] === 'customerSupport') {
+        console.log(`  ${pair[0]}:`, JSON.parse(pair[1])); // Parse and log the object
       } else {
         const value = pair[1];
         const displayValue = typeof value === 'string' && value.length > 100 
@@ -601,7 +653,7 @@ const handleSaveBusiness = async () => {
           'token': token,
           'Content-Type': 'multipart/form-data'
         },
-        timeout: 30000 // 30 second timeout
+        timeout: 30000
       }
     );
 
@@ -650,7 +702,6 @@ const handleSaveBusiness = async () => {
     setSavingBusiness(false);
   }
 };
-
   // ✅ FIXED: Add store function with timings
   const handleAddStore = async () => {
     try {
@@ -1436,41 +1487,42 @@ const BusinessDetailsContent = ({
   cancelDeleteStore
 }) => {
   // ✅ SAFE ACCESS: Ensure all nested properties exist with fallbacks
-  const safeBusinessDetails = {
-    company: businessDetails?.company || {
-      name: "Natura Bliss",
-      tagline: "Pure Natural Skincare",
-      description: "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
-      foundedYear: 2023
-    },
-    contact: businessDetails?.contact || {
-      customerSupport: {
-        email: "naturabliss@gmail.com",
-        phone: "+92-317 5546007",
-        hours: "24/7"
-      }
-    },
-    location: businessDetails?.location || {
-      displayAddress: "123 Natural Street, Green Valley, PK",
-      googleMapsLink: ""
-    },
-    socialMedia: businessDetails?.socialMedia || {
-      facebook: "",
-      instagram: "",
-      tiktok: "",
-      whatsapp: ""
-    },
-    multiStore: businessDetails?.multiStore || {
-      enabled: false,
-      stores: [],
-      defaultStore: null
-    },
-    logos: businessDetails?.logos || {
-      website: { url: "", public_id: "" },
-      admin: { url: "", public_id: "" },
-      favicon: { url: "", public_id: "" }
+// In your BusinessDetailsContent component, update the safeBusinessDetails:
+const safeBusinessDetails = {
+  company: businessDetails?.company || {
+    name: "Natura Bliss",
+    tagline: "Pure Natural Skincare",
+    description: "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
+    foundedYear: 2024
+  },
+  contact: {
+    customerSupport: {
+      email: businessDetails?.contact?.customerSupport?.email || "",
+      phone: businessDetails?.contact?.customerSupport?.phone || "", 
+      hours: businessDetails?.contact?.customerSupport?.hours || ""
     }
-  };
+  },
+  location: businessDetails?.location || {
+    displayAddress: "123 Natural Street, Green Valley, PK",
+    googleMapsLink: ""
+  },
+  socialMedia: businessDetails?.socialMedia || {
+    facebook: "",
+    instagram: "",
+    tiktok: "",
+    whatsapp: ""
+  },
+  multiStore: businessDetails?.multiStore || {
+    enabled: false,
+    stores: [],
+    defaultStore: null
+  },
+  logos: businessDetails?.logos || {
+    website: { url: "", public_id: "" },
+    admin: { url: "", public_id: "" },
+    favicon: { url: "", public_id: "" }
+  }
+};
 
   // Helper function to format operating hours
   const formatOperatingHours = (operatingHours) => {
@@ -1619,55 +1671,55 @@ const BusinessDetailsContent = ({
         </div>
       </div>
 
-      {/* Contact Information */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Contact Information
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Support Email *
-            </label>
-            <input
-              type="email"
-              name="contact.customerSupport.email"
-              value={safeBusinessDetails.contact.customerSupport.email}
-              onChange={handleBusinessChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Support Phone *
-            </label>
-            <input
-              type="text"
-              name="contact.customerSupport.phone"
-              value={safeBusinessDetails.contact.customerSupport.phone}
-              onChange={handleBusinessChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              required
-              placeholder="+92-317 5546007"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Support Hours
-            </label>
-            <input
-              type="text"
-              name="contact.customerSupport.hours"
-              value={safeBusinessDetails.contact.customerSupport.hours}
-              onChange={handleBusinessChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="e.g., 9:00 AM - 6:00 PM"
-            />
-          </div>
-        </div>
-      </div>
-
+{/* Contact Information */}
+<div className="bg-white rounded-xl p-6 border border-gray-200">
+  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+    Contact Information
+  </h3>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Support Email *
+      </label>
+      <input
+        type="email"
+        name="contact.customerSupport.email"
+        value={safeBusinessDetails.contact.customerSupport.email || ""}
+        onChange={handleBusinessChange}
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+        required
+        placeholder="codewithjerry0o0@gmail.com"
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Support Phone *
+      </label>
+      <input
+        type="text"
+        name="contact.customerSupport.phone"
+        value={safeBusinessDetails.contact.customerSupport.phone || ""}
+        onChange={handleBusinessChange}
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+        required
+        placeholder="+92-317 5546007"
+      />
+    </div>
+    <div className="md:col-span-2">
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Support Hours
+      </label>
+      <input
+        type="text"
+        name="contact.customerSupport.hours"
+        value={safeBusinessDetails.contact.customerSupport.hours || ""}
+        onChange={handleBusinessChange}
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+        placeholder="e.g., 24/7 or 9:00 AM - 6:00 PM"
+      />
+    </div>
+  </div>
+</div>
       {/* Location Information */}
       <div className="bg-white rounded-xl p-6 border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -1768,11 +1820,8 @@ const BusinessDetailsContent = ({
                       location: {
                         displayName: "",
                         address: {
-                          street: "",
-                          city: "",
-                          state: "",
-                          zipCode: ""
-                        },
+                          street: ""
+                                      },
                         coordinates: { lat: 0, lng: 0 },
                         googleMapsLink: ""
                       },
@@ -1894,48 +1943,7 @@ const BusinessDetailsContent = ({
                       />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          City
-                        </label>
-                        <input
-                          type="text"
-                          name="location.address.city"
-                          value={newStore.location.address.city}
-                          onChange={handleNewStoreChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                          required
-                          placeholder="City"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          State
-                        </label>
-                        <input
-                          type="text"
-                          name="location.address.state"
-                          value={newStore.location.address.state}
-                          onChange={handleNewStoreChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                          required
-                          placeholder="State"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          ZIP Code
-                        </label>
-                        <input
-                          type="text"
-                          name="location.address.zipCode"
-                          value={newStore.location.address.zipCode}
-                          onChange={handleNewStoreChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                          required
-                          placeholder="ZIP Code"
-                        />
-                      </div>
+                      
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">

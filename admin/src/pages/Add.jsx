@@ -1,20 +1,37 @@
-import React, { useState, useCallback, useMemo, memo } from "react";
+import React, { useState, useCallback, useMemo, memo, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { backendUrl } from "../App";
 import { useAuth } from "../context/AuthContext"; 
 
+// Font Awesome imports
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faBox, 
+  faTags, 
+  faSpinner, 
+  faExclamationTriangle, 
+  faPlusCircle, 
+  faCloudUploadAlt, 
+  faStar, 
+  faChartLine, 
+  faBoxes, 
+  faTrashAlt, 
+  faPercent, 
+  faReceipt,
+  faShoppingBag,
+  faCalendarAlt,
+  faDollarSign
+} from '@fortawesome/free-solid-svg-icons';
+
 const Add = () => { 
   const { token, logout } = useAuth(); 
   
   // --- Category & Subcategory State ---
-  const [categories] = useState({
-    Soap: ["Neem", "Aloe Vera", "Charcoal"],
-    Shampoo: ["Anti-Dandruff", "Herbal", "Protein"],
-    Facewash: ["Oil Control", "Whitening", "Sensitive Skin"],
-  });
-  const [category, setCategory] = useState("Soap");
-  const [subCategory, setSubCategory] = useState(categories["Soap"][0]);
+  const [categories, setCategories] = useState([]);
+  const [dealTypes, setDealTypes] = useState([]);
+  const [category, setCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
 
   // --- Product Info State ---
   const [images, setImages] = useState([null, null, null, null]);
@@ -28,9 +45,9 @@ const Add = () => {
   const [loading, setLoading] = useState(false);
 
   // --- Deal State ---
-  const [isDeal, setIsDeal] = useState(false);
+  const [activeTab, setActiveTab] = useState('products'); // 'products' or 'deals'
   const [dealProducts, setDealProducts] = useState([]);
-  const [dealType, setDealType] = useState("flash_sale"); // Added dealType
+  const [dealType, setDealType] = useState("");
   const [dealDiscountType, setDealDiscountType] = useState("percentage");
   const [dealDiscountValue, setDealDiscountValue] = useState(0);
   const [dealName, setDealName] = useState("");
@@ -38,6 +55,78 @@ const Add = () => {
   const [dealImages, setDealImages] = useState([null, null, null, null]);
   const [dealStartDate, setDealStartDate] = useState("");
   const [dealEndDate, setDealEndDate] = useState("");
+
+  // Fetch categories and deal types from backend
+  const fetchCategories = async () => {
+    try {
+      console.log('Fetching categories from:', backendUrl + '/api/categories');
+      const response = await axios.get(backendUrl + '/api/categories');
+      console.log('Categories API response:', response.data);
+      if (response.data) {
+        setCategories(response.data);
+        console.log('Categories set:', response.data.length);
+        
+        // Set default category and subcategory
+        if (response.data.length > 0) {
+          const firstCategory = response.data[0];
+          setCategory(firstCategory._id);
+          if (firstCategory.subcategories && firstCategory.subcategories.length > 0) {
+            setSubCategory(firstCategory.subcategories[0]._id);
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Error fetching categories:', error);
+      toast.error('Failed to load categories');
+    }
+  };
+
+  const fetchDealTypes = async () => {
+    try {
+      console.log('Fetching deal types from:', backendUrl + '/api/deal-types');
+      const response = await axios.get(backendUrl + '/api/deal-types');
+      console.log('Deal types API response:', response.data);
+      if (response.data) {
+        setDealTypes(response.data);
+        console.log('Deal types set:', response.data.length);
+        
+        // Set default deal type
+        if (response.data.length > 0) {
+          setDealType(response.data[0]._id);
+        }
+      }
+    } catch (error) {
+      console.log('Error fetching deal types:', error);
+      toast.error('Failed to load deal types');
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+    fetchDealTypes();
+  }, []);
+
+  // Helper functions to get category and subcategory names
+  const getCategoryName = (categoryId) => {
+    if (!categoryId) return '';
+    const category = categories.find(cat => cat._id === categoryId);
+    return category ? category.name : '';
+  };
+
+  const getSubcategoryName = (categoryId, subcategoryId) => {
+    if (!categoryId || !subcategoryId) return '';
+    const category = categories.find(cat => cat._id === categoryId);
+    if (!category || !category.subcategories) return '';
+    
+    const subcategory = category.subcategories.find(sub => sub._id === subcategoryId);
+    return subcategory ? subcategory.name : '';
+  };
+
+  const getDealTypeName = (dealTypeId) => {
+    if (!dealTypeId) return '';
+    const dealTypeObj = dealTypes.find(type => type._id === dealTypeId);
+    return dealTypeObj ? dealTypeObj.name : '';
+  };
 
   // Memoized calculations
   const calculateDealTotal = useCallback(() => {
@@ -138,18 +227,27 @@ const Add = () => {
     setDiscountprice("");
     setBestseller(false);
     setDealProducts([]);
-    setIsDeal(false);
-    setDealType("flash_sale"); 
     setDealDiscountValue(0);
     setDealName("");
     setDealDescription("");
     setDealImages([null, null, null, null]);
     setDealStartDate("");
     setDealEndDate("");
-    const firstCategory = Object.keys(categories)[0];
-    setCategory(firstCategory);
-    setSubCategory(categories[firstCategory][0]);
-  }, [categories]);
+    
+    // Reset to first category and subcategory
+    if (categories.length > 0) {
+      const firstCategory = categories[0];
+      setCategory(firstCategory._id);
+      if (firstCategory.subcategories && firstCategory.subcategories.length > 0) {
+        setSubCategory(firstCategory.subcategories[0]._id);
+      }
+    }
+    
+    // Reset to first deal type
+    if (dealTypes.length > 0) {
+      setDealType(dealTypes[0]._id);
+    }
+  }, [categories, dealTypes]);
 
   const onSubmitHandler = useCallback(async (e) => {
     e.preventDefault();
@@ -166,7 +264,7 @@ const Add = () => {
     try {
       const formData = new FormData();
       
-      if (!isDeal) {
+      if (activeTab === 'products') {
         // === PRODUCT SUBMISSION ===
         // Product basic data
         formData.append("name", name);
@@ -209,7 +307,7 @@ const Add = () => {
         // Deal basic data
         formData.append("dealName", dealName);
         formData.append("dealDescription", dealDescription);
-        formData.append("dealType", dealType); // Added dealType
+        formData.append("dealType", dealType);
         formData.append("dealDiscountType", dealDiscountType);
         formData.append("dealDiscountValue", Number(dealDiscountValue));
         formData.append("dealTotal", dealTotal);
@@ -269,7 +367,7 @@ const Add = () => {
       setLoading(false);
     }
   }, [
-    isDeal, name, description, category, subCategory, quantity, bestseller, cost, price, discountprice, images,
+    activeTab, name, description, category, subCategory, quantity, bestseller, cost, price, discountprice, images,
     dealName, dealDescription, dealType, dealDiscountType, dealDiscountValue, dealTotal, finalPrice, dealStartDate,
     dealEndDate, dealProducts, dealImages, token, resetForm, backendUrl, logout
   ]);
@@ -317,6 +415,7 @@ const Add = () => {
       setDealName={setDealName}
       dealDescription={dealDescription}
       setDealDescription={setDealDescription}
+      dealTypes={dealTypes}
       dealType={dealType}
       setDealType={setDealType}
       dealStartDate={dealStartDate}
@@ -335,7 +434,7 @@ const Add = () => {
       finalPrice={finalPrice}
     />
   ), [
-    dealName, dealDescription, dealType, dealStartDate, dealEndDate, dealProducts, handleDealProductChange,
+    dealName, dealDescription, dealTypes, dealType, dealStartDate, dealEndDate, dealProducts, handleDealProductChange,
     handleRemoveDealProduct, handleAddDealProduct, dealDiscountType,
     dealDiscountValue, dealTotal, finalPrice
   ]);
@@ -344,67 +443,87 @@ const Add = () => {
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 text-center">
-          <h2 className="text-3xl font-bold text-gray-900">{isDeal ? "Create New Deal" : "Add New Product"}</h2>
+          <h2 className="text-3xl font-bold text-gray-900">
+            {activeTab === 'products' ? "Add New Product" : "Create New Deal"}
+          </h2>
           <p className="text-gray-600 mt-2">
-            {isDeal
-              ? "Bundle products together with special discounts"
-              : "Fill in the details to add a new product to your store"}
+            {activeTab === 'products'
+              ? "Fill in the details to add a new product to your store"
+              : "Bundle products together with special discounts"}
           </p>
         </div>
 
         <form onSubmit={onSubmitHandler} className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-          {/* Toggle Product/Deal */}
-          <div className="mb-8 flex items-center justify-center gap-4 p-4 bg-gray-50 rounded-lg">
-            <span className="text-sm font-medium text-gray-700">Create as:</span>
-            <label className="flex items-center cursor-pointer">
-              <div className="relative">
-                <input 
-                  type="checkbox" 
-                  checked={isDeal} 
-                  onChange={() => setIsDeal((prev) => !prev)} 
-                  className="sr-only" 
-                />
-                <div className={`block w-14 h-7 rounded-full ${isDeal ? "bg-black" : "bg-gray-300"}`}></div>
-                <div
-                  className={`absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform ${
-                    isDeal ? "translate-x-7" : ""
+          {/* Tabs for Product/Deal */}
+          <div className="mb-8">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('products')}
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'products'
+                      ? 'border-black text-black'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
-                ></div>
-              </div>
-              <span className="ml-3 text-sm font-medium text-gray-700">{isDeal ? "Deal" : "Product"}</span>
-            </label>
+                >
+                  <div className="flex items-center space-x-2">
+                    <FontAwesomeIcon icon={faBox} className="text-lg" />
+                    <span>Add Product</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('deals')}
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'deals'
+                      ? 'border-black text-black'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <FontAwesomeIcon icon={faTags} className="text-lg" />
+                    <span>Create Deal</span>
+                  </div>
+                </button>
+              </nav>
+            </div>
           </div>
 
           {/* Images */}
-          {!isDeal ? productImagesSection : dealImagesSection}
+          {activeTab === 'products' ? productImagesSection : dealImagesSection}
 
           {/* Form Sections */}
-          {isDeal ? dealSection : productSection}
+          {activeTab === 'products' ? productSection : dealSection}
 
           {/* Submit */}
           <div className="flex items-center justify-center mt-8">
             <button
               type="submit"
-              disabled={loading || !token} // Disable if no token
+              disabled={loading || !token}
               className={`px-10 py-3 font-medium rounded-lg flex items-center transition-colors ${
                 loading || !token ? "bg-gray-400 cursor-not-allowed text-white" : "bg-black text-white hover:bg-gray-800"
               }`}
             >
               {loading ? (
                 <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i> Saving...
+                  <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
+                  Saving...
                 </>
               ) : !token ? (
                 <>
-                  <i className="fas fa-exclamation-triangle mr-2"></i> Please Login
+                  <FontAwesomeIcon icon={faExclamationTriangle} className="mr-2" />
+                  Please Login
                 </>
-              ) : isDeal ? (
+              ) : activeTab === 'deals' ? (
                 <>
-                  <i className="fas fa-tags mr-2"></i> Create Deal
+                  <FontAwesomeIcon icon={faTags} className="mr-2" />
+                  Create Deal
                 </>
               ) : (
                 <>
-                  <i className="fas fa-plus-circle mr-2"></i> Add Product
+                  <FontAwesomeIcon icon={faPlusCircle} className="mr-2" />
+                  Add Product
                 </>
               )}
             </button>
@@ -415,7 +534,7 @@ const Add = () => {
   );
 };
 
-// Memoized sub-components (all remain exactly the same)
+// Memoized sub-components (updated to use dynamic data)
 const ProductImagesSection = memo(({ images, handleImageChange }) => {
   return (
     <div className="mb-8">
@@ -428,7 +547,7 @@ const ProductImagesSection = memo(({ images, handleImageChange }) => {
                 <img className="w-full h-full object-cover" src={URL.createObjectURL(img)} alt="Upload preview" />
               ) : (
                 <div className="flex flex-col items-center justify-center text-gray-400">
-                  <i className="fas fa-cloud-upload-alt text-2xl mb-2"></i>
+                  <FontAwesomeIcon icon={faCloudUploadAlt} className="text-2xl mb-2" />
                   <span className="text-xs">Upload</span>
                 </div>
               )}
@@ -454,7 +573,7 @@ const DealImagesSection = memo(({ dealImages, handleDealImageChange }) => {
                 <img className="w-full h-full object-cover" src={URL.createObjectURL(img)} alt="Deal preview" />
               ) : (
                 <div className="flex flex-col items-center justify-center text-gray-400">
-                  <i className="fas fa-cloud-upload-alt text-2xl mb-2"></i>
+                  <FontAwesomeIcon icon={faCloudUploadAlt} className="text-2xl mb-2" />
                   <span className="text-xs">Upload</span>
                 </div>
               )}
@@ -503,6 +622,10 @@ const ProductSection = memo(({
   const hasDiscount = discountprice && discountprice > 0 && discountprice < price;
   const hasCost = cost && cost > 0;
 
+  // Get current category's subcategories
+  const currentCategory = categories.find(cat => cat._id === category);
+  const subcategories = currentCategory?.subcategories || [];
+
   return (
     <>
       {/* Product Name & Description */}
@@ -536,13 +659,19 @@ const ProductSection = memo(({
             value={category}
             onChange={(e) => {
               setCategory(e.target.value);
-              setSubCategory(categories[e.target.value][0]);
+              const selectedCategory = categories.find(cat => cat._id === e.target.value);
+              if (selectedCategory?.subcategories?.length > 0) {
+                setSubCategory(selectedCategory.subcategories[0]._id);
+              } else {
+                setSubCategory("");
+              }
             }}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
           >
-            {Object.keys(categories).map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
+            <option value="">Select Category</option>
+            {categories.map((cat) => (
+              <option key={cat._id} value={cat._id}>
+                {cat.name}
               </option>
             ))}
           </select>
@@ -553,10 +682,12 @@ const ProductSection = memo(({
             value={subCategory}
             onChange={(e) => setSubCategory(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
+            disabled={!category}
           >
-            {categories[category]?.map((sub) => (
-              <option key={sub} value={sub}>
-                {sub}
+            <option value="">Select Subcategory</option>
+            {subcategories.map((sub) => (
+              <option key={sub._id} value={sub._id}>
+                {sub.name}
               </option>
             ))}
           </select>
@@ -571,11 +702,12 @@ const ProductSection = memo(({
         <InputField label="Quantity *" value={quantity} onChange={setQuantity} required />
       </div>
 
-      {/* Product Summary - Always visible when price is entered */}
+      {/* Product Summary */}
       {price && (
         <div className="bg-blue-50 p-5 rounded-lg mb-6 border border-blue-200">
           <h4 className="text-md font-medium mb-4 flex items-center">
-            <i className="fas fa-chart-line mr-2 text-blue-600"></i> Product Pricing Summary
+            <FontAwesomeIcon icon={faChartLine} className="mr-2 text-blue-600" />
+            Product Pricing Summary
           </h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="text-center p-3 bg-white rounded-lg">
@@ -601,7 +733,7 @@ const ProductSection = memo(({
               <div className="text-center p-3 bg-white rounded-lg col-span-2">
                 <div className="text-gray-600">Current Price</div>
                 <div className="text-lg font-bold text-green-600">{finalPrice.toFixed(2)}</div>
-                <div className="text-xs text-gray-500">No discount applied</div>
+              
               </div>
             )}
             
@@ -612,25 +744,6 @@ const ProductSection = memo(({
                   {productProfit.toFixed(2)}
                 </div>
                 <div className="text-xs text-gray-500">{productProfitPercentage.toFixed(1)}% margin</div>
-              </div>
-            )}
-          </div>
-          
-          {/* Additional summary info */}
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            {hasDiscount && (
-              <div className="text-center p-2 bg-yellow-50 rounded border border-yellow-200">
-                <span className="font-medium">Discounted Product:</span> Customers save {productDiscountPercentage.toFixed(1)}%
-              </div>
-            )}
-            {hasCost && productProfit >= 0 && (
-              <div className="text-center p-2 bg-green-50 rounded border border-green-200">
-                <span className="font-medium">Profit Margin:</span> {productProfitPercentage.toFixed(1)}% ({productProfit.toFixed(2)} per unit)
-              </div>
-            )}
-            {hasCost && productProfit < 0 && (
-              <div className="text-center p-2 bg-red-50 rounded border border-red-200">
-                <span className="font-medium">Warning:</span> Selling at a loss of {Math.abs(productProfit).toFixed(2)} per unit
               </div>
             )}
           </div>
@@ -645,7 +758,8 @@ const ProductSection = memo(({
             <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${bestseller ? "translate-x-4" : ""}`}></div>
           </div>
           <span className="ml-3 text-sm font-medium text-gray-700 flex items-center">
-            <i className="fas fa-star mr-2 text-yellow-500"></i> Mark as Bestseller
+            <FontAwesomeIcon icon={faStar} className="mr-2 text-yellow-500" />
+            Mark as Bestseller
           </span>
         </label>
       </div>
@@ -658,6 +772,7 @@ const DealSection = memo(({
   setDealName,
   dealDescription,
   setDealDescription,
+  dealTypes,
   dealType,
   setDealType,
   dealStartDate,
@@ -709,42 +824,40 @@ const DealSection = memo(({
           onChange={(e) => setDealType(e.target.value)}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
         >
-          <option value="bundle">Product Bundle</option>
-          <option value="featured">Featured Package</option>
-          <option value="seasonal">Seasonal Offer</option>
-          <option value="flash_sale">Flash Sale</option>
-          <option value="clearance">Clearance Deal</option>
-          <option value="buyonegetone">Buy One Get One</option>
+          <option value="">Select Deal Type</option>
+          {dealTypes.map((type) => (
+            <option key={type._id} value={type._id}>
+              {type.name}
+            </option>
+          ))}
         </select>
-        <p className="text-xs text-gray-500 mt-1">
-          {dealType === "bundle" && "Multiple products bundled together at a special price"}
-          {dealType === "featured" && "Complementary products packaged together"}
-          {dealType === "seasonal" && "Limited time seasonal or holiday offer"}
-          {dealType === "flash_sale" && "Short-term sale with significant discounts"}
-          {dealType === "clearance" && "Clearance items with deep discounts"}
-          {dealType === "buyonegetone" && "Buy one get one free or at discount"}
-        </p>
       </div>
 
       {/* Deal Dates */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-          <input 
-            type="date" 
-            value={dealStartDate}
-            onChange={(e) => setDealStartDate(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors" 
-          />
+          <div className="relative">
+            <FontAwesomeIcon icon={faCalendarAlt} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input 
+              type="date" 
+              value={dealStartDate}
+              onChange={(e) => setDealStartDate(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors" 
+            />
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-          <input 
-            type="date" 
-            value={dealEndDate}
-            onChange={(e) => setDealEndDate(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors" 
-          />
+          <div className="relative">
+            <FontAwesomeIcon icon={faCalendarAlt} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input 
+              type="date" 
+              value={dealEndDate}
+              onChange={(e) => setDealEndDate(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors" 
+            />
+          </div>
         </div>
       </div>
 
@@ -752,7 +865,8 @@ const DealSection = memo(({
       <div className="bg-gray-50 p-5 rounded-lg">
         <div className="flex justify-between items-center mb-4">
           <h4 className="text-md font-medium flex items-center">
-            <i className="fas fa-boxes mr-2 text-black"></i> Products in Deal
+            <FontAwesomeIcon icon={faBoxes} className="mr-2 text-black" />
+            Products in Deal
           </h4>
           <span className="text-sm text-gray-500">{dealProducts.length} product(s) added</span>
         </div>
@@ -768,9 +882,10 @@ const DealSection = memo(({
               <button 
                 type="button" 
                 onClick={() => handleRemoveDealProduct(index)} 
-                className="text-red-600 hover:text-red-800 transition-colors p-2 text-sm"
+                className="text-red-600 hover:text-red-800 transition-colors p-2 text-sm flex items-center"
               >
-                <i className="fas fa-trash-alt mr-1"></i> Delete
+                <FontAwesomeIcon icon={faTrashAlt} className="mr-1" />
+                Delete
               </button>
             </div>
           </div>
@@ -781,14 +896,16 @@ const DealSection = memo(({
           onClick={handleAddDealProduct}
           className="flex items-center justify-center w-full py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-black hover:text-black transition-colors"
         >
-          <i className="fas fa-plus-circle mr-2"></i> Add Product to Deal
+          <FontAwesomeIcon icon={faPlusCircle} className="mr-2" />
+          Add Product to Deal
         </button>
       </div>
 
       {/* Discount */}
       <div className="bg-gray-50 p-5 rounded-lg mb-6">
         <h4 className="text-md font-medium mb-4 flex items-center">
-          <i className="fas fa-percent mr-2 text-black"></i> Discount Settings
+          <FontAwesomeIcon icon={faPercent} className="mr-2 text-black" />
+          Discount Settings
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -812,7 +929,11 @@ const DealSection = memo(({
             <label className="block text-sm font-medium text-gray-700 mb-2">Discount Value *</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-gray-500">{dealDiscountType === "percentage" ? "%" : "$"}</span>
+                {dealDiscountType === "percentage" ? (
+                  <FontAwesomeIcon icon={faPercent} className="text-gray-500" />
+                ) : (
+                  <FontAwesomeIcon icon={faDollarSign} className="text-gray-500" />
+                )}
               </div>
               <input
                 type="number"
@@ -821,7 +942,7 @@ const DealSection = memo(({
                 onChange={(e) => setDealDiscountValue(e.target.value)}
                 placeholder={dealDiscountType === "percentage" ? "e.g., 20" : "e.g., 5"}
                 required
-                className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
               />
             </div>
           </div>
@@ -831,7 +952,8 @@ const DealSection = memo(({
       {/* Deal Summary */}
       <div className="bg-blue-50 p-5 rounded-lg mb-6 border border-blue-200">
         <h4 className="text-md font-medium mb-4 flex items-center">
-          <i className="fas fa-receipt mr-2 text-blue-600"></i> Deal Summary
+          <FontAwesomeIcon icon={faReceipt} className="mr-2 text-blue-600" />
+          Deal Summary
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="text-center p-3 bg-white rounded-lg">
@@ -841,7 +963,7 @@ const DealSection = memo(({
           <div className="text-center p-3 bg-white rounded-lg">
             <div className="text-gray-600">Discount</div>
             <div className="text-lg font-bold text-red-600">
-              {dealDiscountType === "percentage" ? `${dealDiscountValue}%` : `${dealDiscountValue}`}
+              {dealDiscountType === "percentage" ? `${dealDiscountValue}%` : `$${dealDiscountValue}`}
             </div>
           </div>
           <div className="text-center p-3 bg-white rounded-lg">

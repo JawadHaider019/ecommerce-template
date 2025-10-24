@@ -9,8 +9,6 @@ const dealTypeSchema = new mongoose.Schema({
   },
   slug: {
     type: String,
-    // Remove required: true or make it optional
-    // required: true,
     unique: true,
     trim: true
   },

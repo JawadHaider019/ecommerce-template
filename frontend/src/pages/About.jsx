@@ -74,7 +74,7 @@ const About = () => {
             <span className="text-sm font-semibold text-green-700 uppercase tracking-widest">Featured Story</span>
           </div>
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-6 leading-tight">
-            The Story Behind Pakistan's First All-Natural Personal Care Brand
+            The Story Behind Pakistan's All Natural Personal Care Brand
           </h2>
           <div className="flex justify-center items-center space-x-4 text-sm text-gray-500 mb-8">
             <span>FEATURE</span>

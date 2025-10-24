@@ -33,22 +33,30 @@ const List = ({ token }) => {
   const [selectedDeal, setSelectedDeal] = useState(null)
   const [viewMode, setViewMode] = useState('list')
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true)
-      const response = await axios.get(backendUrl + '/api/product/list')
-      if (response.data.success) {
-        setProducts(response.data.products)
-      } else {
-        toast.error(response.data.message)
-      }
-    } catch (error) {
-      console.log(error)
-      toast.error(error.message)
-    } finally {
-      setLoading(false)
+const fetchProducts = async () => {
+  try {
+    setLoading(true)
+    const response = await axios.get(backendUrl + '/api/product/list')
+    console.log('Products API Response:', response.data) // Debug log
+    
+    if (response.data.success) {
+      console.log('Products with categories:', response.data.products.map(p => ({
+        name: p.name,
+        category: p.category,
+        subcategory: p.subcategory
+      }))) // Debug log
+      
+      setProducts(response.data.products)
+    } else {
+      toast.error(response.data.message)
     }
+  } catch (error) {
+    console.log(error)
+    toast.error(error.message)
+  } finally {
+    setLoading(false)
   }
+}
 
   const fetchDeals = async () => {
     try {
@@ -245,6 +253,7 @@ const List = ({ token }) => {
       )
     }
   }
+  
 
   if (loading) {
     return (
@@ -383,8 +392,126 @@ const StockSummaryCard = ({ title, value, icon, color }) => {
 
 // Product List View Component
 const ProductListView = ({ products, onView, onEdit, onDelete, onStatusChange, onStockUpdate, token }) => {
+  const [categories, setCategories] = useState([]);
+  const [categoriesMap, setCategoriesMap] = useState({});
+  const [subcategoriesMap, setSubcategoriesMap] = useState({});
+  
+  // Fetch categories and create lookup maps
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get(backendUrl + '/api/categories');
+        console.log('Fetched categories for mapping:', response.data);
+        
+        if (response.data && Array.isArray(response.data)) {
+          setCategories(response.data);
+          
+          // Create category ID to name map
+          const catMap = {};
+          const subMap = {};
+          
+          response.data.forEach(category => {
+            // Map by ID
+            catMap[category._id] = category.name;
+            
+            // Also map by name (for backward compatibility)
+            catMap[category.name] = category.name;
+            
+            // Map subcategories
+            if (category.subcategories && Array.isArray(category.subcategories)) {
+              category.subcategories.forEach(sub => {
+                subMap[sub._id] = sub.name;
+                subMap[sub.name] = sub.name; // For backward compatibility
+              });
+            }
+          });
+          
+          setCategoriesMap(catMap);
+          setSubcategoriesMap(subMap);
+          
+          console.log('Category Map:', catMap);
+          console.log('Subcategory Map:', subMap);
+        }
+      } catch (error) {
+        console.error('Error fetching categories for mapping:', error);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+
+  // Helper functions to get names from IDs
+  const getCategoryName = (categoryIdOrName) => {
+    if (!categoryIdOrName) return 'Uncategorized';
+    
+    // If it's already in our map, return it
+    if (categoriesMap[categoryIdOrName]) {
+      return categoriesMap[categoryIdOrName];
+    }
+    
+    // If it looks like an ObjectId but not in map, it might be a deleted category
+    if (typeof categoryIdOrName === 'string' && categoryIdOrName.match(/^[0-9a-fA-F]{24}$/)) {
+      return 'Deleted Category';
+    }
+    
+    // Return the value as is (might be a category name)
+    return categoryIdOrName;
+  };
+
+  const getSubcategoryName = (subcategoryIdOrName) => {
+    if (!subcategoryIdOrName) return 'Uncategorized';
+    
+    // If it's already in our map, return it
+    if (subcategoriesMap[subcategoryIdOrName]) {
+      return subcategoriesMap[subcategoryIdOrName];
+    }
+    
+    // If it looks like an ObjectId but not in map, it might be a deleted subcategory
+    if (typeof subcategoryIdOrName === 'string' && subcategoryIdOrName.match(/^[0-9a-fA-F]{24}$/)) {
+      return 'Deleted Subcategory';
+    }
+    
+    // Return the value as is (might be a subcategory name)
+    return subcategoryIdOrName;
+  };
+
+  // Debug: Log what we're working with
+  useEffect(() => {
+    if (products.length > 0 && Object.keys(categoriesMap).length > 0) {
+      console.log('=== PRODUCT CATEGORY MAPPING DEBUG ===');
+      products.forEach(product => {
+        console.log(`Product: ${product.name}`);
+        console.log(`Category ID/Name: ${product.category}`);
+        console.log(`Mapped Category: ${getCategoryName(product.category)}`);
+        console.log(`Subcategory ID/Name: ${product.subcategory}`);
+        console.log(`Mapped Subcategory: ${getSubcategoryName(product.subcategory)}`);
+        console.log('---');
+      });
+    }
+  }, [products, categoriesMap]);
+
   return (
     <div>
+      {/* Temporary debug button - remove after testing */}
+      <button 
+        onClick={() => {
+          console.log('=== CURRENT MAPPING STATE ===');
+          console.log('Categories Map:', categoriesMap);
+          console.log('Subcategories Map:', subcategoriesMap);
+          products.forEach(p => {
+            console.log(`Product: ${p.name}`, {
+              category: p.category,
+              mappedCategory: getCategoryName(p.category),
+              subcategory: p.subcategory,
+              mappedSubcategory: getSubcategoryName(p.subcategory)
+            });
+          });
+        }}
+        className="bg-yellow-500 text-white px-4 py-2 rounded-lg mb-4"
+      >
+        Debug Mapping
+      </button>
+
       {/* Mobile & Tablet Grid View */}
       <div className="lg:hidden">
         {products.length === 0 ? (
@@ -409,7 +536,13 @@ const ProductListView = ({ products, onView, onEdit, onDelete, onStatusChange, o
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Category</span>
                           <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-full capitalize">
-                            {item.category}
+                            {getCategoryName(item.category)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Subcategory</span>
+                          <span className="text-xs font-medium bg-green-50 text-green-700 px-2 py-1 rounded-full capitalize">
+                            {getSubcategoryName(item.subcategory)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -484,6 +617,7 @@ const ProductListView = ({ products, onView, onEdit, onDelete, onStatusChange, o
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
                 <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Category</th>
+                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Subcategory</th>
                 <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Price</th>
                 <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Stock</th>
                 <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Sales</th>
@@ -494,7 +628,7 @@ const ProductListView = ({ products, onView, onEdit, onDelete, onStatusChange, o
             <tbody className="divide-y divide-gray-200">
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan="7">
+                  <td colSpan="8">
                     <EmptyState type="products" />
                   </td>
                 </tr>
@@ -518,7 +652,12 @@ const ProductListView = ({ products, onView, onEdit, onDelete, onStatusChange, o
                     </td>
                     <td className="py-4 px-6">
                       <span className="inline-block bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full capitalize">
-                        {item.category}
+                        {getCategoryName(item.category)}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-block bg-green-50 text-green-700 text-xs px-3 py-1 rounded-full capitalize">
+                        {getSubcategoryName(item.subcategory)}
                       </span>
                     </td>
                     <td className="py-4 px-6">
@@ -532,7 +671,6 @@ const ProductListView = ({ products, onView, onEdit, onDelete, onStatusChange, o
                     <td className="py-4 px-6">
                       <div className="flex items-center space-x-3">
                         <StockIndicator quantity={item.quantity} />
-                    
                       </div>
                     </td>
                     <td className="py-4 px-6">
@@ -583,9 +721,32 @@ const ProductListView = ({ products, onView, onEdit, onDelete, onStatusChange, o
     </div>
   )
 }
+// Add this debug component at the top of your List.jsx file
+const SafeRender = ({ value, fallback = 'N/A' }) => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  
+  if (typeof value === 'object') {
+    console.warn('Object detected in SafeRender:', value);
+    // Try to extract meaningful information from the object
+    if (value.name) return value.name;
+    if (value._id) return value._id;
+    if (value.title) return value.title;
+    if (value.toString && typeof value.toString === 'function') {
+      return value.toString();
+    }
+    return JSON.stringify(value);
+  }
+  
+  return value;
+};
 
-// Deal List View Component
+// Then update the DealListView component to use SafeRender for all dynamic content
 const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
+  // Debug: Check what's in the deals data
+  console.log('Deals data:', deals);
+  
   return (
     <div>
       {/* Mobile & Tablet Grid View */}
@@ -593,80 +754,96 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
         {deals.length === 0 ? (
           <EmptyState type="deals" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {deals.map((item) => (
-              <div key={item._id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
-                <div className="p-3">
-                  <div className="flex items-start space-x-4">
-                    <img 
-                      className="w-20 h-20 object-cover rounded-lg border border-gray-200 flex-shrink-0" 
-                      src={item.dealImages[0]} 
-                      alt={item.dealName} 
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-sm truncate mb-1">{item.dealName}</h3>
-                      <p className="text-gray-500 text-xs truncate mb-2">{item.dealDescription}</p>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Type</span>
-                          <span className="text-xs font-medium bg-purple-50 text-purple-700 px-2 py-1 rounded-full capitalize">
-                            {item.dealType || 'standard'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Discount</span>
-                          <span className="font-semibold text-green-600 text-sm">
-                            {item.dealDiscountType === 'percentage' ? `${item.dealDiscountValue}%` : `${currency}${item.dealDiscountValue}`}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Products</span>
-                          <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
-                            {item.dealProducts?.length || 0} items
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Period</span>
-                          <span className="text-xs text-gray-600">
-                            {new Date(item.dealStartDate).toLocaleDateString()}
-                            {item.dealEndDate && ` - ${new Date(item.dealEndDate).toLocaleDateString()}`}
-                          </span>
+          <div className="grid grid-cols-1 gap-3">
+            {deals.map((item) => {
+              // Debug each item
+              console.log('Deal item:', item);
+              
+              return (
+                <div key={item._id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
+                  <div className="p-3">
+                    <div className="flex items-start space-x-3">
+                      <img 
+                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 flex-shrink-0" 
+                        src={item.dealImages?.[0]} 
+                        alt={item.dealName} 
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 text-sm truncate mb-1">
+                          <SafeRender value={item.dealName} />
+                        </h3>
+                        <p className="text-gray-500 text-xs mb-2 line-clamp-2">
+                          <SafeRender value={item.dealDescription} fallback="No description available" />
+                        </p>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Type</span>
+                           // Replace the deal type display in both mobile and desktop views with:
+<span className="text-xs font-medium bg-purple-50 text-purple-700 px-2 py-1 rounded-full capitalize truncate max-w-20">
+  {typeof item.dealType === 'object' ? item.dealType.name : (item.dealType || 'standard')}
+</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Discount</span>
+                            <span className="font-semibold text-green-600 text-sm">
+                              {item.dealDiscountType === 'percentage' ? 
+                                `${item.dealDiscountValue}%` : 
+                                `${currency}${item.dealDiscountValue}`
+                              }
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Products</span>
+                            <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                              <SafeRender value={item.dealProducts?.length || 0} /> items
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="mt-4 pt-3 border-t border-gray-100">
-                    <div className="flex items-center justify-between mb-3">
-                      <StatusDropdown 
-                        currentStatus={item.status || 'draft'} 
-                        onStatusChange={(status) => onStatusChange(item._id, status)}
-                      />
-                    </div>
-                    <div className="flex space-x-2">
-                      <ActionButton
-                        onClick={() => onView(item)}
-                        variant="primary"
-                        icon="view"
-                        fullWidth
-                      />
-                      <ActionButton
-                        onClick={() => onEdit(item)}
-                        variant="secondary"
-                        icon="edit"
-                        fullWidth
-                      />
-                      <ActionButton
-                        onClick={() => onDelete(item._id)}
-                        variant="danger"
-                        icon="delete"
-                        fullWidth
-                      />
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <StatusDropdown 
+                          currentStatus={item.status || 'draft'} 
+                          onStatusChange={(status) => onStatusChange(item._id, status)}
+                        />
+                        <div className="text-xs text-gray-600">
+                          <SafeRender value={new Date(item.dealStartDate).toLocaleDateString()} />
+                          {item.dealEndDate && ` - ${new Date(item.dealEndDate).toLocaleDateString()}`}
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <ActionButton
+                          onClick={() => onView(item)}
+                          variant="primary"
+                          icon="view"
+                          label="View"
+                          fullWidth
+                          size="sm"
+                        />
+                        <ActionButton
+                          onClick={() => onEdit(item)}
+                          variant="secondary"
+                          icon="edit"
+                          label="Edit"
+                          fullWidth
+                          size="sm"
+                        />
+                        <ActionButton
+                          onClick={() => onDelete(item._id)}
+                          variant="danger"
+                          icon="delete"
+                          label="Delete"
+                          fullWidth
+                          size="sm"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -677,13 +854,13 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Deal</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Discount</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Products</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Period</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                <th className="py-4 px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                <th className="py-4 px-4 sm:px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Deal</th>
+                <th className="py-4 px-4 sm:px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+                <th className="py-4 px-4 sm:px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Discount</th>
+                <th className="py-4 px-4 sm:px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Products</th>
+                <th className="py-4 px-4 sm:px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Period</th>
+                <th className="py-4 px-4 sm:px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                <th className="py-4 px-4 sm:px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -696,26 +873,30 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
               ) : (
                 deals.map((item) => (
                   <tr key={item._id} className="hover:bg-gray-50 transition-colors duration-150">
-                    <td className="py-4 px-4">
+                    <td className="py-4 px-4 sm:px-6">
                       <div className="flex items-center space-x-3">
                         <img 
-                          className="w-12 h-12 object-cover rounded-lg border border-gray-200" 
-                          src={item.dealImages[0]} 
+                          className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-lg border border-gray-200" 
+                          src={item.dealImages?.[0]} 
                           alt={item.dealName} 
                         />
                         <div className="min-w-0">
-                          <p className="font-medium text-gray-900 text-sm truncate">{item.dealName}</p>
-                          <p className="text-gray-500 text-xs truncate">{item.dealDescription}</p>
+                          <p className="font-medium text-gray-900 text-sm truncate">
+                            <SafeRender value={item.dealName} />
+                          </p>
+                          <p className="text-gray-500 text-xs truncate">
+                            <SafeRender value={item.dealDescription} />
+                          </p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-4">
-                      <span className="inline-flex items-center px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium capitalize">
-                        <FaFire className="w-3 h-3 mr-1" />
-                        {item.dealType || 'standard'}
-                      </span>
+                    <td className="py-4 px-4 sm:px-6">
+                     <span className="inline-flex items-center px-2 sm:px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium capitalize">
+  <FaFire className="w-3 h-3 mr-1" />
+  {typeof item.dealType === 'object' ? item.dealType.name : (item.dealType || 'standard')}
+</span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-4 px-4 sm:px-6">
                       <div className="flex items-center space-x-1">
                         {item.dealDiscountType === 'percentage' ? (
                           <FaPercentage className="w-3 h-3 text-green-500" />
@@ -723,38 +904,45 @@ const DealListView = ({ deals, onView, onEdit, onDelete, onStatusChange }) => {
                           <FaDollarSign className="w-3 h-3 text-green-500" />
                         )}
                         <span className="font-semibold text-green-600 text-sm">
-                          {item.dealDiscountType === 'percentage' ? `${item.dealDiscountValue}%` : `${currency}${item.dealDiscountValue}`}
+                          {item.dealDiscountType === 'percentage' ? 
+                            `${item.dealDiscountValue}%` : 
+                            `${currency}${item.dealDiscountValue}`
+                          }
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-4">
-                      <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                    <td className="py-4 px-4 sm:px-6">
+                      <span className="inline-flex items-center px-2 sm:px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                         <FaCube className="w-3 h-3 mr-1" />
-                        {item.dealProducts?.length || 0} products
+                        <SafeRender value={item.dealProducts?.length || 0} /> products
                       </span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-4 px-4 sm:px-6">
                       <div className="text-sm text-gray-600 space-y-1">
                         <div className="flex items-center space-x-1">
                           <FaCalendarAlt className="w-3 h-3 text-gray-400" />
-                          <span>{new Date(item.dealStartDate).toLocaleDateString()}</span>
+                          <span className="text-xs">
+                            <SafeRender value={new Date(item.dealStartDate).toLocaleDateString()} />
+                          </span>
                         </div>
                         {item.dealEndDate && (
                           <div className="flex items-center space-x-1">
                             <FaCalendarAlt className="w-3 h-3 text-gray-400" />
-                            <span>{new Date(item.dealEndDate).toLocaleDateString()}</span>
+                            <span className="text-xs">
+                              <SafeRender value={new Date(item.dealEndDate).toLocaleDateString()} />
+                            </span>
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-4 px-4 sm:px-6">
                       <StatusDropdown 
                         currentStatus={item.status || 'draft'} 
                         onStatusChange={(status) => onStatusChange(item._id, status)}
                       />
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
+                    <td className="py-4 px-4 sm:px-6">
+                      <div className="flex items-center space-x-1 sm:space-x-2">
                         <ActionButton
                           onClick={() => onView(item)}
                           variant="primary"

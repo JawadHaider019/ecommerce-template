@@ -1,34 +1,29 @@
-import { useContext, useState, useEffect, useRef } from "react";
+import { useContext, useState, useEffect, useMemo } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
 import Title from './Title';
 import DealItem from "./DealItem.jsx";
 import axios from 'axios';
-import { FaChevronLeft, FaChevronRight, FaPause, FaPlay } from 'react-icons/fa';
+import Slider from "react-slick";
+import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+
+// Import Slick Carousel CSS
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 const DealCollection = () => {
-  const { backendUrl, currency } = useContext(ShopContext);
+  const { backendUrl, currency, deals: contextDeals } = useContext(ShopContext);
   const navigate = useNavigate();
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dealRatings, setDealRatings] = useState({});
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const sliderRef = useRef(null);
-  const autoPlayRef = useRef(null);
 
-  // Number of items to show per slide based on screen size
-  const getItemsPerSlide = () => {
-    if (typeof window === 'undefined') return 5;
-    const width = window.innerWidth;
-    if (width < 640) return 2; // mobile
-    if (width < 768) return 3; // small tablet
-    if (width < 1024) return 4; // tablet
-    return 5; // desktop
+  // Helper function to safely get deal type name
+  const getDealTypeName = (dealType) => {
+  
+    return dealType;
   };
-
-  const [itemsPerSlide, setItemsPerSlide] = useState(getItemsPerSlide());
 
   // Fetch deals function
   const fetchDeals = async () => {
@@ -67,41 +62,48 @@ const DealCollection = () => {
     }
   };
 
+  // Use useMemo to filter and process deals
+  const processedDeals = useMemo(() => {
+    if (!deals || !Array.isArray(deals)) return [];
+
+    // Filter active deals
+    const currentDate = new Date();
+    const activeDeals = deals.filter((deal) => {
+      const isPublished = deal.status === 'published';
+      const hasStarted = !deal.dealStartDate || new Date(deal.dealStartDate) <= currentDate;
+      const hasNotEnded = !deal.dealEndDate || new Date(deal.dealEndDate) >= currentDate;
+      return isPublished && hasStarted && hasNotEnded;
+    });
+
+    // Remove duplicate deals by ID
+    const uniqueDeals = activeDeals.filter((deal, index, self) =>
+      index === self.findIndex(d => (d._id || d.id) === (deal._id || deal.id))
+    );
+
+    // Limit to 15 deals for better slider experience
+    return uniqueDeals.slice(0, 15);
+  }, [deals]);
+
   useEffect(() => {
     const loadDeals = async () => {
       try {
         setLoading(true);
         setError(null);
         const dealsData = await fetchDeals();
-
-        if (!dealsData || !Array.isArray(dealsData)) {
-          setDeals([]);
-          return;
-        }
-
-        // Filter active deals
-        const currentDate = new Date();
-        const activeDeals = dealsData.filter((deal) => {
-          const isPublished = deal.status === 'published';
-          const hasStarted = !deal.dealStartDate || new Date(deal.dealStartDate) <= currentDate;
-          const hasNotEnded = !deal.dealEndDate || new Date(deal.dealEndDate) >= currentDate;
-          return isPublished && hasStarted && hasNotEnded;
-        });
-
-        // Limit to 15 deals for better slider experience
-        const limitedDeals = activeDeals.slice(0, 15);
-        setDeals(limitedDeals);
+        setDeals(dealsData);
 
         // Fetch ratings for each deal
-        const ratings = {};
-        for (const deal of limitedDeals) {
-          const dealId = deal._id || deal.id;
-          if (dealId) {
-            const rating = await fetchDealRatings(dealId);
-            ratings[dealId] = rating;
+        if (dealsData && Array.isArray(dealsData)) {
+          const ratings = {};
+          for (const deal of dealsData.slice(0, 15)) {
+            const dealId = deal._id || deal.id;
+            if (dealId) {
+              const rating = await fetchDealRatings(dealId);
+              ratings[dealId] = rating;
+            }
           }
+          setDealRatings(ratings);
         }
-        setDealRatings(ratings);
 
       } catch (err) {
         console.error('Error in DealCollection component:', err);
@@ -127,69 +129,119 @@ const DealCollection = () => {
     loadDeals();
   }, [backendUrl]);
 
-  // Handle window resize for responsive items per slide
-  useEffect(() => {
-    const handleResize = () => {
-      setItemsPerSlide(getItemsPerSlide());
-      setCurrentSlide(0); // Reset to first slide on resize
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Auto-play functionality
-  useEffect(() => {
-    if (!isPlaying || deals.length === 0) return;
-
-    const totalSlides = Math.ceil(deals.length / itemsPerSlide);
-    
-    autoPlayRef.current = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % totalSlides);
-    }, 4000); // Change slide every 4 seconds
-
-    return () => {
-      if (autoPlayRef.current) {
-        clearInterval(autoPlayRef.current);
-      }
-    };
-  }, [isPlaying, deals.length, itemsPerSlide]);
-
-  const totalSlides = Math.ceil(deals.length / itemsPerSlide);
-  const visibleDeals = deals.slice(currentSlide * itemsPerSlide, (currentSlide + 1) * itemsPerSlide);
-
   const handleDealClick = (dealId) => {
     navigate(`/deal/${dealId}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % totalSlides);
+  // Custom Next Arrow Component
+  const NextArrow = (props) => {
+    const { className, style, onClick } = props;
+    return (
+      <div
+        className={`${className} custom-arrow next-arrow`}
+        style={{ ...style, display: "block", right: "10px" }}
+        onClick={onClick}
+      >
+        <div className="bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20">
+          <FaChevronRight size={16} />
+        </div>
+      </div>
+    );
   };
 
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
+  // Custom Previous Arrow Component
+  const PrevArrow = (props) => {
+    const { className, style, onClick } = props;
+    return (
+      <div
+        className={`${className} custom-arrow prev-arrow`}
+        style={{ ...style, display: "block", left: "10px", zIndex: 1 }}
+        onClick={onClick}
+      >
+        <div className="bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20">
+          <FaChevronLeft size={16} />
+        </div>
+      </div>
+    );
   };
 
-  const goToSlide = (index) => {
-    setCurrentSlide(index);
+  // Calculate grid columns for non-slider view (when less than 3 deals)
+  const getGridColumns = () => {
+    const count = processedDeals.length;
+    if (count === 1) return "grid-cols-1 max-w-md mx-auto";
+    if (count === 2) return "grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto";
+    if (count === 3) return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 max-w-4xl mx-auto";
+    if (count === 4) return "grid-cols-2 sm:grid-cols-2 md:grid-cols-4 max-w-6xl mx-auto";
+    return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5";
   };
 
-  const toggleAutoPlay = () => {
-    setIsPlaying(!isPlaying);
+  // Slick Slider settings - Show 3 deals
+  const sliderSettings = {
+    dots: true,
+    infinite: processedDeals.length >= 3,
+    speed: 500,
+    slidesToShow: Math.min(3, processedDeals.length),
+    slidesToScroll: 1,
+    autoplay: processedDeals.length >= 3,
+    autoplaySpeed: 3000,
+    pauseOnHover: true,
+    arrows: processedDeals.length >= 3,
+    nextArrow: processedDeals.length >= 3 ? <NextArrow /> : undefined,
+    prevArrow: processedDeals.length >= 3 ? <PrevArrow /> : undefined,
+    responsive: [
+      {
+        breakpoint: 1280,
+        settings: {
+          slidesToShow: Math.min(3, processedDeals.length),
+          slidesToScroll: 1,
+        }
+      },
+      {
+        breakpoint: 1024,
+        settings: {
+          slidesToShow: Math.min(3, processedDeals.length),
+          slidesToScroll: 1,
+        }
+      },
+      {
+        breakpoint: 768,
+        settings: {
+          slidesToShow: Math.min(2, processedDeals.length),
+          slidesToScroll: 1,
+        }
+      },
+      {
+        breakpoint: 640,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1,
+          arrows: false,
+          dots: processedDeals.length > 1
+        }
+      }
+    ],
+    appendDots: dots => (
+      <div className="mt-8">
+        <ul className="flex justify-center space-x-2"> {dots} </ul>
+      </div>
+    ),
+    customPaging: i => (
+      <button className="w-3 h-3 rounded-full bg-gray-300 transition-all duration-300 hover:bg-gray-400 focus:outline-none"></button>
+    )
   };
+
+  // Show slider only if we have at least 3 deals
+  const showSlider = processedDeals.length >= 3;
 
   if (loading) {
     return (
-      <div className="my-10">
-        <div className="py-8 text-center text-3xl">
+      <div className="my-24">
+        <div className="py-2 text-center text-3xl">
           <Title text1={'HOT'} text2={'DEALS'} />
-          <p className="m-auto w-3/4 text-xs text-gray-600 sm:text-sm md:text-base">
-            Discover our exclusive limited-time offers with great discounts
-          </p>
         </div>
-        <div className="flex justify-center items-center h-40">
-          <div className="text-gray-500">Loading hot deals...</div>
+        <div className="text-center text-gray-500 py-8">
+          Loading hot deals...
         </div>
       </div>
     );
@@ -197,114 +249,73 @@ const DealCollection = () => {
 
   if (error) {
     return (
-      <div className="my-10">
+      <div className="my-24">
         <div className="py-8 text-center text-3xl">
           <Title text1={'HOT'} text2={'DEALS'} />
           <p className="m-auto w-3/4 text-xs text-gray-600 sm:text-sm md:text-base">
-           Pure Deals, Pure Beauty — Shop Organic Skincare Offers Before They’re Gone!
+            Discover our exclusive limited-time offers with great discounts.
           </p>
         </div>
-        <div className="flex justify-center items-center h-40">
-          <div className="text-red-500">{error}</div>
+        <div className="text-center text-red-500 py-8">
+          {error}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="my-10">
-      <div className="py-8 text-center text-3xl">
+    <div className="my-24">
+      <div className="py-2 text-center text-3xl">
         <Title text1={'HOT'} text2={'DEALS'} />
-        <p className="m-auto w-3/4 text-xs text-gray-600 sm:text-sm md:text-base">
-       Pure Deals, Pure Beauty — Shop Organic Skincare Offers Before They’re Gone!
-        </p>
       </div>
 
-      {deals.length === 0 ? (
+      {processedDeals.length === 0 ? (
         <div className="text-center text-gray-500 py-8">
           No active deals available at the moment.
         </div>
-      ) : (
-        <div className="relative px-4 sm:px-6 lg:px-8">
-          {/* Slider Container */}
-          <div 
-            ref={sliderRef}
-            className="relative overflow-hidden"
-          >
-            {/* Slider Track */}
-            <div 
-              className="flex transition-transform duration-500 ease-in-out"
-              style={{
-                transform: `translateX(-${currentSlide * (100 / itemsPerSlide)}%)`
-              }}
-            >
-              {deals.map((deal) => (
-                <div 
-                  key={deal._id || deal.id}
-                  className="flex-shrink-0 px-2"
-                  style={{ width: `${100 / itemsPerSlide}%` }}
-                >
-                  <DealItem
-                    id={deal._id || deal.id}
-                    image={deal.dealImages && deal.dealImages.length > 0 ? deal.dealImages[0] : "/images/fallback-image.jpg"}
-                    name={deal.dealName}
-                    price={deal.dealTotal || 0}
-                    discount={deal.dealFinalPrice || 0}
-                    rating={dealRatings[deal._id || deal.id] || 0}
-                    dealType={deal.dealType}
-                    productsCount={deal.dealProducts ? deal.dealProducts.length : 0}
-                    endDate={deal.dealEndDate}
-                    onDealClick={handleDealClick}
-                    currency={currency}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Navigation Arrows */}
-          {totalSlides > 1 && (
-            <>
-              <button
-                onClick={prevSlide}
-                className="absolute left-1 top-[100px] transform -translate-y-1/2 bg-black hover:bg-white text-gray-300 rounded-full p-4 shadow-lg transition-all duration-200 hover:scale-110 z-10"
-                aria-label="Previous slide"
-              >
-                <FaChevronLeft size={18} />
-              </button>
-              <button
-                onClick={nextSlide}
-                className="absolute right-1 top-[100px] transform -translate-y-1/2 bg-black hover:bg-white text-gray-300 rounded-full p-4 shadow-lg transition-all duration-200 hover:scale-110 z-10"
-                aria-label="Next slide"
-              >
-                <FaChevronRight size={18} />
-              </button>
-            </>
-          )}
-
-          {/* Slide Indicators */}
-          {totalSlides > 1 && (
-            <div className="flex justify-center items-center mt-6 space-x-4">
-              {/* Auto-play toggle */}
-          
-
-              {/* Slide dots */}
-              <div className="flex space-x-2">
-                {Array.from({ length: totalSlides }).map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => goToSlide(index)}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      index === currentSlide 
-                        ? 'bg-black scale-1' 
-                        : 'bg-gray-300 hover:bg-gray-400'
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
+      ) : showSlider ? (
+        // Show slider when we have 3 or more deals
+        <div className="relative px-4">
+          {/* Add custom CSS via global CSS or inline styles */}
+          <Slider {...sliderSettings}>
+            {processedDeals.map((deal) => (
+              <div key={deal._id || deal.id} className="px-2">
+                <DealItem
+                  id={deal._id || deal.id}
+                  image={deal.dealImages && deal.dealImages.length > 0 ? deal.dealImages[0] : "/images/fallback-image.jpg"}
+                  name={deal.dealName}
+                  price={deal.dealTotal || 0}
+                  discount={deal.dealFinalPrice || 0}
+                  rating={dealRatings[deal._id || deal.id] || 0}
+                  dealType={getDealTypeName(deal.dealType)}
+                  productsCount={deal.dealProducts ? deal.dealProducts.length : 0}
+                  endDate={deal.dealEndDate}
+                  onDealClick={handleDealClick}
+                  currency={currency}
+                />
               </div>
-            </div>
-          )}
+            ))}
+          </Slider>
+        </div>
+      ) : (
+        // Show regular grid when we have 1-2 deals - using the same grid system as RelatedDeals
+        <div className={`grid ${getGridColumns()} gap-4 gap-y-6 px-4`}>
+          {processedDeals.map((deal) => (
+            <DealItem
+              key={deal._id || deal.id}
+              id={deal._id || deal.id}
+              image={deal.dealImages && deal.dealImages.length > 0 ? deal.dealImages[0] : "/images/fallback-image.jpg"}
+              name={deal.dealName}
+              price={deal.dealTotal || 0}
+              discount={deal.dealFinalPrice || 0}
+              rating={dealRatings[deal._id || deal.id] || 0}
+              dealType={getDealTypeName(deal.dealType)}
+              productsCount={deal.dealProducts ? deal.dealProducts.length : 0}
+              endDate={deal.dealEndDate}
+              onDealClick={handleDealClick}
+              currency={currency}
+            />
+          ))}
         </div>
       )}
     </div>

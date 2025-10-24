@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import productModel from '../models/productModel.js';
+import { notifyNewProduct } from '../controllers/newsletterController.js'; // ADDED IMPORT
 
 // Configure Cloudinary
 cloudinary.config({
@@ -42,6 +43,17 @@ const addProduct = async (req, res) => {
     const product = new productModel(productData);
     await product.save();
 
+    // ✅ ADDED: Send newsletter notification if product is published
+    if (status === 'published') {
+      try {
+        await notifyNewProduct(product);
+        console.log('📢 New product notification sent to subscribers');
+      } catch (notificationError) {
+        console.error('❌ Failed to send product notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
+
     res.json({ success: true, message: 'Product added successfully', product });
   } catch (error) {
     console.error("Add Product Error:", error);
@@ -52,14 +64,43 @@ const addProduct = async (req, res) => {
 // ------------------- LIST PRODUCTS -------------------
 const listProducts = async (req, res) => {
   try {
-    const products = await productModel.find({});
-    res.json({ success: true, products });
+    const { status = 'published' } = req.query;
+    
+    // Build query - default to only published products for public access
+    let query = {};
+    
+    // If no specific status requested, default to published
+    if (!req.query.status) {
+      query.status = 'published';
+    } else if (status !== 'all') {
+      // If specific status requested (and it's not 'all'), use that status
+      query.status = status;
+    }
+    // If status is 'all', no status filter will be applied
+    
+    const products = await productModel.find(query);
+    
+    console.log('📦 Products found:', products.length);
+    console.log('🔍 Query used:', query);
+    console.log('📊 Status breakdown:', {
+      published: products.filter(p => p.status === 'published').length,
+      draft: products.filter(p => p.status === 'draft').length,
+      archived: products.filter(p => p.status === 'archived').length
+    });
+    
+    res.json({ 
+      success: true, 
+      products,
+      count: products.length 
+    });
   } catch (error) {
     console.error("List Products Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 };
-
 // ------------------- REMOVE PRODUCT -------------------
 const removeProduct = async (req, res) => {
   try {
@@ -87,7 +128,6 @@ const singleProduct = async (req, res) => {
 // ------------------- UPDATE PRODUCT -------------------
 const updateProduct = async (req, res) => {
   try {
-
     const fields = ['id', 'name', 'description', 'cost', 'price', 'discountprice', 'quantity', 'category', 'subcategory', 'bestseller', 'status', 'removedImages'];
     fields.forEach(field => {
       console.log(`${field}:`, req.body[field]);
@@ -108,7 +148,6 @@ const updateProduct = async (req, res) => {
       removedImages
     } = req.body;
 
- 
     if (!id) {
       console.log("ERROR: No product ID provided");
       return res.status(400).json({ success: false, message: "Product ID is required" });
@@ -170,7 +209,6 @@ const updateProduct = async (req, res) => {
 
     // Handle new image uploads
     if (req.files && Object.keys(req.files).length > 0) {
-    
       const newImages = [];
       let index = 1;
       while (req.files[`image${index}`]) {
@@ -195,6 +233,16 @@ const updateProduct = async (req, res) => {
       { new: true, runValidators: true }
     );
 
+    // ✅ ADDED: Send newsletter notification if status changed to published
+    if (status === 'published' && existingProduct.status !== 'published') {
+      try {
+        await notifyNewProduct(updatedProduct);
+        console.log('📢 New product notification sent to subscribers');
+      } catch (notificationError) {
+        console.error('❌ Failed to send product notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
 
     res.json({ 
       success: true, 
@@ -203,7 +251,7 @@ const updateProduct = async (req, res) => {
     });
 
   } catch (error) {
-  
+    console.error("Update Product Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -217,12 +265,25 @@ const updateProductStatus = async (req, res) => {
     const validStatuses = ['draft', 'published', 'archived', 'scheduled'];
     if (!validStatuses.includes(status)) return res.status(400).json({ success: false, message: `Invalid status. Must be: ${validStatuses.join(', ')}` });
 
+    const existingProduct = await productModel.findById(id);
+    if (!existingProduct) return res.status(404).json({ success: false, message: "Product not found" });
+
     const updatedProduct = await productModel.findByIdAndUpdate(id, { status }, { new: true });
-    if (!updatedProduct) return res.status(404).json({ success: false, message: "Product not found" });
+
+    // ✅ ADDED: Send newsletter notification when status changes to published
+    if (status === 'published' && existingProduct.status !== 'published') {
+      try {
+        await notifyNewProduct(updatedProduct);
+        console.log('📢 New product notification sent to subscribers');
+      } catch (notificationError) {
+        console.error('❌ Failed to send product notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
 
     res.json({ success: true, message: "Product status updated successfully", product: updatedProduct });
   } catch (error) {
-  
+    console.error("Update Product Status Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

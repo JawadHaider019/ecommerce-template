@@ -23,25 +23,90 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
   const [newImages, setNewImages] = useState([])
   const [removedImages, setRemovedImages] = useState([])
   
-  // Hardcoded categories and subcategories
-  const categories = ['Soap', 'Shampoo', 'Cream']
-  
-  const subcategoriesMap = {
-    'Soap': ['Neem', 'Rice', 'Charcole'],
-    'Shampoo': ['AntiHairfall', 'Silk'],
-    'Cream': ['Night', 'Mens', 'Beauty']
-  }
-
+  // Fetch categories and subcategories from backend
+  const [categories, setCategories] = useState([])
   const [subcategories, setSubcategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+
+  // Fetch categories from backend
+  useEffect(() => {
+ // Fix the fetchCategories function
+const fetchCategories = async () => {
+  try {
+    setCategoriesLoading(true)
+    const response = await axios.get(backendUrl + '/api/categories')
+    
+    console.log('Categories API Response:', response.data) // Debug log
+    
+    if (response.data && Array.isArray(response.data)) {
+      setCategories(response.data)
+      
+      // If product has a category, load its subcategories
+      if (product.category) {
+        console.log('Product category:', product.category) // Debug log
+        
+        // Try to find category by _id first, then by name if needed
+        const selectedCategory = response.data.find(cat => 
+          cat._id === product.category || cat.name === product.category
+        )
+        
+        if (selectedCategory && selectedCategory.subcategories) {
+          console.log('Found subcategories:', selectedCategory.subcategories) // Debug log
+          setSubcategories(selectedCategory.subcategories)
+        }
+      }
+    } else {
+      console.warn('Unexpected categories response format:', response.data)
+      toast.error('Failed to load categories: Invalid response format')
+    }
+  } catch (error) {
+    console.error('Error fetching categories:', error)
+    toast.error('Failed to load categories')
+  } finally {
+    setCategoriesLoading(false)
+  }
+}
+    fetchCategories()
+  }, [product.category])
 
   // Update subcategories when category changes
   useEffect(() => {
-    if (formData.category && subcategoriesMap[formData.category]) {
-      setSubcategories(subcategoriesMap[formData.category])
+    if (formData.category) {
+      const selectedCategory = categories.find(cat => cat._id === formData.category)
+      if (selectedCategory && selectedCategory.subcategories) {
+        setSubcategories(selectedCategory.subcategories)
+        
+        // Reset subcategory if it doesn't belong to the new category
+        if (formData.subcategory) {
+          const subcategoryExists = selectedCategory.subcategories.find(
+            sub => sub._id === formData.subcategory
+          )
+          if (!subcategoryExists) {
+            setFormData(prev => ({ ...prev, subcategory: '' }))
+          }
+        }
+      } else {
+        setSubcategories([])
+        setFormData(prev => ({ ...prev, subcategory: '' }))
+      }
     } else {
       setSubcategories([])
+      setFormData(prev => ({ ...prev, subcategory: '' }))
     }
-  }, [formData.category])
+  }, [formData.category, categories])
+
+  // Helper functions to get names for display
+  const getCategoryName = (categoryId) => {
+    if (!categoryId) return 'Select Category'
+    const category = categories.find(cat => cat._id === categoryId)
+    return category ? category.name : 'Unknown Category'
+  }
+
+  const getSubcategoryName = (subcategoryId) => {
+    if (!subcategoryId) return 'Select Subcategory'
+    const subcategory = subcategories.find(sub => sub._id === subcategoryId)
+    return subcategory ? subcategory.name : 'Unknown Subcategory'
+  }
 
   // Calculate basic pricing metrics
   const calculatePricingSummary = () => {
@@ -192,40 +257,43 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
           </div>
           
           <div className="flex flex-wrap gap-3">
-  {mode === 'edit' && (
-    <div className="flex flex-wrap gap-3">
-      <button
-        onClick={handleSave}
-        disabled={loading}
-        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 font-medium flex items-center"
-      >
-        {loading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-            Saving...
-          </>
-        ) : (
-          'Save Changes'
-        )}
-      </button>
+            {mode === 'edit' && (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 font-medium flex items-center"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
 
-      <button
-        onClick={handleDelete}
-        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
-      >
-        Delete
-      </button>
-    </div>
-  )}
-</div>
-
+                <button
+                  onClick={handleDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Product Details */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6">
             {mode === 'view' ? (
-              <ViewMode product={product} />
+              <ViewMode 
+                product={product} 
+                getCategoryName={getCategoryName}
+                getSubcategoryName={getSubcategoryName}
+              />
             ) : (
               <EditMode 
                 formData={formData}
@@ -233,6 +301,7 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
                 loading={loading}
                 categories={categories}
                 subcategories={subcategories}
+                categoriesLoading={categoriesLoading}
                 // Image management props
                 newImages={newImages}
                 removedImages={removedImages}
@@ -241,6 +310,9 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
                 onRemoveNewImage={removeNewImage}
                 // Pricing summary
                 pricingSummary={calculatePricingSummary()}
+                // Helper functions
+                getCategoryName={getCategoryName}
+                getSubcategoryName={getSubcategoryName}
               />
             )}
           </div>
@@ -250,7 +322,7 @@ const ProductDetails = ({ product, mode, token, onBack, onSave }) => {
   )
 }
 
-const ViewMode = ({ product }) => (
+const ViewMode = ({ product, getCategoryName, getSubcategoryName }) => (
   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
     {/* Images */}
     <div>
@@ -275,8 +347,8 @@ const ViewMode = ({ product }) => (
         <div className="space-y-3 bg-gray-50 rounded-lg p-4">
           <DetailRow label="Name" value={product.name} />
           <DetailRow label="Description" value={product.description} />
-          <DetailRow label="Category" value={product.category} />
-          <DetailRow label="Subcategory" value={product.subcategory || 'N/A'} />
+          <DetailRow label="Category" value={getCategoryName(product.category)} />
+          <DetailRow label="Subcategory" value={getSubcategoryName(product.subcategory) || 'N/A'} />
           <DetailRow label="Cost Price" value={`${currency}${product.cost}`} />
           <DetailRow label="Original Price" value={`${currency}${product.price}`} />
           <DetailRow label="Discount Price" value={`${currency}${product.discountprice}`} />
@@ -296,12 +368,15 @@ const EditMode = ({
   loading,
   categories,
   subcategories,
+  categoriesLoading,
   newImages,
   removedImages,
   onImageUpload,
   onRemoveExistingImage,
   onRemoveNewImage,
-  pricingSummary
+  pricingSummary,
+  getCategoryName,
+  getSubcategoryName
 }) => {
   const {
     discountAmount,
@@ -328,19 +403,25 @@ const EditMode = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={onChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-            >
-              <option value="">Select Category</option>
-              {categories.map((category, index) => (
-                <option key={index} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+            {categoriesLoading ? (
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 animate-pulse">
+                Loading categories...
+              </div>
+            ) : (
+              <select
+                name="category"
+                value={formData.category}
+                onChange={onChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              >
+                <option value="">Select Category</option>
+                {categories.map((category) => (
+                  <option key={category._id} value={category._id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
@@ -349,17 +430,17 @@ const EditMode = ({
               name="subcategory"
               value={formData.subcategory}
               onChange={onChange}
-              disabled={!formData.category}
+              disabled={!formData.category || categoriesLoading}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Select Subcategory</option>
-              {subcategories.map((subcategory, index) => (
-                <option key={index} value={subcategory}>
-                  {subcategory}
+              {subcategories.map((subcategory) => (
+                <option key={subcategory._id} value={subcategory._id}>
+                  {subcategory.name}
                 </option>
               ))}
             </select>
-            {!formData.category && (
+            {!formData.category && !categoriesLoading && (
               <p className="text-sm text-gray-500 mt-1">Please select a category first</p>
             )}
           </div>
@@ -458,6 +539,7 @@ const EditMode = ({
         </div>
       </div>
 
+      {/* Rest of the EditMode component remains the same */}
       {/* Image Management */}
       <div className="border-t pt-6">
         <h3 className="text-lg font-semibold mb-4 text-gray-900">Product Images</h3>
