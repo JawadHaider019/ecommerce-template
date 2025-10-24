@@ -35,11 +35,8 @@ const BestSeller = () => {
         return isBestSeller;
       });
 
-      console.log("Filtered best sellers:", bestProducts.length);
-
       // If no best sellers found, use fallback (highest rated products)
       if (bestProducts.length === 0) {
-        console.log("No best sellers found, using fallback (highest rated products)");
         const fallbackBestSellers = [...products]
           .sort((a, b) => (b.rating || 0) - (a.rating || 0))
           .slice(0, 10);
@@ -49,7 +46,6 @@ const BestSeller = () => {
       return bestProducts.slice(0, 10);
 
     } catch (err) {
-      console.error("Error processing best sellers:", err);
       return [];
     }
   }, [products]);

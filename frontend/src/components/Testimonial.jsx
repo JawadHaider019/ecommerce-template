@@ -26,7 +26,6 @@ const Testimonial = () => {
             const approvedTestimonials = data.filter(testimonial => testimonial.status === 'approved');
             setTestimonials(approvedTestimonials);
         } catch (error) {
-            console.error('Error fetching testimonials:', error);
             setError('Failed to load testimonials');
         } finally {
             setLoading(false);

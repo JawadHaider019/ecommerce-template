@@ -171,26 +171,6 @@ const LatestCollection = () => {
       ) : showSlider ? (
         // Show slider when we have 4 or more products
         <div className="relative px-4">
-          {/* Add custom CSS to ensure proper arrow styling */}
-          <style jsx>{`
-            .slick-prev, .slick-next {
-              width: 40px;
-              height: 40px;
-            }
-            .slick-prev:before, .slick-next:before {
-              content: none !important;
-            }
-            .custom-arrow {
-              z-index: 10;
-            }
-            .slick-slide {
-              padding: 0 8px;
-            }
-            .slick-list {
-              margin: 0 -8px;
-            }
-          `}</style>
-          
           <Slider {...sliderSettings}>
             {latestProducts.map((item) => (
               <div key={item._id} className="px-2">

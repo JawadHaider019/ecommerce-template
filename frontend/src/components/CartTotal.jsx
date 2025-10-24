@@ -11,11 +11,12 @@ const CartTotal = () => {
         getAmountForFreeDelivery 
     } = useContext(ShopContext)
 
-    const subtotal = getCartAmount()
-    const deliveryCharge = getDeliveryCharge(subtotal)
+    // Safe calculations with fallbacks
+    const subtotal = getCartAmount?.() || 0
+    const deliveryCharge = getDeliveryCharge?.(subtotal) || 0
     const totalAmount = subtotal + deliveryCharge
-    const isFreeDelivery = !isFreeDeliveryAvailable(subtotal)
-    const amountNeeded = getAmountForFreeDelivery(subtotal)
+    const isFreeDelivery = isFreeDeliveryAvailable?.(subtotal) || false
+    const amountNeeded = getAmountForFreeDelivery?.(subtotal) || 0
 
     return (
         <div className="w-full">

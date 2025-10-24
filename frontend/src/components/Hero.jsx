@@ -11,14 +11,14 @@ const Hero = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_BASE_URL = 'http://localhost:4000/api';
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   // Fetch banners from backend
   useEffect(() => {
     const fetchBanners = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/banners/active`);
+        const response = await axios.get(`${backendUrl}/api/banners/active`);
         
         if (response.data.success) {
           setBanners(response.data.data);
@@ -27,14 +27,13 @@ const Hero = () => {
         }
       } catch (err) {
         setError('Error loading banners. Please try again later.');
-        console.error('Error fetching banners:', err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchBanners();
-  }, []);
+  }, [backendUrl]);
 
   // Custom Arrow Components
   const NextArrow = ({ onClick }) => (

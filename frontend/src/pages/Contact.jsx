@@ -61,30 +61,14 @@ const Contact = () => {
   useEffect(() => {
     const fetchBusinessDetails = async () => {
       try {
-        console.log('🔄 Fetching business details for contact page...');
         const response = await axios.get(`${backendUrl}/api/business-details`);
-
-        console.log('📦 Full API response:', response.data);
 
         if (response.data.success && response.data.data) {
           const data = response.data.data;
-          console.log('✅ Business details loaded:', {
-            email: data.contact?.customerSupport?.email,
-            phone: data.contact?.customerSupport?.phone,
-            mapLink: data.location?.googleMapsLink,
-            address: data.location?.displayAddress,
-            stores: data.multiStore?.stores?.length || 0
-          });
-
-          // Process map links to ensure they're embed URLs
           const processedData = processMapLinks(data);
           setBusinessInfo(processedData);
-        } else {
-          console.warn('⚠️ No data in response, using defaults');
         }
       } catch (error) {
-        console.error('❌ Error fetching business details for contact page:', error);
-        console.log('📞 Using default contact information');
         toast.error("Failed to load business information");
       } finally {
         setLoading(false);
@@ -94,7 +78,6 @@ const Contact = () => {
     if (backendUrl) {
       fetchBusinessDetails();
     } else {
-      console.warn('🚫 No backend URL configured');
       setLoading(false);
     }
   }, []);
@@ -105,11 +88,9 @@ const Contact = () => {
     
     // Process main location map link
     if (processedData.location?.googleMapsLink) {
-      // If it's already an embed URL, use it directly
       if (processedData.location.googleMapsLink.includes('/embed?')) {
         processedData.location.googleMapsEmbed = processedData.location.googleMapsLink;
       } else {
-        // Convert regular URL to embed URL
         processedData.location.googleMapsEmbed = convertToEmbedUrl(
           processedData.location.googleMapsLink,
           processedData.location.displayAddress
@@ -121,18 +102,15 @@ const Contact = () => {
     if (processedData.multiStore?.stores) {
       for (let store of processedData.multiStore.stores) {
         if (store.location?.googleMapsLink) {
-          // If it's already an embed URL, use it directly
           if (store.location.googleMapsLink.includes('/embed?')) {
             store.location.googleMapsEmbed = store.location.googleMapsLink;
           } else {
-            // Convert regular URL to embed URL
             store.location.googleMapsEmbed = convertToEmbedUrl(
               store.location.googleMapsLink,
               store.location.displayName
             );
           }
         } else if (store.location) {
-          // Generate embed URL from address
           store.location.googleMapsEmbed = generateEmbedUrlFromAddress(store.location);
         }
       }
@@ -146,12 +124,10 @@ const Contact = () => {
     if (!url) return generateDefaultEmbedUrl();
     
     try {
-      // If it's already an embed URL, return as is
       if (url.includes('/embed?')) {
         return url;
       }
       
-      // For regular Google Maps URLs, extract place information
       if (url.includes('google.com/maps') || url.includes('maps.app.goo.gl')) {
         const urlObj = new URL(url);
         const placeId = urlObj.searchParams.get('place_id');
@@ -165,10 +141,9 @@ const Contact = () => {
       }
       
     } catch (error) {
-      console.warn('Error converting map URL:', error);
+      // Silent error handling
     }
     
-    // Fallback to default embed
     return generateDefaultEmbedUrl();
   };
 
@@ -206,11 +181,8 @@ const Contact = () => {
     const baseUrl = store.location?.googleMapsEmbed || '';
     const currentZoom = mapZoom[storeId] || 17;
     
-    // Update zoom parameter while preserving other parameters
     if (baseUrl.includes('?')) {
-      // Remove existing zoom parameter
       let cleanUrl = baseUrl.replace(/[?&]z=\d+/g, '');
-      // Add current zoom
       const separator = cleanUrl.includes('?') ? '&' : '?';
       return `${cleanUrl}${separator}z=${currentZoom}`;
     }
@@ -247,13 +219,10 @@ const Contact = () => {
     setSubmitting(true);
 
     try {
-      console.log('📨 Submitting contact form:', formData);
-
       const response = await axios.post(`${backendUrl}/api/contact`, formData);
 
       if (response.data.success) {
         toast.success("Message sent successfully! We'll get back to you soon.");
-        // Reset form
         setFormData({
           name: '',
           email: '',
@@ -265,7 +234,6 @@ const Contact = () => {
         toast.error(response.data.message || "Failed to send message");
       }
     } catch (error) {
-      console.error('❌ Error submitting contact form:', error);
       toast.error(error.response?.data?.message || "Failed to send message. Please try again.");
     } finally {
       setSubmitting(false);
@@ -280,13 +248,11 @@ const Contact = () => {
     const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
     const todayHours = operatingHours[today];
 
-    // Count how many days the store is open
     const openDays = days.filter(day => {
       const dayHours = operatingHours[day];
       return dayHours && !dayHours.closed && dayHours.open && dayHours.close;
     });
 
-    // If store is open only one day
     if (openDays.length === 1) {
       const singleDay = openDays[0];
       const dayHours = operatingHours[singleDay];
@@ -294,7 +260,6 @@ const Contact = () => {
       return `Open on ${dayName} only: ${dayHours.open} - ${dayHours.close}`;
     }
 
-    // Regular today's hours display
     if (todayHours?.closed) {
       return "Closed today";
     }
@@ -320,20 +285,17 @@ const Contact = () => {
       { key: 'sunday', name: 'Sunday' }
     ];
 
-    // Count open days and get open days details
     const openDays = days.filter(day => {
       const dayHours = operatingHours[day.key];
       return dayHours && !dayHours.closed && dayHours.open && dayHours.close;
     });
 
-    // If only one day open
     if (openDays.length === 1) {
       const singleDay = openDays[0];
       const dayHours = operatingHours[singleDay.key];
       return `Open on ${singleDay.name} only: ${dayHours.open} - ${dayHours.close}`;
     }
 
-    // If multiple days open, show today's status
     const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
     const todayHours = operatingHours[today.key];
 
@@ -375,11 +337,6 @@ const Contact = () => {
       baseUrl: 'https://wa.me/'
     }
   ];
-
-  // Debug: Check what data we have
-  console.log('🔍 Current businessInfo:', businessInfo);
-  console.log('📞 Phone:', businessInfo.contact?.customerSupport?.phone);
-  console.log('📧 Email:', businessInfo.contact?.customerSupport?.email);
 
   // Get stores from business info or use default locations
   const stores = businessInfo.multiStore?.stores && businessInfo.multiStore.stores.length > 0
@@ -689,7 +646,6 @@ const Contact = () => {
                           <span className="text-gray-600 font-medium">
                             {getOperatingHoursSummary(store.operatingHours)}
                           </span>
-                          {/* Show additional info for single day stores */}
                           {(() => {
                             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
                             const openDays = days.filter(day => {
@@ -733,8 +689,6 @@ const Contact = () => {
                   {store.location?.googleMapsEmbed && (
                     <div className="mt-4">
                       <div className="border border-gray-200 rounded-lg overflow-hidden group/map">
-                     
-                       {/* Map Iframe */}
                         <div className="relative">
                           <iframe
                             title={`Location - ${store.storeName}`}
@@ -746,11 +700,10 @@ const Contact = () => {
                             loading="lazy"
                             referrerPolicy="no-referrer-when-downgrade"
                             className="transition-opacity group-hover/map:opacity-90"
-                            key={mapUrl} // Force re-render when URL changes
+                            key={mapUrl}
                           />
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover/map:bg-opacity-10 transition-all duration-300 pointer-events-none"></div>
                         </div>
-
                       </div>
                     </div>
                   )}

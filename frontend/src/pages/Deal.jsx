@@ -53,24 +53,12 @@ const Deal = () => {
     return `${visiblePart}***`;
   };
 
-  // Debug user authentication state
-  useEffect(() => {
-    console.log('🔐 Authentication Debug:');
-    console.log('User object:', user);
-    console.log('Token exists:', !!token);
-    console.log('LocalStorage token:', localStorage.getItem('token'));
-    console.log('User is logged in:', !!(user && user._id));
-  }, [user, token]);
-
   // Fetch deal data and reviews
   useEffect(() => {
     const fetchDeal = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        console.log('🔄 Fetching deal with ID:', dealId);
-        console.log('🔗 Backend URL:', backendUrl);
 
         const response = await fetch(`${backendUrl}/api/deal/single`, {
           method: 'POST',
@@ -80,23 +68,17 @@ const Deal = () => {
           body: JSON.stringify({ dealId }),
         });
 
-        console.log('📡 Response status:', response.status);
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('✅ Deal API response:', data);
 
         if (data.success && data.deal) {
           setDealData(data.deal);
           if (data.deal.dealImages && data.deal.dealImages.length > 0) {
             setImage(data.deal.dealImages[0]);
           }
-          console.log('🎯 Deal data set:', data.deal);
-          console.log('🔍 Deal type:', data.deal.dealType);
-          console.log('🔍 Deal type structure:', typeof data.deal.dealType, data.deal.dealType);
           
           // Fetch deal reviews
           fetchDealReviews(dealId);
@@ -104,7 +86,6 @@ const Deal = () => {
           throw new Error(data.message || 'Deal not found');
         }
       } catch (error) {
-        console.error('❌ Error fetching deal:', error);
         setError(error.message || 'Failed to load deal');
       } finally {
         setLoading(false);
@@ -123,13 +104,10 @@ const Deal = () => {
   const fetchDealReviews = async (dealId) => {
     setLoadingReviews(true);
     try {
-      console.log('Fetching reviews for deal ID:', dealId);
       const response = await fetch(`${backendUrl}/api/comments?dealId=${dealId}`);
-      console.log('Response status:', response.status);
       
       if (response.ok) {
         const comments = await response.json();
-        console.log('Raw comments from API:', comments);
         
         // Transform backend comments to frontend review format with replies
         const dealReviews = comments.map(comment => ({
@@ -138,7 +116,7 @@ const Deal = () => {
           comment: comment.content,
           images: comment.reviewImages?.map(img => img.url) || [],
           date: new Date(comment.date).toLocaleDateString(),
-          author:comment.email,
+          author: comment.email,
           likes: comment.likes || 0,
           dislikes: comment.dislikes || 0,
           likedBy: comment.likedBy?.map(user => user._id || user) || [],
@@ -153,14 +131,10 @@ const Deal = () => {
           } : null
         }));
         
-        console.log('Transformed reviews with replies:', dealReviews);
         setReviews(dealReviews);
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to fetch reviews:', errorText);
       }
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      // Silent error handling
     } finally {
       setLoadingReviews(false);
     }
@@ -216,15 +190,7 @@ const Deal = () => {
 
   // Handle review submission to backend
   const handleSubmitReview = async () => {
-    console.log('📝 Submit review clicked - Debug Info:');
-    console.log('User:', user);
-    console.log('User ID:', user?._id);
-    console.log('Token:', token);
-    console.log('Rating:', rating);
-    console.log('Comment:', comment);
-
     if (!user || !user._id) {
-      console.log('❌ No valid user found');
       toast.error('Please login to submit a review');
       return;
     }
@@ -249,15 +215,7 @@ const Deal = () => {
         formData.append('reviewImages', imageData.file);
       });
 
-      console.log('📤 Submitting review with data:', {
-        dealId,
-        userId: user._id,
-        rating,
-        comment
-      });
-
       const currentToken = token || localStorage.getItem('token');
-      console.log('Using token:', currentToken);
 
       const response = await fetch(`${backendUrl}/api/comments`, {
         method: 'POST',
@@ -267,11 +225,8 @@ const Deal = () => {
         }
       });
 
-      console.log('📨 Response status:', response.status);
-
       if (response.ok) {
         const newComment = await response.json();
-        console.log('✅ Review submitted successfully:', newComment);
         
         // Transform backend response to frontend format
         const newReview = {
@@ -280,7 +235,7 @@ const Deal = () => {
           comment: newComment.content,
           images: newComment.reviewImages?.map(img => img.url) || [],
           date: new Date(newComment.date).toLocaleDateString(),
-         author: comment.email,
+          author: comment.email,
           likes: newComment.likes || 0,
           dislikes: newComment.dislikes || 0,
           likedBy: newComment.likedBy?.map(user => user._id || user) || [],
@@ -289,7 +244,7 @@ const Deal = () => {
           reply: newComment.reply ? {
             id: newComment.reply._id || 'reply-' + newComment._id,
             content: newComment.reply.content,
-                       author: comment.reply.author || 'Admin',
+            author: comment.reply.author || 'Admin',
             isAdmin: true,
             date: new Date(newComment.reply.date).toLocaleDateString()
           } : null
@@ -306,11 +261,9 @@ const Deal = () => {
         fetchDealReviews(dealId);
       } else {
         const error = await response.json();
-        console.error('❌ Failed to submit review:', error);
         toast.error('Failed to submit review');
       }
     } catch (error) {
-      console.error('❌ Error submitting review:', error);
       toast.error('Error submitting review');
     } finally {
       setUploading(false);
@@ -406,12 +359,9 @@ const Deal = () => {
           })
         );
       } else {
-        const error = await response.json();
-        console.error('Failed to update like:', error);
         toast.error('Failed to update like');
       }
     } catch (error) {
-      console.error('Error updating like:', error);
       toast.error('Error updating like');
     }
   };
@@ -495,12 +445,9 @@ const Deal = () => {
           })
         );
       } else {
-        const error = await response.json();
-        console.error('Failed to update dislike:', error);
         toast.error('Failed to update dislike');
       }
     } catch (error) {
-      console.error('Error updating dislike:', error);
       toast.error('Error updating dislike');
     }
   };
@@ -583,15 +530,11 @@ const Deal = () => {
       return;
     }
     
-    console.log('🛒 Adding deal to cart:', dealId);
-    
     // Use the specific deal function
     if (addDealToCart) {
       addDealToCart(dealId, quantity);
-      toast.success(`Added ${dealData.dealName} to cart!`);
       setQuantity(1);
     } else {
-      console.error('addDealToCart function not available in ShopContext');
       toast.error('Unable to add deal to cart');
     }
   };
@@ -612,65 +555,57 @@ const Deal = () => {
     return stars;
   };
 
-// FIXED: Improved deal type badge function to handle different data structures
-const getDealTypeBadge = (dealType) => {
-  console.log('🔍 Processing deal type:', dealType);
-  console.log('🔍 Type of dealType:', typeof dealType);
-  
-  // Handle different data structures from backend
-  let dealTypeSlug = '';
-  let dealTypeName = '';
-  
-  if (!dealType) {
-    console.log('🔍 No deal type provided');
-    return { label: 'DEAL', color: 'bg-gray-500 text-white' };
-  }
-  
-  if (typeof dealType === 'string') {
-    dealTypeSlug = dealType.toLowerCase();
-    dealTypeName = dealType;
-  } else if (typeof dealType === 'object' && dealType !== null) {
-    // Handle populated object structure from backend
-    if (dealType.slug) {
-      dealTypeSlug = dealType.slug.toLowerCase();
-      dealTypeName = dealType.name || dealType.slug;
-    } else if (dealType.name) {
-      dealTypeSlug = dealType.name.toLowerCase().replace(/\s+/g, '_');
-      dealTypeName = dealType.name;
-    } else if (dealType._id) {
-      // If it's just an ObjectId reference without population
-      console.log('🔍 Deal type is ObjectId reference, needs population');
+  // FIXED: Improved deal type badge function to handle different data structures
+  const getDealTypeBadge = (dealType) => {
+    // Handle different data structures from backend
+    let dealTypeSlug = '';
+    let dealTypeName = '';
+    
+    if (!dealType) {
       return { label: 'DEAL', color: 'bg-gray-500 text-white' };
     }
-  }
-  
-  console.log('🔍 Extracted deal type slug:', dealTypeSlug);
-  console.log('🔍 Extracted deal type name:', dealTypeName);
+    
+    if (typeof dealType === 'string') {
+      dealTypeSlug = dealType.toLowerCase();
+      dealTypeName = dealType;
+    } else if (typeof dealType === 'object' && dealType !== null) {
+      // Handle populated object structure from backend
+      if (dealType.slug) {
+        dealTypeSlug = dealType.slug.toLowerCase();
+        dealTypeName = dealType.name || dealType.slug;
+      } else if (dealType.name) {
+        dealTypeSlug = dealType.name.toLowerCase().replace(/\s+/g, '_');
+        dealTypeName = dealType.name;
+      } else if (dealType._id) {
+        // If it's just an ObjectId reference without population
+        return { label: 'DEAL', color: 'bg-gray-500 text-white' };
+      }
+    }
 
-  const typeMap = {
-    'flash_sale': { label: 'FLASH SALE', color: 'bg-red-500 text-white' },
-    'flash': { label: 'FLASH SALE', color: 'bg-red-500 text-white' },
-    'seasonal': { label: 'SEASONAL', color: 'bg-green-500 text-white' },
-    'clearance': { label: 'CLEARANCE', color: 'bg-orange-500 text-white' },
-    'bundle': { label: 'BUNDLE', color: 'bg-purple-500 text-white' },
-    'featured': { label: 'FEATURED', color: 'bg-blue-500 text-white' },
-    'buyonegetone': { label: 'BOGO', color: 'bg-pink-500 text-white' },
-    'bogo': { label: 'BOGO', color: 'bg-pink-500 text-white' },
-    'daily_deal': { label: 'DAILY DEAL', color: 'bg-indigo-500 text-white' },
-    'daily': { label: 'DAILY DEAL', color: 'bg-indigo-500 text-white' },
-    'weekly_special': { label: 'WEEKLY SPECIAL', color: 'bg-teal-500 text-white' },
-    'weekly': { label: 'WEEKLY SPECIAL', color: 'bg-teal-500 text-white' },
-    'special': { label: 'SPECIAL OFFER', color: 'bg-teal-500 text-white' }
+    const typeMap = {
+      'flash_sale': { label: 'FLASH SALE', color: 'bg-red-500 text-white' },
+      'flash': { label: 'FLASH SALE', color: 'bg-red-500 text-white' },
+      'seasonal': { label: 'SEASONAL', color: 'bg-green-500 text-white' },
+      'clearance': { label: 'CLEARANCE', color: 'bg-orange-500 text-white' },
+      'bundle': { label: 'BUNDLE', color: 'bg-purple-500 text-white' },
+      'featured': { label: 'FEATURED', color: 'bg-blue-500 text-white' },
+      'buyonegetone': { label: 'BOGO', color: 'bg-pink-500 text-white' },
+      'bogo': { label: 'BOGO', color: 'bg-pink-500 text-white' },
+      'daily_deal': { label: 'DAILY DEAL', color: 'bg-indigo-500 text-white' },
+      'daily': { label: 'DAILY DEAL', color: 'bg-indigo-500 text-white' },
+      'weekly_special': { label: 'WEEKLY SPECIAL', color: 'bg-teal-500 text-white' },
+      'weekly': { label: 'WEEKLY SPECIAL', color: 'bg-teal-500 text-white' },
+      'special': { label: 'SPECIAL OFFER', color: 'bg-teal-500 text-white' }
+    };
+    
+    const badge = typeMap[dealTypeSlug] || { 
+      label: dealTypeName ? dealTypeName.toUpperCase() : 'DEAL', 
+      color: 'bg-gray-500 text-white' 
+    };
+    
+    return badge;
   };
-  
-  const badge = typeMap[dealTypeSlug] || { 
-    label: dealTypeName ? dealTypeName.toUpperCase() : 'DEAL', 
-    color: 'bg-gray-500 text-white' 
-  };
-  
-  console.log('🔍 Final badge:', badge);
-  return badge;
-};
+
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
@@ -761,7 +696,6 @@ const getDealTypeBadge = (dealType) => {
   }
 
   const dealType = getDealTypeBadge(dealData.dealType);
-  console.log('🎯 Final deal type badge:', dealType);
 
   return (
     <div className="border-t-2 pt-10">
@@ -889,7 +823,6 @@ const getDealTypeBadge = (dealType) => {
         </div>
       </div>
 
-      {/* Rest of the component remains the same... */}
       {/* Customer Reviews Section */}
       <div className="mt-20">
         <h2 className="text-2xl font-medium">Customer Reviews</h2>

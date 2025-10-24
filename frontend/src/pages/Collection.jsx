@@ -33,7 +33,6 @@ const Collection = () => {
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
           const text = await response.text();
-          console.error("Expected JSON but got:", text);
           throw new Error("Invalid JSON response from server");
         }
 
@@ -62,7 +61,6 @@ const Collection = () => {
         setSubcategoriesMap(subMap);
         
       } catch (error) {
-        console.error("Error fetching categories:", error);
         const fallbackCategories = extractCategoriesFromProducts(products);
         setBackendCategories(fallbackCategories);
       } finally {
@@ -147,11 +145,6 @@ const Collection = () => {
   };
 
   const applyFilter = () => {
-    console.log("🔄 Applying filters...");
-    console.log("Selected Categories:", selectedCategories);
-    console.log("Selected Subcategories:", selectedSubCategories);
-    console.log("Total Products:", products.length);
-
     let productsCopy = [...products];
 
     // Search filter
@@ -159,7 +152,6 @@ const Collection = () => {
       productsCopy = productsCopy.filter(item =>
         item.name.toLowerCase().includes(search.toLowerCase())
       );
-      console.log("After search filter:", productsCopy.length);
     }
 
     // Category filter
@@ -169,12 +161,8 @@ const Collection = () => {
       productsCopy = productsCopy.filter(item => {
         const itemCategoryNormalized = normalizeCategory(item.category);
         const isMatch = normalizedSelectedCategories.includes(itemCategoryNormalized);
-        if (!isMatch) {
-          console.log("Category filter - Excluding:", item.name, "Category:", item.category, "Normalized:", itemCategoryNormalized);
-        }
         return isMatch;
       });
-      console.log("After category filter:", productsCopy.length);
     }
 
     // Sub-category filter
@@ -184,15 +172,10 @@ const Collection = () => {
       productsCopy = productsCopy.filter(item => {
         const itemSubcategoryNormalized = normalizeSubcategory(item.subcategory);
         const isMatch = normalizedSelectedSubCategories.includes(itemSubcategoryNormalized);
-        if (!isMatch) {
-          console.log("Subcategory filter - Excluding:", item.name, "Subcategory:", item.subcategory, "Normalized:", itemSubcategoryNormalized);
-        }
         return isMatch;
       });
-      console.log("After subcategory filter:", productsCopy.length);
     }
 
-    console.log("Final filtered products:", productsCopy.length);
     setFilterProducts(productsCopy);
   };
 
@@ -289,20 +272,17 @@ const Collection = () => {
   // Initialize with all products
   useEffect(() => {
     if (products.length > 0) {
-      console.log("📦 Initializing with products:", products.length);
       setFilterProducts(products);
     }
   }, [products]);
 
   // Apply filters when dependencies change
   useEffect(() => {
-    console.log("🔄 Filter effect triggered");
     applyFilter();
   }, [selectedCategories, selectedSubCategories, search, showSearch, products]);
 
   // Apply sorting when sort type changes
   useEffect(() => {
-    console.log("🔄 Sort effect triggered");
     if (filterProducts.length > 0) {
       sortProduct();
     }

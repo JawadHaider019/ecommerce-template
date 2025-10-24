@@ -1,12 +1,12 @@
 import { useParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import Title from "../components/Title";
+
 import { 
   FaCalendarAlt, 
   FaUser, 
   FaClock, 
   FaShare, 
-  FaBookmark, 
+ 
   FaArrowLeft, 
   FaSpinner,
   FaEye,
@@ -28,11 +28,13 @@ const BlogPost = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
   useEffect(() => {
     const fetchBlogPost = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:4000/api/blogs/${id}`);
+        const response = await fetch(`${backendUrl}/api/blogs/${id}`);
         
         if (!response.ok) {
           throw new Error('Blog post not found');
@@ -48,7 +50,6 @@ const BlogPost = () => {
           throw new Error(result.message || 'Failed to fetch blog post');
         }
       } catch (err) {
-        console.error('Error fetching blog post:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -59,7 +60,7 @@ const BlogPost = () => {
       try {
         if (!categories || categories.length === 0) return;
         
-        const response = await fetch(`http://localhost:4000/api/blogs?category=${categories[0]}&limit=4`);
+        const response = await fetch(`${backendUrl}/api/blogs?category=${categories[0]}&limit=4`);
         if (response.ok) {
           const result = await response.json();
           if (result.success) {
@@ -69,12 +70,17 @@ const BlogPost = () => {
           }
         }
       } catch (err) {
-        console.error('Error fetching related blogs:', err);
+        // Silent fail for related blogs
       }
     };
 
-    fetchBlogPost();
-  }, [id]);
+    if (backendUrl) {
+      fetchBlogPost();
+    } else {
+      setError('Backend URL not configured');
+      setLoading(false);
+    }
+  }, [id, backendUrl]);
 
   const shareBlog = (platform) => {
     const url = window.location.href;
@@ -501,8 +507,6 @@ const BlogPost = () => {
             </div>
           </section>
         )}
-
-    
       </div>
     </div>
   );

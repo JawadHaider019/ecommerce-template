@@ -51,17 +51,13 @@ const Footer = () => {
     useEffect(() => {
         const fetchBusinessDetails = async () => {
             try {
-                console.log('🔄 Fetching business details for footer...')
                 const response = await axios.get(`${backendUrl}/api/business-details`)
                 
                 if (response.data.success && response.data.data) {
                     setBusinessInfo(response.data.data)
-                    console.log('✅ Business details loaded for footer')
-                } else {
-                    console.log('ℹ️ Using default business details in footer')
                 }
             } catch (error) {
-                console.error('❌ Error fetching business details for footer:', error)
+                // Error handling without console output
             } finally {
                 setLoading(false)
             }
@@ -119,7 +115,6 @@ const Footer = () => {
                     alt={`${businessInfo.company?.name || 'Natura Bliss'} Logo`} 
                     className="w-32 mb-4 object-contain"
                     onError={(e) => {
-                        console.error('❌ Footer logo failed to load, using asset logo')
                         e.target.src = assets.logo
                     }}
                 />

@@ -22,27 +22,13 @@ import {
 // FIXED: Properly handle order data structure for deals
 const useItemDisplayData = (item, backendUrl) => {
   return useMemo(() => {
-    console.log("🛒 ORDER ITEM DATA:", {
-      id: item.id,
-      name: item.name,
-      isFromDeal: item.isFromDeal,
-      dealName: item.dealName,
-      dealImage: item.dealImage,
-      dealDescription: item.dealDescription,
-      price: item.price,
-      quantity: item.quantity
-    });
-
     // If it's from a deal, use deal information
     if (item.isFromDeal === true) {
-      console.log("🎯 PROCESSING DEAL ITEM");
-      
       let imageUrl = assets.placeholder_image;
       
       // Use deal image first
       if (item.dealImage) {
         imageUrl = item.dealImage;
-        console.log("🖼️ Using deal image:", imageUrl);
       } else if (item.image) {
         // Fallback to regular image
         if (Array.isArray(item.image) && item.image.length > 0) {
@@ -54,7 +40,6 @@ const useItemDisplayData = (item, backendUrl) => {
 
       // Use the actual price from database (not 0)
       const itemPrice = item.price || 0;
-      console.log("💰 Deal price:", itemPrice);
 
       return {
         name: item.dealName || item.name,
@@ -67,8 +52,6 @@ const useItemDisplayData = (item, backendUrl) => {
       };
     } else {
       // Regular product
-      console.log("📦 PROCESSING REGULAR PRODUCT");
-      
       let imageUrl = assets.placeholder_image;
       
       if (item.image) {
@@ -419,7 +402,6 @@ const Orders = () => {
         setCancellationReasons(response.data.cancellationReasons);
       }
     } catch (error) {
-      console.error("Failed to load cancellation reasons:", error);
       setCancellationReasons([
         "Changed my mind",
         "Found better price elsewhere",
@@ -454,7 +436,6 @@ const Orders = () => {
         setOrders(activeOrders);
       }
     } catch (error) {
-      console.log(error);
       toast.error("Failed to load orders");
     }
   }, [backendUrl, token]);
@@ -524,7 +505,6 @@ const Orders = () => {
         toast.error(response.data.message);
       }
     } catch (error) {
-      console.error("Error cancelling order:", error);
       toast.error(error.response?.data?.message || "Failed to cancel order");
     } finally {
       setCancellingOrder(null);

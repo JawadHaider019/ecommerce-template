@@ -9,7 +9,6 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
 
   // Don't render if product is not published
   if (status !== 'published') {
-    console.log('🚫 Skipping draft product:', name);
     return null;
   }
 
@@ -18,7 +17,6 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ... rest of your existing ProductItem code
   const renderRating = (ratingValue = 0) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {

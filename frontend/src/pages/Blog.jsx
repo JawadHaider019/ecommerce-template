@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import Title from "../components/Title";
-import { FaCalendarAlt, FaArrowRight, FaUser, FaClock, FaVideo, FaTag, FaFire } from "react-icons/fa";
+import { FaCalendarAlt, FaArrowRight, FaUser, FaClock, FaTag, FaFire } from "react-icons/fa";
 import { useState, useEffect } from "react";
 import Loader from "../components/Loader";
 
@@ -9,12 +9,14 @@ const Blog = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
   // Fetch blogs from your backend API
   useEffect(() => {
     const fetchBlogs = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:4000/api/blogs?status=published');
+        const response = await fetch(`${backendUrl}/api/blogs?status=published`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch blogs: ${response.status}`);
@@ -28,15 +30,19 @@ const Blog = () => {
           throw new Error(result.message || 'Failed to fetch blogs');
         }
       } catch (err) {
-        console.error('Error fetching blogs:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchBlogs();
-  }, []);
+    if (backendUrl) {
+      fetchBlogs();
+    } else {
+      setError('Backend URL not configured');
+      setLoading(false);
+    }
+  }, [backendUrl]);
 
   // Show loader while page is loading
   if (loading) {
@@ -61,7 +67,7 @@ const Blog = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
             <div className="bg-red-50 border border-red-200   p-6 max-w-md mx-auto">
-              <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Stories</h3>
+              <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Articles</h3>
               <p className="text-red-600 mb-4">{error}</p>
               <button 
                 onClick={() => window.location.reload()} 
@@ -82,9 +88,9 @@ const Blog = () => {
       <div className="border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-3xl">
-            <Title text1={"LATEST"} text2={"STORIES"} />
+            <Title text1={"SKINCARE"} text2={"JOURNAL"} />
             <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-              Breaking news, trending topics, and in-depth features from our editorial team
+              Expert tips, natural ingredient insights, and holistic beauty wisdom for radiant, healthy skin
             </p>
           </div>
         </div>
@@ -96,11 +102,11 @@ const Blog = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <FaFire className="text-red-500" />
-                Featured Stories
+                <FaFire className="text-black" />
+                Featured Guides
               </h2>
-              <div className="text-sm text-gray-100 bg-black px-3 py-1 rounded-full">
-                Top Picks
+              <div className="text-sm text-gray-100 bg-red-600 px-3 py-1 rounded-full">
+                Must Read
               </div>
             </div>
             
@@ -118,16 +124,13 @@ const Blog = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Main Content - 3 columns */}
           <div className="lg:col-span-3">
-            {/* Latest Stories Section */}
+            {/* Latest Articles Section */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 border-l-4 border-black pl-3">
-                  Latest Stories
+                  Latest Articles
                 </h2>
-                <Link to="/blog/category/all" className="text-black hover:text-blue-800 text-sm font-medium flex items-center gap-1">
-                  View All
-                  <FaArrowRight className="text-xs" />
-                </Link>
+              
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -138,8 +141,8 @@ const Blog = () => {
 
               {latestBlogs.length === 0 && (
                 <div className="text-center py-12 bg-gray-50   border-2 border-dashed border-gray-300">
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">No stories yet</h3>
-                  <p className="text-gray-500">Check back later for new articles.</p>
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">No articles yet</h3>
+                  <p className="text-gray-500">Check back later for new skincare insights.</p>
                 </div>
               )}
             </section>
@@ -147,8 +150,8 @@ const Blog = () => {
             {/* More Featured Stories */}
             {remainingFeatured.length > 0 && (
               <section className="mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-8 border-l-4 border-purple-500 pl-3">
-                  Editor's Picks
+                <h2 className="text-2xl font-bold text-gray-900 mb-8 border-l-4 border-black pl-3">
+                  Expert's Choice
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {remainingFeatured.map(blog => (
@@ -161,11 +164,11 @@ const Blog = () => {
 
           {/* Sidebar - 1 column */}
           <div className="lg:col-span-1">
-            {/* Trending Stories */}
+            {/* Trending Articles */}
             {trendingBlogs.length > 0 && (
-              <div className="bg-gray-50   p-6 mb-8">
+              <div className="bg-black/10   p-6 mb-8">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <FaFire className="text-orange-500" />
+                  <FaFire className="text-green-600" />
                   Trending Now
                 </h3>
                 <div className="space-y-4">
@@ -178,15 +181,14 @@ const Blog = () => {
 
             {/* Categories */}
             <div className="bg-white border border-gray-200   p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Categories</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Skin Concerns</h3>
               <div className="space-y-2">
                 {Array.from(new Set(blogs.flatMap(blog => blog.category || []))).slice(0, 8).map(category => (
                   <div
                     key={category}
-                 
-                    className="flex items-center justify-between py-2 px-3   hover:bg-gray-50 transition-colors group"
+                    className="flex items-center justify-between py-2 px-3   hover:bg-black/10 transition-colors group"
                   >
-                    <span className="text-gray-700 group-hover:text-gray-900">{category}</span>
+                    <span className="text-gray-700 group-hover:text-gray-500">{category}</span>
                     <span className="text-gray-400 text-sm bg-gray-100 px-2 py-1 rounded-full">
                       {blogs.filter(blog => blog.category?.includes(category)).length}
                     </span>
@@ -203,8 +205,6 @@ const Blog = () => {
 
 // Hero Story Component (Large Featured)
 const HeroStory = ({ blog, isMain }) => {
-  const hasVideo = blog.videoUrl || (blog.content && blog.content.includes('![video]('));
-
   if (isMain) {
     return (
       <div className="lg:col-span-2 group">
@@ -218,7 +218,7 @@ const HeroStory = ({ blog, isMain }) => {
               />
             ) : (
               <div className="w-full h-80 bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center">
-                <FaVideo className="text-gray-400 text-4xl" />
+                <FaTag className="text-gray-400 text-4xl" />
               </div>
             )}
             
@@ -226,18 +226,12 @@ const HeroStory = ({ blog, isMain }) => {
             
             <div className="absolute bottom-0 left-0 right-0 p-6">
               <div className="flex items-center gap-3 mb-3">
-                <span className="bg-black text-white px-3 py-1 rounded-full text-sm font-medium">
+                <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-medium">
                   Featured
                 </span>
-                {hasVideo && (
-                  <span className="bg-black text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                    <FaVideo className="text-xs" />
-                    VIDEO
-                  </span>
-                )}
               </div>
               
-              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-gray-200 transition-colors">
+              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-gray-300 transition-colors">
                 {blog.title}
               </h3>
               
@@ -249,7 +243,7 @@ const HeroStory = ({ blog, isMain }) => {
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1">
                     <FaUser className="text-xs" />
-                    {blog.author || 'Staff Writer'}
+                    {blog.author || 'Skincare Expert'}
                   </span>
                   <span className="flex items-center gap-1">
                     <FaCalendarAlt className="text-xs" />
@@ -280,21 +274,18 @@ const HeroStory = ({ blog, isMain }) => {
             />
           ) : (
             <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-              <FaVideo className="text-gray-400 text-xl" />
+              <FaTag className="text-gray-400 text-xl" />
             </div>
           )}
           
           <div className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-black bg-blue-50 px-2 py-1 rounded">
+              <span className="text-xs font-medium text-gray-700 bg-gray-50 px-2 py-1 rounded">
                 FEATURED
               </span>
-              {hasVideo && (
-                <FaVideo className="text-black text-sm" />
-              )}
             </div>
             
-            <h4 className="font-bold text-gray-900 mb-2 group-hover:text-black transition-colors line-clamp-2">
+            <h4 className="font-bold text-gray-900 mb-2 group-hover:text-gray-500 transition-colors line-clamp-2">
               {blog.title}
             </h4>
             
@@ -311,8 +302,6 @@ const HeroStory = ({ blog, isMain }) => {
 
 // News Card Component
 const NewsCard = ({ blog, featured = false }) => {
-  const hasVideo = blog.videoUrl || (blog.content && blog.content.includes('![video]('));
-
   if (featured) {
     return (
       <div className="group">
@@ -327,21 +316,13 @@ const NewsCard = ({ blog, featured = false }) => {
                 />
               ) : (
                 <div className="w-full h-48 sm:h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                  <FaVideo className="text-gray-400 text-xl" />
-                </div>
-              )}
-              {hasVideo && (
-                <div className="absolute top-2 left-2">
-                  <span className="bg-black text-white px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
-                    <FaVideo className="text-xs" />
-                    VIDEO
-                  </span>
+                  <FaTag className="text-gray-400 text-xl" />
                 </div>
               )}
             </div>
             
             <div className="sm:w-3/5 p-4">
-              <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-black transition-colors line-clamp-2">
+              <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-gray-500 transition-colors line-clamp-2">
                 {blog.title}
               </h3>
               
@@ -353,7 +334,7 @@ const NewsCard = ({ blog, featured = false }) => {
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1">
                     <FaUser className="text-xs" />
-                    {blog.author || 'Staff Writer'}
+                    {blog.author || 'Skincare Expert'}
                   </span>
                   <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
                 </div>
@@ -380,19 +361,11 @@ const NewsCard = ({ blog, featured = false }) => {
                 alt={blog.title}
                 className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              {hasVideo && (
-                <div className="absolute top-2 left-2">
-                  <span className="bg-black text-white px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
-                    <FaVideo className="text-xs" />
-                    VIDEO
-                  </span>
-                </div>
-              )}
             </div>
           )}
           
           <div className="p-4">
-            <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-black transition-colors line-clamp-2">
+            <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-gray-500 transition-colors line-clamp-2">
               {blog.title}
             </h3>
             
@@ -416,8 +389,6 @@ const NewsCard = ({ blog, featured = false }) => {
 
 // Featured Card Component
 const FeaturedCard = ({ blog }) => {
-  const hasVideo = blog.videoUrl || (blog.content && blog.content.includes('![video]('));
-
   return (
     <div className="group">
       <Link to={`/blog/${blog._id}`} className="block">
@@ -429,22 +400,19 @@ const FeaturedCard = ({ blog }) => {
               className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className="w-full h-40 bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center">
-              <FaVideo className="text-purple-400 text-xl" />
+            <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+              <FaTag className="text-gray-400 text-xl" />
             </div>
           )}
           
           <div className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded">
-                EDITOR'S PICK
+              <span className="text-xs font-medium text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                EXPERT'S PICK
               </span>
-              {hasVideo && (
-                <FaVideo className="text-purple-500 text-sm" />
-              )}
             </div>
             
-            <h4 className="font-semibold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-2">
+            <h4 className="font-semibold text-gray-900 mb-2 group-hover:text-gray-300 transition-colors line-clamp-2">
               {blog.title}
             </h4>
             
@@ -462,12 +430,12 @@ const FeaturedCard = ({ blog }) => {
 // Trending Story Component
 const TrendingStory = ({ blog, rank }) => {
   return (
-    <Link to={`/blog/${blog._id}`} className="flex items-start gap-3 group hover:bg-white p-2   transition-colors">
+    <Link to={`/blog/${blog._id}`} className="flex items-start gap-3 group hover:bg-gray-50 p-2   transition-colors">
       <div className="flex-shrink-0 w-6 h-6 bg-gray-200 text-gray-700 rounded-full text-xs font-bold flex items-center justify-center">
         {rank}
       </div>
       <div className="flex-1 min-w-0">
-        <h5 className="font-medium text-gray-900 group-hover:text-black transition-colors line-clamp-2 text-sm">
+        <h5 className="font-medium text-gray-900 group-hover:text-gray-500 transition-colors line-clamp-2 text-sm">
           {blog.title}
         </h5>
         <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">

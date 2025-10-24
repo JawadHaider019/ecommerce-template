@@ -40,22 +40,9 @@ const PlaceOrder = () => {
 
   // Get deal products with proper data
   const getDealProducts = (deal) => {
-    console.log("🔄 Processing deal for products:", {
-      dealName: deal.dealName,
-      dealProducts: deal.dealProducts,
-      products: deal.products,
-      dealImages: deal.dealImages
-    });
-
     if (deal.dealProducts && deal.dealProducts.length > 0) {
       return deal.dealProducts.map(product => {
         const productData = products.find(p => p._id === product._id) || product;
-        console.log("📦 Found deal product:", {
-          name: productData?.name,
-          image: productData?.image,
-          quantity: product.quantity,
-          foundInProducts: !!products.find(p => p._id === product._id)
-        });
         return {
           ...productData,
           quantity: product.quantity || 1
@@ -64,11 +51,6 @@ const PlaceOrder = () => {
     } else if (deal.products && deal.products.length > 0) {
       return deal.products.map(productId => {
         const product = products.find(p => p._id === productId);
-        console.log("📦 Found product from deal array:", {
-          name: product?.name,
-          image: product?.image,
-          found: !!product
-        });
         return {
           ...product,
           quantity: 1
@@ -76,7 +58,6 @@ const PlaceOrder = () => {
       });
     }
     
-    console.log("❌ No products found in deal");
     return [];
   };
 
@@ -137,14 +118,10 @@ const PlaceOrder = () => {
     setLoading(true);
     
     try {
-      console.log("🛒 ========== STARTING ORDER PLACEMENT ==========");
-      
       // Validate cart items before proceeding
       const { missingProducts, missingDeals } = validateCartItems();
       
       if (missingProducts.length > 0 || missingDeals.length > 0) {
-        console.log("❌ Missing items found:", { missingProducts, missingDeals });
-        
         // Remove missing items from cart
         const updatedCartItems = { ...cartItems };
         const updatedCartDeals = { ...cartDeals };
@@ -168,25 +145,11 @@ const PlaceOrder = () => {
       let orderItems = [];
       let calculatedAmount = 0;
 
-      console.log("📦 Cart Items:", cartItems);
-      console.log("🎯 Cart Deals:", cartDeals);
-
-      // Debug: Check all deals data
-      console.log("🎯 ALL DEALS DATA:", deals?.map(deal => ({
-        id: deal._id,
-        name: deal.dealName,
-        images: deal.dealImages,
-        products: deal.dealProducts || deal.products,
-        hasDealImages: !!deal.dealImages,
-        dealImagesCount: deal.dealImages?.length || 0
-      })));
-
       // Process regular products
       for (const itemId in cartItems) {
         const quantity = cartItems[itemId];
         if (quantity > 0) {
           const productInfo = products?.find(product => product._id === itemId);
-          console.log(`🔍 Looking for product ${itemId}:`, productInfo);
           
           if (productInfo && productInfo.name) {
             const unitPrice = productInfo.discountprice > 0 ? productInfo.discountprice : productInfo.price;
@@ -204,9 +167,6 @@ const PlaceOrder = () => {
             });
             
             calculatedAmount += itemTotal;
-            console.log(`✅ Added product: ${productInfo.name}, Qty: ${quantity}, Unit: ${unitPrice}, Total: ${itemTotal}`);
-          } else {
-            console.log(`❌ Skipping invalid product: ${itemId}`, productInfo);
           }
         }
       }
@@ -216,11 +176,9 @@ const PlaceOrder = () => {
         const dealQuantity = cartDeals[dealId];
         if (dealQuantity > 0) {
           const dealInfo = deals?.find(deal => deal._id === dealId);
-          console.log(`🔍 Looking for deal ${dealId}:`, dealInfo);
           
           if (dealInfo && dealInfo.dealName) {
             const dealProducts = getDealProducts(dealInfo);
-            console.log(`📦 Deal contains ${dealProducts.length} products:`, dealProducts);
             
             // Process each product in the deal
             dealProducts.forEach(dealProduct => {
@@ -247,13 +205,8 @@ const PlaceOrder = () => {
                 });
                 
                 calculatedAmount += itemTotal;
-                console.log(`✅ Added deal product: ${productName}, Qty: ${productQuantity}, Unit: ${unitPrice}, Total: ${itemTotal} (from deal: ${dealInfo.dealName})`);
-              } else {
-                console.log(`❌ Invalid deal product:`, dealProduct);
               }
             });
-          } else {
-            console.log(`❌ Skipping invalid deal: ${dealId}`, dealInfo);
           }
         }
       }
@@ -261,22 +214,6 @@ const PlaceOrder = () => {
       // ✅ Calculate delivery fee
       const deliveryCharge = getDeliveryCharge(calculatedAmount);
       const finalAmount = calculatedAmount + deliveryCharge;
-
-      console.log("💰 FINAL CALCULATION:");
-      console.log("Subtotal (calculated):", calculatedAmount);
-      console.log("Delivery Fee:", deliveryCharge);
-      console.log("Total Amount:", finalAmount);
-      console.log("Number of Order Items:", orderItems.length);
-
-      // ✅ Debug: Check what's being sent to backend
-      console.log("🔍 FINAL ORDER ITEMS DEBUG:", orderItems.map(item => ({
-        name: item.name,
-        isFromDeal: item.isFromDeal,
-        dealName: item.dealName,
-        dealImage: item.dealImage,
-        image: item.image,
-        type: item.isFromDeal ? 'DEAL_ITEM' : 'REGULAR_ITEM'
-      })));
 
       // Validate that we have items and a valid amount
       if (orderItems.length === 0) {
@@ -286,7 +223,6 @@ const PlaceOrder = () => {
       }
 
       if (finalAmount <= 0 || isNaN(finalAmount)) {
-        console.error("❌ Invalid amount calculated:", finalAmount);
         toast.error('Invalid order amount. Please try again.');
         setLoading(false);
         return;
@@ -301,29 +237,12 @@ const PlaceOrder = () => {
         method: 'COD'
       };
 
-      console.log("📤 Sending to backend:", {
-        amount: orderData.amount,
-        deliveryCharges: orderData.deliveryCharges,
-        itemsCount: orderData.items.length,
-        items: orderData.items.map(item => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          isFromDeal: item.isFromDeal || false,
-          dealName: item.dealName || null,
-          dealImage: item.dealImage || null,
-          type: item.isFromDeal ? 'DEAL_ITEM' : 'REGULAR_ITEM'
-        }))
-      });
-
       const response = await axios.post(backendUrl + '/api/order/place', orderData, {
         headers: { 
           token: token,
           'Content-Type': 'application/json'
         }
       });
-      
-      console.log("✅ Backend Response:", response.data);
       
       if (response.data.success) {
         // Clear both cart items and cart deals
@@ -336,11 +255,7 @@ const PlaceOrder = () => {
       }
 
     } catch (error) {
-      console.log('❌ ORDER PLACEMENT ERROR:', error);
       if (error.response) {
-        console.log('Error response data:', error.response.data);
-        console.log('Error response status:', error.response.status);
-        
         // Handle specific backend errors
         if (error.response.data.message?.includes('not found')) {
           toast.error('Some items in your cart are no longer available. Please refresh your cart and try again.');
@@ -352,10 +267,8 @@ const PlaceOrder = () => {
           toast.error(error.response.data.message || 'Failed to place order');
         }
       } else if (error.request) {
-        console.log('No response received:', error.request);
         toast.error('No response from server. Please check your connection.');
       } else {
-        console.log('Error message:', error.message);
         toast.error(error.message || 'Failed to place order');
       }
     } finally {

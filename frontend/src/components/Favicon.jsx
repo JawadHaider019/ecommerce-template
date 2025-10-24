@@ -9,16 +9,15 @@ const Favicon = () => {
   useEffect(() => {
     const fetchFavicon = async () => {
       try {
-        console.log('🔄 Fetching favicon for customer website...');
+     
         const response = await axios.get(`${backendUrl}/api/business-details`);
         
         if (response.data.success && response.data.data?.logos?.favicon?.url) {
           const faviconUrl = response.data.data.logos.favicon.url;
           setFavicon(faviconUrl);
           updateDocumentFavicon(faviconUrl);
-          console.log('✅ Customer website favicon loaded:', faviconUrl);
-        } else {
-          console.log('ℹ️ No custom favicon found for customer website');
+        
+        
         }
       } catch (error) {
         console.error('❌ Error fetching favicon for customer website:', error);
@@ -51,7 +50,7 @@ const Favicon = () => {
         document.head.appendChild(link);
         document.head.appendChild(appleTouchIcon);
         
-        console.log('📄 Customer website favicon updated in document head');
+  
       } catch (error) {
         console.error('❌ Error updating favicon in DOM:', error);
       }

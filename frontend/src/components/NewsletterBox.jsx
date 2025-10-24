@@ -66,7 +66,6 @@ const NewsletterBox = () => {
         });
       }
     } catch (error) {
-      console.error('Newsletter error:', error);
       setMessage({ 
         text: "Failed to process your request. Please check your connection and try again.", 
         type: "error" 
@@ -173,11 +172,7 @@ const NewsletterBox = () => {
               {isUnsubscribing ? "Subscribe instead" : "Unsubscribe here"}
             </button>
           </p>
-          
-        
         </div>
-
-       
       </div>
 
       {/* Add some custom CSS for animations */}

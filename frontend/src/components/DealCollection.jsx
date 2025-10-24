@@ -21,7 +21,6 @@ const DealCollection = () => {
 
   // Helper function to safely get deal type name
   const getDealTypeName = (dealType) => {
-  
     return dealType;
   };
 
@@ -37,7 +36,6 @@ const DealCollection = () => {
         throw new Error(response.data.message || "Failed to fetch deals");
       }
     } catch (error) {
-      console.error('Error fetching deals:', error);
       throw error;
     }
   };
@@ -57,7 +55,6 @@ const DealCollection = () => {
       }
       return 0;
     } catch (error) {
-      console.error('Error fetching ratings for deal:', dealId, error);
       return 0;
     }
   };
@@ -106,7 +103,6 @@ const DealCollection = () => {
         }
 
       } catch (err) {
-        console.error('Error in DealCollection component:', err);
         let errorMessage = "Failed to load deals";
 
         if (err.code === 'ECONNREFUSED') {
@@ -276,7 +272,6 @@ const DealCollection = () => {
       ) : showSlider ? (
         // Show slider when we have 3 or more deals
         <div className="relative px-4">
-          {/* Add custom CSS via global CSS or inline styles */}
           <Slider {...sliderSettings}>
             {processedDeals.map((deal) => (
               <div key={deal._id || deal.id} className="px-2">

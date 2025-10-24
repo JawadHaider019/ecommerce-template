@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import axios from "axios";
 
-
 // Import directly from environment variables
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -22,24 +21,17 @@ const Navbar = () => {
     const fetchWebsiteLogo = async () => {
       try {
         setLoading(true);
-        console.log('🔄 Fetching website logo from:', `${backendUrl}/api/business-details`);
         
         const response = await axios.get(`${backendUrl}/api/business-details`, {
           timeout: 5000 // 5 second timeout
         });
         
-        console.log('📦 API Response:', response.data);
-        
         if (response.data.success && response.data.data?.logos?.website?.url) {
           setWebsiteLogo(response.data.data.logos.website.url);
-          console.log('✅ Website logo loaded:', response.data.data.logos.website.url);
         } else {
-          console.log('ℹ️ No website logo found in response, using asset logo');
           setWebsiteLogo("");
         }
       } catch (error) {
-        console.error('❌ Error fetching website logo:', error);
-        console.log('🔄 Falling back to asset logo');
         setWebsiteLogo("");
       } finally {
         setLoading(false);
@@ -50,7 +42,6 @@ const Navbar = () => {
     if (backendUrl) {
       fetchWebsiteLogo();
     } else {
-      console.log('❌ backendUrl not available, using asset logo');
       setLoading(false);
     }
   }, []);
@@ -63,6 +54,11 @@ const Navbar = () => {
     navigate('/login')
   }
 
+  // Close mobile menu when navigating
+  const handleMobileNavClick = () => {
+    setVisible(false);
+  };
+
   // Simple logo display - always show something
   const LogoDisplay = () => {
     // If we have a website logo and not loading, use it
@@ -73,7 +69,6 @@ const Navbar = () => {
           alt="Website Logo" 
           className='w-28 object-contain'
           onError={(e) => {
-            console.error('❌ Website logo failed to load, showing asset logo');
             // Show asset logo if website logo fails
             e.target.src = assets.logo;
           }}
@@ -160,18 +155,60 @@ const Navbar = () => {
           <img onClick={()=>setVisible(true)} src={assets.menu_icon} className='w-5 cursor-pointer sm:hidden' alt="" />
         </div>
         
-        {/* Mobile menu */}
-        <div className={`absolute inset-y-0 right-0 z-10 overflow-hidden bg-white transition-all ${visible ? "w-full" :"w-0"}`}>
-          <div className='flex flex-col text-gray-600'>
-            <div onClick={()=>setVisible(false)} className='flex items-center gap-4 p-3'>
-              <img className="h-5 rotate-180" src={assets.dropdown_icon} alt="" />
-              <p>Back</p>
+        {/* Mobile menu - Fixed */}
+        <div className={`fixed inset-0 z-50 bg-white transition-transform duration-300 ease-in-out ${visible ? "translate-x-0" : "translate-x-full"}`}>
+          <div className='flex h-full flex-col'>
+            <div onClick={()=>setVisible(false)} className='flex items-center gap-4 border-b p-4 cursor-pointer'>
+              <img className="h-5 rotate-180" src={assets.dropdown_icon} alt="Close menu" />
+              <p>Close</p>
             </div>
-            <NavLink onClick={()=>setVisible(false)} className='border py-2 pl-6' to='/'>Home</NavLink>
-            <NavLink onClick={()=>setVisible(false)} className='border py-2 pl-6' to='/collection'>COLLECTION</NavLink>
-            <NavLink onClick={()=>setVisible(false)} className='border py-2 pl-6' to='/about'>ABOUT</NavLink>
-            <NavLink onClick={()=>setVisible(false)} className='border py-2 pl-6' to='/blog'>BLOG</NavLink>
-            <NavLink onClick={()=>setVisible(false)} className='border py-2 pl-6' to='/contact'>CONTACT</NavLink>
+            <div className="flex-1 overflow-y-auto">
+              <NavLink 
+                to='/' 
+                onClick={handleMobileNavClick}
+                className={({ isActive }) => 
+                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
+                }
+              >
+                HOME
+              </NavLink>
+              <NavLink 
+                to='/collection' 
+                onClick={handleMobileNavClick}
+                className={({ isActive }) => 
+                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
+                }
+              >
+                COLLECTION
+              </NavLink>
+              <NavLink 
+                to='/about' 
+                onClick={handleMobileNavClick}
+                className={({ isActive }) => 
+                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
+                }
+              >
+                ABOUT
+              </NavLink>
+              <NavLink 
+                to='/blog' 
+                onClick={handleMobileNavClick}
+                className={({ isActive }) => 
+                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
+                }
+              >
+                BLOG
+              </NavLink>
+              <NavLink 
+                to='/contact' 
+                onClick={handleMobileNavClick}
+                className={({ isActive }) => 
+                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
+                }
+              >
+                CONTACT
+              </NavLink>
+            </div>
           </div>
         </div>
       </div>

@@ -28,10 +28,8 @@ const Product = () => {
   const maskEmail = (email) => {
     if (!email || typeof email !== 'string') return 'Unknown User';
     
-    // If it's already masked or doesn't look like an email, return as is
     if (email.includes('***@') || !email.includes('@')) return email;
     
-    // Check if it's a valid email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return email;
     
@@ -41,45 +39,29 @@ const Product = () => {
       return `${localPart}***@${domain}`;
     }
     
-    // Keep first character, mask the rest of local part
     const firstChar = localPart[0];
     const maskedLocalPart = firstChar + '***';
     
     return `${maskedLocalPart}@${domain}`;
   };
 
-  // Debug component state
-  useEffect(() => {
-    console.log('🔍 Product Component Debug:');
-    console.log('productId:', productId);
-    console.log('products length:', products?.length);
-    console.log('productData:', productData);
-    console.log('user:', user);
-    console.log('backendUrl:', backendUrl);
-    console.log('stock:', productData?.quantity);
-  }, [productId, products, productData, user, backendUrl]);
-
   // Fetch product data and reviews
   useEffect(() => {
-    console.log('🔄 Fetching product data...');
     setLoading(true);
     setError(null);
     
     if (!productId) {
-      console.error('❌ No productId found in URL parameters');
       setError('Product ID not found');
       setLoading(false);
       return;
     }
 
     if (!products || products.length === 0) {
-      console.log('⏳ Products array is empty or not loaded yet');
       setLoading(false);
       return;
     }
 
     const product = products.find((item) => item._id === productId);
-    console.log('Found product:', product);
 
     if (product) {
       setProductData(product);
@@ -87,7 +69,6 @@ const Product = () => {
       setError(null);
       fetchProductReviews(productId);
     } else {
-      console.error('❌ Product not found with ID:', productId);
       setError('Product not found');
     }
     setLoading(false);
@@ -105,20 +86,15 @@ const Product = () => {
   // Fetch reviews from backend for specific product
   const fetchProductReviews = async (productId) => {
     if (!productId || !backendUrl) {
-      console.error('Missing productId or backendUrl');
       return;
     }
 
     setLoadingReviews(true);
     try {
-      console.log('📡 Fetching reviews for product ID:', productId);
       const response = await fetch(`${backendUrl}/api/comments?productId=${productId}`);
-      
-      console.log('Response status:', response.status);
       
       if (response.ok) {
         const comments = await response.json();
-        console.log('Raw comments from API:', comments);
         
         // Transform backend comments to frontend review format with replies
         const productReviews = comments.map(comment => ({
@@ -142,15 +118,11 @@ const Product = () => {
           } : null
         }));
         
-        console.log('Transformed reviews with replies:', productReviews);
         setReviews(productReviews);
       } else {
-        const errorText = await response.text();
-        console.error('Failed to fetch reviews:', errorText);
         toast.error('Failed to load reviews');
       }
     } catch (error) {
-      console.error('Error fetching reviews:', error);
       toast.error('Error loading reviews');
     } finally {
       setLoadingReviews(false);
@@ -195,12 +167,10 @@ const Product = () => {
   const handleQuantityChange = (e) => {
     let value = Number(e.target.value);
     
-    // Handle invalid inputs
     if (isNaN(value) || value < 1) {
       value = 1;
     }
     
-    // Ensure value doesn't exceed stock
     value = Math.min(value, stock);
     
     setQuantity(value);
@@ -223,7 +193,6 @@ const Product = () => {
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      // Store both file objects and URLs for preview
       const imageData = files.map(file => ({
         file,
         url: URL.createObjectURL(file)
@@ -234,7 +203,6 @@ const Product = () => {
 
   // Remove review image
   const removeReviewImage = (index) => {
-    // Revoke the object URL to prevent memory leaks
     if (reviewImages[index]?.url) {
       URL.revokeObjectURL(reviewImages[index].url);
     }
@@ -243,13 +211,6 @@ const Product = () => {
 
   // Handle review submission to backend
   const handleSubmitReview = async () => {
-    console.log('📝 Submit review clicked - Debug Info:');
-    console.log('User:', user);
-    console.log('User ID:', user?._id);
-    console.log('Token:', token);
-    console.log('Rating:', rating);
-    console.log('Comment:', comment);
-
     if (!user || !user._id) {
       toast.error('Please login to submit a review');
       return;
@@ -275,7 +236,6 @@ const Product = () => {
       formData.append('content', comment);
       formData.append('rating', rating);
 
-      // Append images if any
       reviewImages.forEach((imageData, index) => {
         formData.append('reviewImages', imageData.file);
       });
@@ -293,7 +253,6 @@ const Product = () => {
       if (response.ok) {
         const newComment = await response.json();
         
-        // Transform backend response to frontend format
         const newReview = {
           id: newComment._id,
           rating: newComment.rating,
@@ -318,18 +277,14 @@ const Product = () => {
         setReviews((prevReviews) => [newReview, ...prevReviews]);
         setRating(0);
         setComment('');
-        // Clean up object URLs
         reviewImages.forEach(image => URL.revokeObjectURL(image.url));
         setReviewImages([]);
         
         toast.success('Review submitted successfully!');
       } else {
-        const error = await response.json();
-        console.error('❌ Failed to submit review:', error);
         toast.error('Failed to submit review');
       }
     } catch (error) {
-      console.error('❌ Error submitting review:', error);
       toast.error('Error submitting review');
     } finally {
       setUploading(false);
@@ -379,24 +334,20 @@ const Product = () => {
       });
 
       if (response.ok) {
-        // Update the review with new counts and user arrays
         setReviews(prevReviews => 
           prevReviews.map(review => {
             if (review.id === reviewId) {
               const updatedReview = { ...review };
               
               if (hasLiked) {
-                // Removing like
                 updatedReview.likes = Math.max(0, (review.likes || 0) - 1);
                 updatedReview.likedBy = (review.likedBy || []).filter(id => id !== user._id);
               } else if (hasDisliked) {
-                // Switching from dislike to like
                 updatedReview.likes = (review.likes || 0) + 1;
                 updatedReview.dislikes = Math.max(0, (review.dislikes || 0) - 1);
                 updatedReview.likedBy = [...(review.likedBy || []), user._id];
                 updatedReview.dislikedBy = (review.dislikedBy || []).filter(id => id !== user._id);
               } else {
-                // Adding like
                 updatedReview.likes = (review.likes || 0) + 1;
                 updatedReview.likedBy = [...(review.likedBy || []), user._id];
               }
@@ -407,12 +358,9 @@ const Product = () => {
           })
         );
       } else {
-        const error = await response.json();
-        console.error('Failed to update like:', error);
         toast.error('Failed to update like');
       }
     } catch (error) {
-      console.error('Error updating like:', error);
       toast.error('Error updating like');
     }
   };
@@ -450,24 +398,20 @@ const Product = () => {
       });
 
       if (response.ok) {
-        // Update the review with new counts and user arrays
         setReviews(prevReviews => 
           prevReviews.map(review => {
             if (review.id === reviewId) {
               const updatedReview = { ...review };
               
               if (hasDisliked) {
-                // Removing dislike
                 updatedReview.dislikes = Math.max(0, (review.dislikes || 0) - 1);
                 updatedReview.dislikedBy = (review.dislikedBy || []).filter(id => id !== user._id);
               } else if (hasLiked) {
-                // Switching from like to dislike
                 updatedReview.likes = Math.max(0, (review.likes || 0) - 1);
                 updatedReview.dislikes = (review.dislikes || 0) + 1;
                 updatedReview.dislikedBy = [...(review.dislikedBy || []), user._id];
                 updatedReview.likedBy = (review.likedBy || []).filter(id => id !== user._id);
               } else {
-                // Adding dislike
                 updatedReview.dislikes = (review.dislikes || 0) + 1;
                 updatedReview.dislikedBy = [...(review.dislikedBy || []), user._id];
               }
@@ -478,12 +422,9 @@ const Product = () => {
           })
         );
       } else {
-        const error = await response.json();
-        console.error('Failed to update dislike:', error);
         toast.error('Failed to update dislike');
       }
     } catch (error) {
-      console.error('Error updating dislike:', error);
       toast.error('Error updating dislike');
     }
   };
@@ -565,17 +506,15 @@ const Product = () => {
       return;
     }
     
-    // Final validation to ensure quantity doesn't exceed stock
     const finalQuantity = Math.min(quantity, stock);
     
-    // If quantity was adjusted, update the state and show a message
     if (finalQuantity !== quantity) {
       setQuantity(finalQuantity);
       toast.info(`Quantity adjusted to available stock: ${finalQuantity}`);
     }
     
     addToCart(productData._id, finalQuantity);
-    setQuantity(1); // Reset to 1 after adding to cart
+    setQuantity(1);
     toast.success('Product added to cart!');
   };
 
@@ -646,7 +585,6 @@ const Product = () => {
                 className="w-[24%] shrink-0 cursor-pointer sm:mb-3 sm:w-full object-cover h-20 sm:h-24"
                 onClick={() => setImage(item)} 
                 onError={(e) => {
-                  console.error(`Error loading image: ${item}`);
                   e.target.src = 'https://via.placeholder.com/150?text=Image+Error';
                 }}
               />
@@ -666,7 +604,6 @@ const Product = () => {
               alt={productData.name}
               className="h-auto w-full object-cover max-h-96"
               onError={(e) => {
-                console.error(`Error loading main image: ${image}`);
                 e.target.src = 'https://via.placeholder.com/500?text=Product+Image';
               }}
             />
@@ -712,7 +649,6 @@ const Product = () => {
                 max={stock}
                 onChange={handleQuantityChange}
                 onBlur={(e) => {
-                  // Final validation on blur
                   let value = Number(e.target.value);
                   if (isNaN(value) || value < 1) value = 1;
                   if (value > stock) value = stock;
