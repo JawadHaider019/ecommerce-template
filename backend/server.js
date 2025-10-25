@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from "cors"; 
 import dotenv from "dotenv";
-import connectDB from "./config/mongodb.js";
+import connectDB from './config/mongodb.js';
 import connectCloudinary from './config/cloudinary.js';
 
 import userRoutes from './routes/userRoutes.js';
@@ -22,13 +22,14 @@ import teamRoutes from './routes/teamRoutes.js';
 import businessDetailsRoutes from './routes/businessDetailsRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import newsletterRoutes from './routes/NewsletterRoutes.js'
-
 // App Config    
+const app = express();
+const port = process.env.PORT || 4000;
 dotenv.config();
 connectDB();
 connectCloudinary();
 
-const app = express();
+// Middlewares
 app.use(express.json()); 
 app.use(cors());
 
@@ -51,9 +52,9 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/business-details', businessDetailsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/newsletter', newsletterRoutes);
-
 app.get('/', (req, res) => {
     res.send("API Working ✅");
 });
+
 
 export default app;
