@@ -19,7 +19,14 @@ import {
   faTag,
   faCube,
   faChevronDown,
-  faChevronUp
+  faChevronUp,
+  faMapMarkerAlt,
+  faCreditCard,
+  faReceipt,
+  faUser,
+  faCalendar,
+  faSearch,
+  faFilter
 } from '@fortawesome/free-solid-svg-icons';
 
 const Orders = () => {
@@ -30,16 +37,18 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [expandedDeals, setExpandedDeals] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
 
   // Define tabs with their configurations
   const tabs = [
-    { id: 'all', label: 'All', count: 0, icon: faList },
-    { id: 'pending', label: 'Pending', count: 0, icon: faClock },
-    { id: 'packing', label: 'Packing', count: 0, icon: faBox },
-    { id: 'shipped', label: 'Shipped', count: 0, icon: faShippingFast },
-    { id: 'out_for_delivery', label: 'Delivery', count: 0, icon: faMotorcycle },
-    { id: 'delivered', label: 'Delivered', count: 0, icon: faCheckCircle },
-    { id: 'cancelled', label: 'Cancelled', count: 0, icon: faTimesCircle },
+    { id: 'all', label: 'All Orders', count: 0, icon: faList, color: 'gray' },
+    { id: 'pending', label: 'Pending', count: 0, icon: faClock, color: 'blue' },
+    { id: 'packing', label: 'Packing', count: 0, icon: faBox, color: 'amber' },
+    { id: 'shipped', label: 'Shipped', count: 0, icon: faShippingFast, color: 'purple' },
+    { id: 'out_for_delivery', label: 'Delivery', count: 0, icon: faMotorcycle, color: 'orange' },
+    { id: 'delivered', label: 'Delivered', count: 0, icon: faCheckCircle, color: 'green' },
+    { id: 'cancelled', label: 'Cancelled', count: 0, icon: faTimesCircle, color: 'red' },
   ];
 
   // 🔒 Central unauthorized handler
@@ -125,6 +134,34 @@ const Orders = () => {
       default:
         filtered = ordersList;
     }
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(order => 
+        order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.address?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.address?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.address?.phone?.includes(searchTerm)
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.date) - new Date(a.date);
+        case 'oldest':
+          return new Date(a.date) - new Date(b.date);
+        case 'total_high':
+          return (b.items?.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) || 0) - 
+                 (a.items?.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) || 0);
+        case 'total_low':
+          return (a.items?.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) || 0) - 
+                 (b.items?.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) || 0);
+        default:
+          return 0;
+      }
+    });
 
     setFilteredOrders(filtered);
   };
@@ -229,12 +266,12 @@ const Orders = () => {
     }
   }, [token]);
 
-  // Update filtered orders when orders change
+  // Update filtered orders when orders, search, or sort change
   useEffect(() => {
     if (orders.length > 0) {
       filterOrdersByTab(activeTab, orders);
     }
-  }, [orders]);
+  }, [orders, searchTerm, sortBy]);
 
   // Group items by deal
   const groupItemsByDeal = (items) => {
@@ -321,10 +358,11 @@ const Orders = () => {
   // 🌀 Loading spinner
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <div className="text-center">
-          <FontAwesomeIcon icon={faSpinner} className="animate-spin h-8 w-8 text-gray-600 mx-auto" />
-          <p className="mt-3 text-gray-600 text-sm">Loading orders...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg font-medium">Loading orders...</p>
+          <p className="text-gray-400 text-sm mt-2">Please wait while we fetch your orders</p>
         </div>
       </div>
     );
@@ -333,15 +371,16 @@ const Orders = () => {
   // If no token and not loading, show message
   if (!token) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="mx-auto h-16 w-16 text-gray-400 mb-3">
-            <img src={assets.parcel_icon} alt="No access" className="opacity-50" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <div className="mx-auto h-20 w-20 bg-gray-200 rounded-full flex items-center justify-center mb-6">
+            <FontAwesomeIcon icon={faReceipt} className="text-gray-500 text-2xl" />
           </div>
-          <p className="text-gray-600 text-sm mb-3">Please login to view orders</p>
+          <h3 className="text-xl font-semibold text-gray-900 mb-3">Access Required</h3>
+          <p className="text-gray-600 mb-6">Please login to view and manage orders</p>
           <button
             onClick={() => navigate('/')}
-            className="bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors text-sm"
+            className="bg-gray-900 text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium w-full sm:w-auto"
           >
             Go to Login
           </button>
@@ -352,56 +391,126 @@ const Orders = () => {
 
   const updatedTabs = updateTabCounts(orders);
 
-  // 📋 Render orders
   return (
-    <div className="min-h-screen bg-gray-50 py-4 px-3 sm:py-6 sm:px-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-4 px-3 sm:py-6 sm:px-4 lg:px-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 text-left mb-3 sm:mb-0">Order Management</h3>
-          <div className="text-sm text-gray-600 bg-white px-3 py-2 rounded-lg border border-gray-200">
-            Showing <span className="font-semibold text-gray-900">{filteredOrders.length}</span> of <span className="font-semibold text-gray-900">{orders.length}</span> orders
+        {/* Header Section */}
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                Order Management
+              </h1>
+              <p className="text-gray-600 text-sm sm:text-base">
+                Manage and track all customer orders in one place
+              </p>
+            </div>
+         
+          </div>
+
+          {/* Search and Filter Bar */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Search Input */}
+              <div className="flex-1">
+                <div className="relative">
+                  <FontAwesomeIcon 
+                    icon={faSearch} 
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" 
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search orders by ID, customer name, or phone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="flex gap-3">
+                <div className="relative">
+                  <FontAwesomeIcon 
+                    icon={faFilter} 
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" 
+                  />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-white appearance-none min-w-[160px]"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="total_high">Total: High to Low</option>
+                    <option value="total_low">Total: Low to High</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Tabs Navigation - Compact but Readable */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden">
-          <div className="flex overflow-x-auto scrollbar-hide">
+        {/* Tabs Navigation */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
+          <div className="flex overflow-x-auto scrollbar-hide px-2 py-2">
             {updatedTabs.map((tab) => (
-              <Tooltip key={tab.id} text={`${tab.label} (${tab.count})`}>
-                <button
-                  onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
-                    activeTab === tab.id
-                      ? 'border-gray-900 text-gray-900 bg-gray-50'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <FontAwesomeIcon icon={tab.icon} className="text-sm sm:text-base mr-2 sm:mr-3" />
-                  <span className="hidden sm:inline text-sm">{tab.label}</span>
-                  <span className="hidden sm:inline ml-2 px-2 py-1 text-xs rounded-full min-w-6 text-center bg-gray-200 text-gray-600">
-                    {tab.count}
-                  </span>
-                </button>
-              </Tooltip>
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex items-center px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap flex-shrink-0 mx-1 rounded-lg ${
+                  activeTab === tab.id
+                    ? `border-${tab.color}-500 text-${tab.color}-700 bg-${tab.color}-50`
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <FontAwesomeIcon 
+                  icon={tab.icon} 
+                  className={`text-sm mr-3 ${
+                    activeTab === tab.id ? `text-${tab.color}-600` : 'text-gray-400'
+                  }`} 
+                />
+                <span className="font-medium">{tab.label}</span>
+                <span className={`ml-2 px-2 py-1 text-xs rounded-full min-w-6 text-center ${
+                  activeTab === tab.id 
+                    ? `bg-${tab.color}-100 text-${tab.color}-700` 
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
             ))}
           </div>
         </div>
 
+        {/* Orders List */}
         {filteredOrders.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="mx-auto h-20 w-20 sm:h-24 sm:w-24 text-gray-300 mb-4">
-              <img src={assets.parcel_icon} alt="No orders" className="opacity-40" />
+          <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="mx-auto h-24 w-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <FontAwesomeIcon icon={faReceipt} className="text-gray-400 text-2xl" />
             </div>
-            <p className="text-gray-500 text-base sm:text-lg mb-2 font-medium">
-              {activeTab === 'all' ? 'No orders found' : `No ${activeTab.replace('_', ' ')} orders`}
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              {searchTerm ? 'No orders found' : `No ${activeTab === 'all' ? '' : activeTab.replace('_', ' ')} orders`}
+            </h3>
+            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+              {searchTerm 
+                ? 'Try adjusting your search terms to find what you\'re looking for.'
+                : activeTab !== 'all' 
+                  ? `There are no ${activeTab.replace('_', ' ')} orders at the moment.`
+                  : 'No orders have been placed yet.'
+              }
             </p>
-            <p className="text-gray-400 text-sm">
-              {activeTab !== 'all' && 'Try selecting a different tab to see more orders.'}
-            </p>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="bg-gray-900 text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium"
+              >
+                Clear Search
+              </button>
+            )}
           </div>
         ) : (
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-6">
             {filteredOrders.map((order) => {
               const { dealGroups, regularItems } = groupItemsByDeal(order.items || []);
               const allDeals = Object.values(dealGroups);
@@ -416,34 +525,49 @@ const Orders = () => {
               return (
                 <div
                   key={order._id}
-                  className={`bg-white rounded-xl shadow-sm overflow-hidden border ${
+                  className={`bg-white rounded-xl shadow-sm overflow-hidden border transition-all duration-200 hover:shadow-md ${
                     order.status === 'Cancelled' ? 'border-red-200' : 'border-gray-200'
                   }`}
                 >
-                  {/* Header - Improved Styling */}
+                  {/* Order Header */}
                   <div className={`px-4 sm:px-6 py-4 border-b ${
-                    order.status === 'Cancelled' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
+                    order.status === 'Cancelled' ? 'bg-red-50 border-red-200' : 'bg-gradient-to-r from-gray-50 to-white border-gray-200'
                   }`}>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center mb-3 sm:mb-0">
-                        <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
-                          <img
-                            src={assets.parcel_icon}
-                            alt="Order"
-                            className="h-5 w-5 opacity-60"
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div className="flex items-center flex-1 min-w-0">
+                        <div className={`h-12 w-12 rounded-xl flex items-center justify-center mr-4 ${
+                          order.status === 'Cancelled' ? 'bg-red-100' : 'bg-gray-100'
+                        }`}>
+                          <FontAwesomeIcon 
+                            icon={getStatusIcon(order.status)} 
+                            className={`text-lg ${
+                              order.status === 'Cancelled' ? 'text-red-600' : 'text-gray-600'
+                            }`} 
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                            <h4 className={`text-lg font-semibold ${
-                              order.status === 'Cancelled' ? 'text-red-800' : 'text-gray-900'
-                            }`}>
-                              Order #{order._id.substring(0, 7)}
-                            </h4>
-                            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${getStatusBadgeColor(order.status)}`}>
-                              <FontAwesomeIcon icon={getStatusIcon(order.status)} className="mr-2" />
-                              {order.status}
-                            </span>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                            <div className="flex items-center gap-3">
+                              <h4 className={`text-lg font-bold ${
+                                order.status === 'Cancelled' ? 'text-red-800' : 'text-gray-900'
+                              }`}>
+                                #{order._id.substring(0, 8).toUpperCase()}
+                              </h4>
+                              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold ${getStatusBadgeColor(order.status)}`}>
+                                <FontAwesomeIcon icon={getStatusIcon(order.status)} className="mr-2" />
+                                {order.status}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <div className="flex items-center">
+                                <FontAwesomeIcon icon={faUser} className="mr-2" />
+                                {order.address?.firstName} {order.address?.lastName}
+                              </div>
+                              <div className="flex items-center">
+                                <FontAwesomeIcon icon={faCalendar} className="mr-2" />
+                                {new Date(order.date).toLocaleDateString()}
+                              </div>
+                            </div>
                           </div>
 
                           {order.cancellationReason && (
@@ -453,35 +577,32 @@ const Orders = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-col items-start sm:items-end">
-                        <span className="text-sm text-gray-500 font-medium">
-                          {new Date(order.date).toLocaleDateString()}
-                        </span>
-                        <span className="text-sm text-gray-400">
-                          {new Date(order.date).toLocaleTimeString()}
-                        </span>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-gray-900">{currency}{total.toFixed(2)}</p>
+                          <p className="text-sm text-gray-500">{totalItemsCount} items</p>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Content - Improved Padding */}
-                  <div className="p-4 sm:p-6 flex flex-col lg:flex-row gap-6 sm:gap-8">
+                  {/* Order Content */}
+                  <div className="p-4 sm:p-6 flex flex-col xl:flex-row gap-6">
                     {/* Items Section */}
-                    <div className="lg:flex-1">
-                      {/* Items Summary Header */}
+                    <div className="xl:flex-1">
                       <div className="flex items-center justify-between mb-4">
                         <h5 className="text-lg font-semibold text-gray-900">
-                          Order Items ({totalItemsCount})
+                          Order Items
                         </h5>
-                        <div className="flex gap-3">
+                        <div className="flex gap-2">
                           {allDeals.length > 0 && (
-                            <span className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm border border-gray-200">
+                            <span className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg text-sm border border-amber-200 font-medium">
                               <FontAwesomeIcon icon={faTag} className="mr-2" />
                               {allDeals.length} Deal{allDeals.length !== 1 ? 's' : ''}
                             </span>
                           )}
                           {regularItems.length > 0 && (
-                            <span className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm border border-gray-200">
+                            <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-sm border border-blue-200 font-medium">
                               <FontAwesomeIcon icon={faCube} className="mr-2" />
                               {regularItems.length} Product{regularItems.length !== 1 ? 's' : ''}
                             </span>
@@ -489,7 +610,7 @@ const Orders = () => {
                         </div>
                       </div>
                       
-                      <div className="bg-gray-50 rounded-xl p-4 max-h-80 overflow-y-auto border border-gray-200">
+                      <div className="bg-gray-50 rounded-xl p-4 max-h-96 overflow-y-auto border border-gray-200">
                         {/* Render Deals */}
                         {allDeals.map((deal, dealIndex) => {
                           const isExpanded = expandedDeals[`${order._id}-${deal.dealName}`];
@@ -498,13 +619,13 @@ const Orders = () => {
                             <div key={dealIndex} className="mb-4 last:mb-0">
                               {/* Deal Header */}
                               <div 
-                                className={`flex justify-between items-center p-4 rounded-lg border cursor-pointer transition-colors ${
-                                  isExpanded ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-200 hover:bg-gray-50'
+                                className={`flex justify-between items-center p-4 rounded-lg border cursor-pointer transition-all duration-200 ${
+                                  isExpanded ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-white border-gray-200 hover:shadow-sm'
                                 }`}
                                 onClick={() => toggleDealExpansion(order._id, deal.dealName)}
                               >
                                 <div className="flex items-center flex-1 min-w-0">
-                                  <span className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded text-sm font-medium mr-4 border border-amber-200">
+                                  <span className="bg-amber-500 text-white px-3 py-1.5 rounded text-sm font-semibold mr-4">
                                     <FontAwesomeIcon icon={faTag} className="mr-2" />
                                     Deal
                                   </span>
@@ -513,13 +634,13 @@ const Orders = () => {
                                       {deal.dealName}
                                     </p>
                                     {deal.dealDescription && (
-                                      <p className="text-sm text-gray-600 mt-1">
+                                      <p className="text-sm text-gray-600 mt-1 line-clamp-1">
                                         {deal.dealDescription}
                                       </p>
                                     )}
                                   </div>
                                 </div>
-                                <div className="flex items-center space-x-3 ml-4">
+                                <div className="flex items-center space-x-4 ml-4">
                                   <div className="text-right">
                                     <p className="font-semibold text-gray-900 text-base">
                                       {currency}{deal.totalPrice.toFixed(2)}
@@ -537,14 +658,14 @@ const Orders = () => {
 
                               {/* Deal Items - Collapsible */}
                               {isExpanded && (
-                                <div className="mt-3 space-y-3 pl-6 border-l-2 border-amber-200 ml-3">
+                                <div className="mt-3 space-y-2 pl-4">
                                   {deal.items.map((item, itemIndex) => (
                                     <div key={itemIndex} className="flex justify-between items-center py-3 px-4 bg-white rounded-lg border border-gray-200">
                                       <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-gray-900 text-base">
+                                        <p className="font-medium text-gray-900 text-sm sm:text-base">
                                           {item.name}
                                         </p>
-                                        <div className="flex items-center space-x-4 mt-2">
+                                        <div className="flex items-center space-x-4 mt-1">
                                           <span className="text-sm text-gray-500">
                                             Qty: {item.quantity || 1}
                                           </span>
@@ -554,7 +675,7 @@ const Orders = () => {
                                         </div>
                                       </div>
                                       <div className="text-right ml-4">
-                                        <p className="font-semibold text-gray-900 text-base">
+                                        <p className="font-semibold text-gray-900 text-sm sm:text-base">
                                           {currency}{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                                         </p>
                                       </div>
@@ -568,19 +689,18 @@ const Orders = () => {
 
                         {/* Render Regular Products */}
                         {regularItems.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center py-4 px-4 bg-white rounded-lg border border-gray-200 mb-3 last:mb-0">
+                          <div key={idx} className="flex justify-between items-center py-4 px-4 bg-white rounded-lg border border-gray-200 mb-3 last:mb-0 hover:bg-gray-50 transition-colors">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center mb-2">
-                                <p className="font-semibold text-gray-900 text-base">
+                                <p className="font-semibold text-gray-900 text-sm sm:text-base">
                                   {item.name}
                                 </p>
-                                <span className="ml-3 bg-blue-50 text-blue-700 px-3 py-1 rounded text-sm border border-blue-200">
-                                  <FontAwesomeIcon icon={faCube} className="mr-2" />
+                                <span className="ml-3 bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs border border-blue-200 font-medium">
                                   Product
                                 </span>
                               </div>
                               {item.description && (
-                                <p className="text-sm text-gray-600 mb-2 leading-relaxed">
+                                <p className="text-sm text-gray-600 mb-2 leading-relaxed line-clamp-2">
                                   {item.description}
                                 </p>
                               )}
@@ -594,7 +714,7 @@ const Orders = () => {
                               </div>
                             </div>
                             <div className="text-right ml-4">
-                              <p className="font-semibold text-gray-900 text-lg">
+                              <p className="font-semibold text-gray-900 text-base sm:text-lg">
                                 {currency}{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                               </p>
                             </div>
@@ -604,14 +724,17 @@ const Orders = () => {
                     </div>
 
                     {/* Right Section - Info & Actions */}
-                    <div className="flex flex-col gap-6 lg:w-80">
-                      {/* Address & Payment */}
+                    <div className="flex flex-col gap-6 xl:w-80">
+                      {/* Customer & Payment Info */}
                       <div className="space-y-6">
-                        {/* Address */}
+                        {/* Customer Info */}
                         <div>
-                          <h5 className="text-lg font-semibold text-gray-900 mb-3">Delivery Address</h5>
+                          <h5 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                            <FontAwesomeIcon icon={faUser} className="mr-2 text-gray-400" />
+                            Customer Information
+                          </h5>
                           <div className="bg-gray-50 rounded-xl p-4 text-sm border border-gray-200">
-                            <p className="font-semibold text-gray-900 mb-2">
+                            <p className="font-semibold text-gray-900 mb-2 text-base">
                               {order.address?.firstName} {order.address?.lastName}
                             </p>
                             <p className="text-gray-600 mb-1">{order.address?.street}</p>
@@ -619,20 +742,27 @@ const Orders = () => {
                               {order.address?.city}, {order.address?.state}
                             </p>
                             <p className="text-gray-600 mb-3">{order.address?.zipcode}</p>
-                            <p className="text-gray-600">
+                            <p className="text-gray-600 flex items-center">
                               <FontAwesomeIcon icon={faPhone} className="mr-2 text-gray-400" />
                               {order.address?.phone}
                             </p>
                           </div>
                         </div>
 
-                        {/* Payment */}
+                        {/* Payment Info */}
                         <div>
-                          <h5 className="text-lg font-semibold text-gray-900 mb-3">Payment Information</h5>
+                          <h5 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                            <FontAwesomeIcon icon={faCreditCard} className="mr-2 text-gray-400" />
+                            Payment Information
+                          </h5>
                           <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                            <div className="flex justify-between items-center">
+                            <div className="flex justify-between items-center mb-2">
                               <span className="text-gray-600">Method:</span>
                               <span className="font-semibold text-gray-900 capitalize">{order.paymentMethod}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-600">Status:</span>
+                              <span className="font-semibold text-green-600">Paid</span>
                             </div>
                           </div>
                         </div>
@@ -642,7 +772,10 @@ const Orders = () => {
                       <div className="space-y-6">
                         {/* Summary */}
                         <div>
-                          <h5 className="text-lg font-semibold text-gray-900 mb-3">Order Summary</h5>
+                          <h5 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                            <FontAwesomeIcon icon={faReceipt} className="mr-2 text-gray-400" />
+                            Order Summary
+                          </h5>
                           <div className={`rounded-xl p-4 border text-sm ${
                             order.status === 'Cancelled' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
                           }`}>
@@ -656,7 +789,7 @@ const Orders = () => {
                                 {order.deliveryCharges === 0 ? 'FREE' : `${currency}${order.deliveryCharges.toFixed(2)}`}
                               </span>
                             </div>
-                            <div className="pt-3 mt-3 border-t border-gray-300 flex justify-between font-semibold">
+                            <div className="pt-3 mt-3 border-t border-gray-300 flex justify-between font-semibold text-base">
                               <span className="text-gray-900">Total:</span>
                               <span className="text-gray-900">{currency}{total.toFixed(2)}</span>
                             </div>
@@ -669,8 +802,8 @@ const Orders = () => {
                           <select
                             onChange={(e) => statusHandler(e, order._id)}
                             value={order.status}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-white shadow-sm text-sm"
-                            disabled={order.status === 'Cancelled'}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-white shadow-sm text-sm font-medium"
+                            disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
                           >
                             <option value="Order Placed">Order Placed</option>
                             <option value="Packing">Packing</option>
@@ -679,9 +812,9 @@ const Orders = () => {
                             <option value="Delivered">Delivered</option>
                             <option value="Cancelled">Cancelled</option>
                           </select>
-                          {order.status === 'Cancelled' && (
-                            <p className="text-sm text-red-600 mt-2">
-                              This order has been cancelled and cannot be updated.
+                          {(order.status === 'Cancelled' || order.status === 'Delivered') && (
+                            <p className="text-sm text-gray-500 mt-2">
+                              This order is {order.status.toLowerCase()} and cannot be updated.
                             </p>
                           )}
                         </div>

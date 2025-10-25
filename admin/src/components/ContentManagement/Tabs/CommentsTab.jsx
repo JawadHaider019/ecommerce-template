@@ -18,7 +18,7 @@ const Toast = ({ message, type, onClose }) => {
   const icon = type === 'success' ? faCheck : faExclamationTriangle;
 
   return (
-    <div className={`fixed top-4 right-4 left-4 sm:left-auto ${bgColor} text-white px-4 sm:px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 z-50 animate-slide-in`}>
+    <div className={`fixed top-4 right-4 left-4 sm:left-auto ${bgColor} text-white px-4 sm:px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 z-50 animate-slide-in max-w-xs sm:max-w-md`}>
       <FontAwesomeIcon icon={icon} className="text-lg" />
       <span className="font-medium flex-1 text-sm sm:text-base">{message}</span>
       <button onClick={onClose} className="text-white hover:text-gray-200 ml-2">
@@ -574,9 +574,9 @@ const dislikeComment = async (id) => {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Tabs - Updated to match desired style */}
-      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
+      <div className="flex border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
         <button
-          className={`flex-shrink-0 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
+          className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
             filter === 'all' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
           }`}
           onClick={() => setFilter('all')}
@@ -584,7 +584,7 @@ const dislikeComment = async (id) => {
           All Comments ({comments.length})
         </button>
         <button
-          className={`flex-shrink-0 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
+          className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
             filter === 'unread' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
           }`}
           onClick={() => setFilter('unread')}
@@ -592,7 +592,7 @@ const dislikeComment = async (id) => {
           Unread ({comments.filter(comment => !comment.isRead).length})
         </button>
         <button
-          className={`flex-shrink-0 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
+          className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${
             filter === 'replied' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
           }`}
           onClick={() => setFilter('replied')}
@@ -949,7 +949,7 @@ const dislikeComment = async (id) => {
                           {productName}
                         </div>
                         <div className="text-xs text-gray-500 capitalize">
-                          {comment.targetType} • ${productPrice}
+                          {comment.targetType} • Rs {productPrice}
                         </div>
                       </div>
                     </div>
@@ -1170,8 +1170,8 @@ const dislikeComment = async (id) => {
 
       {/* Delete Confirmation Modal - Responsive */}
       {isDeleteModalOpen && commentToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full mx-4 p-4 sm:p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-lg max-w-sm sm:max-w-md w-full mx-3 sm:mx-4 p-4 sm:p-6">
             <div className="flex items-center space-x-3 mb-4">
               <div className="p-2 bg-red-100 rounded-full">
                 <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-600 text-lg sm:text-xl" />
@@ -1179,20 +1179,20 @@ const dislikeComment = async (id) => {
               <h3 className="text-base sm:text-lg font-semibold text-gray-900">Delete Comment</h3>
             </div>
             
-            <p className="text-gray-600 mb-6 text-sm sm:text-base">
+            <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
               Are you sure you want to delete the comment from <strong>{commentToDelete.author}</strong> about <strong>{commentToDelete.productName || commentToDelete.productId?.name}</strong>? This action cannot be undone.
             </p>
 
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-end">
               <button
                 onClick={closeDeleteModal}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base order-2 sm:order-1"
+                className="px-3 sm:px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base order-2 sm:order-1"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2 justify-center text-sm sm:text-base order-1 sm:order-2"
+                className="px-3 sm:px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2 justify-center text-sm sm:text-base order-1 sm:order-2"
               >
                 <FontAwesomeIcon icon={faTrash} />
                 <span>Delete Comment</span>

@@ -20,11 +20,11 @@ const Toast = ({ message, type = 'error', onClose }) => {
   const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
   
   return (
-    <div className={`fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center justify-between min-w-80`}>
-      <span>{message}</span>
+    <div className={`fixed top-4 right-4 ${bgColor} text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center justify-between max-w-xs sm:max-w-md md:min-w-80 mx-2 sm:mx-0`}>
+      <span className="text-sm sm:text-base">{message}</span>
       <button 
         onClick={onClose}
-        className="ml-4 text-white hover:text-gray-200"
+        className="ml-3 text-white hover:text-gray-200 flex-shrink-0"
       >
         <FontAwesomeIcon icon={faTimes} />
       </button>
@@ -37,46 +37,46 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, itemType, itemName }) =
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div className="flex items-center p-6 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-sm sm:max-w-md w-full mx-2">
+        <div className="flex items-center p-4 sm:p-6 border-b border-gray-200">
           <div className="flex-shrink-0">
             <FontAwesomeIcon 
               icon={faExclamationTriangle} 
-              className="text-yellow-500 text-xl mr-3" 
+              className="text-yellow-500 text-lg sm:text-xl mr-3" 
             />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
             Confirm Deletion
           </h3>
         </div>
         
-        <div className="p-6">
-          <p className="text-gray-700 mb-1">
+        <div className="p-4 sm:p-6">
+          <p className="text-gray-700 mb-1 text-sm sm:text-base">
             Are you sure you want to delete this {itemType}?
           </p>
           {itemName && (
-            <p className="text-gray-900 font-medium">
+            <p className="text-gray-900 font-medium text-sm sm:text-base">
               "{itemName}"
             </p>
           )}
-          <p className="text-red-600 text-sm mt-2">
+          <p className="text-red-600 text-xs sm:text-sm mt-2">
             This action cannot be undone.
           </p>
         </div>
         
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+        <div className="flex justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+            className="px-3 sm:px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 text-sm sm:text-base"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors duration-200 flex items-center"
+            className="px-3 sm:px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors duration-200 flex items-center text-sm sm:text-base"
           >
-            <FontAwesomeIcon icon={faTrash} className="mr-2" />
+            <FontAwesomeIcon icon={faTrash} className="mr-2 text-xs sm:text-sm" />
             Delete
           </button>
         </div>
@@ -357,7 +357,7 @@ const CategoriesTab = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Toast Notification */}
       {toast.show && (
         <Toast 
@@ -379,16 +379,16 @@ const CategoriesTab = () => {
       {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg flex items-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black mr-3"></div>
+          <div className="bg-white p-3 sm:p-4 rounded-lg flex items-center text-sm sm:text-base">
+            <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-black mr-3"></div>
             Loading...
           </div>
         </div>
       )}
 
       {/* Add New Item Section */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-        <h3 className="font-medium text-gray-900 mb-3">
+      <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+        <h3 className="font-medium text-gray-900 mb-3 text-base sm:text-lg">
           {editingItem ? `Edit ${editingItem.type === 'dealType' ? 'Deal Type' : 'Category'}` : 'Add New Item'}
         </h3>
         
@@ -396,7 +396,7 @@ const CategoriesTab = () => {
           <div className="mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
             <select
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black text-sm sm:text-base"
               value={newCategory.type}
               onChange={(e) => setNewCategory({...newCategory, type: e.target.value, parentId: ''})}
             >
@@ -406,11 +406,11 @@ const CategoriesTab = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 gap-3 mb-3">
           <input
             type="text"
             placeholder={editingItem ? (editingItem.type === 'dealType' ? 'Deal Type Name' : 'Category Name') : (newCategory.type === 'dealType' ? 'Deal Type Name' : 'Category Name')}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+            className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black text-sm sm:text-base"
             value={editingItem ? editingItem.name : newCategory.name}
             onChange={(e) => editingItem 
               ? setEditingItem({...editingItem, name: e.target.value})
@@ -422,7 +422,7 @@ const CategoriesTab = () => {
             <input
               type="text"
               placeholder="Description (optional)"
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black text-sm sm:text-base"
               value={editingItem ? editingItem.description || '' : newCategory.description || ''}
               onChange={(e) => editingItem 
                 ? setEditingItem({...editingItem, description: e.target.value})
@@ -436,7 +436,7 @@ const CategoriesTab = () => {
           <div className="mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Parent Category (for subcategories)</label>
             <select
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black text-sm sm:text-base"
               value={newCategory.parentId}
               onChange={(e) => setNewCategory({...newCategory, parentId: e.target.value})}
             >
@@ -448,33 +448,33 @@ const CategoriesTab = () => {
           </div>
         )}
         
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           {editingItem ? (
             <>
               <button
-                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 flex items-center disabled:opacity-50"
+                className="flex-1 px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 flex items-center justify-center disabled:opacity-50 text-sm sm:text-base"
                 onClick={updateItem}
                 disabled={loading}
               >
-                <FontAwesomeIcon icon={faCheck} className="mr-2" />
+                <FontAwesomeIcon icon={faCheck} className="mr-2 text-xs sm:text-sm" />
                 Update {editingItem.type === 'dealType' ? 'Deal Type' : 'Category'}
               </button>
               <button
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 flex items-center"
+                className="flex-1 px-3 sm:px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 flex items-center justify-center text-sm sm:text-base"
                 onClick={() => setEditingItem(null)}
                 disabled={loading}
               >
-                <FontAwesomeIcon icon={faTimes} className="mr-2" />
+                <FontAwesomeIcon icon={faTimes} className="mr-2 text-xs sm:text-sm" />
                 Cancel
               </button>
             </>
           ) : (
             <button
-              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 flex items-center disabled:opacity-50"
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 flex items-center justify-center disabled:opacity-50 text-sm sm:text-base"
               onClick={addCategory}
               disabled={loading}
             >
-              <FontAwesomeIcon icon={faPlus} className="mr-2" />
+              <FontAwesomeIcon icon={faPlus} className="mr-2 text-xs sm:text-sm" />
               Add {newCategory.type === 'dealType' 
                 ? 'Deal Type' 
                 : newCategory.parentId ? 'Subcategory' : 'Category'
@@ -486,148 +486,257 @@ const CategoriesTab = () => {
 
       {/* Categories Section */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <FontAwesomeIcon icon={faFolder} className="mr-2 text-black" />
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+          <FontAwesomeIcon icon={faFolder} className="mr-2 text-black text-sm sm:text-base" />
           Categories & Subcategories
         </h3>
         {categories.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">
             No categories found. Create your first category above.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+          <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
+            <div className="min-w-full">
+              {/* Mobile Card View */}
+              <div className="sm:hidden space-y-2 p-2">
                 {categories.map(category => (
-                  <React.Fragment key={category._id}>
-                    {/* Main Category Row */}
-                    <tr className="bg-gray-50">
-                      <td className="px-4 py-4 text-sm font-medium text-gray-900">
-                        <FontAwesomeIcon icon={faFolder} className="mr-2 text-black" />
-                        {category.name}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-500">Main Category</td>
-                      <td className="px-4 py-4 text-sm font-medium">
-                        <button
-                          className="text-black hover:text-blue-900 mr-3 disabled:opacity-50"
-                          onClick={() => startEditing(category, 'category')}
-                          disabled={loading}
-                        >
-                          <FontAwesomeIcon icon={faEdit} />
-                        </button>
-                        <button
-                          className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                          onClick={() => deleteItem(category._id, 'category', null, category.name)}
-                          disabled={loading}
-                        >
-                          <FontAwesomeIcon icon={faTrash} />
-                        </button>
-                      </td>
-                    </tr>
+                  <div key={category._id} className="space-y-2">
+                    {/* Main Category Card */}
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          <FontAwesomeIcon icon={faFolder} className="mr-2 text-black text-sm" />
+                          <span className="font-medium text-gray-900 text-sm">{category.name}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            className="text-black hover:text-blue-900 disabled:opacity-50 p-1"
+                            onClick={() => startEditing(category, 'category')}
+                            disabled={loading}
+                          >
+                            <FontAwesomeIcon icon={faEdit} className="text-xs" />
+                          </button>
+                          <button
+                            className="text-red-600 hover:text-red-900 disabled:opacity-50 p-1"
+                            onClick={() => deleteItem(category._id, 'category', null, category.name)}
+                            disabled={loading}
+                          >
+                            <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded inline-block">
+                        Main Category
+                      </div>
+                    </div>
 
                     {/* Subcategories */}
                     {category.subcategories?.map(subcategory => (
-                      <tr key={subcategory._id}>
-                        <td className="px-4 py-4 text-sm font-medium text-gray-900 pl-8">
-                          <FontAwesomeIcon icon={faFolderTree} className="mr-2 text-green-500" />
-                          {subcategory.name}
+                      <div key={subcategory._id} className="bg-white p-3 rounded-lg border border-gray-200 ml-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <FontAwesomeIcon icon={faFolderTree} className="mr-2 text-green-500 text-sm" />
+                            <span className="font-medium text-gray-900 text-sm">{subcategory.name}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              className="text-black hover:text-blue-900 disabled:opacity-50 p-1"
+                              onClick={() => startEditing(subcategory, 'subcategory', category._id)}
+                              disabled={loading}
+                            >
+                              <FontAwesomeIcon icon={faEdit} className="text-xs" />
+                            </button>
+                            <button
+                              className="text-red-600 hover:text-red-900 disabled:opacity-50 p-1"
+                              onClick={() => deleteItem(subcategory._id, 'subcategory', category._id, subcategory.name)}
+                              disabled={loading}
+                            >
+                              <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500 bg-green-50 px-2 py-1 rounded inline-block mt-1">
+                          Subcategory
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <table className="hidden sm:table min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {categories.map(category => (
+                    <React.Fragment key={category._id}>
+                      {/* Main Category Row */}
+                      <tr className="bg-gray-50">
+                        <td className="px-4 py-4 text-sm font-medium text-gray-900">
+                          <FontAwesomeIcon icon={faFolder} className="mr-2 text-black" />
+                          {category.name}
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-500">Subcategory</td>
+                        <td className="px-4 py-4 text-sm text-gray-500">Main Category</td>
                         <td className="px-4 py-4 text-sm font-medium">
                           <button
                             className="text-black hover:text-blue-900 mr-3 disabled:opacity-50"
-                            onClick={() => startEditing(subcategory, 'subcategory', category._id)}
+                            onClick={() => startEditing(category, 'category')}
                             disabled={loading}
                           >
                             <FontAwesomeIcon icon={faEdit} />
                           </button>
                           <button
                             className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                            onClick={() => deleteItem(subcategory._id, 'subcategory', category._id, subcategory.name)}
+                            onClick={() => deleteItem(category._id, 'category', null, category.name)}
                             disabled={loading}
                           >
                             <FontAwesomeIcon icon={faTrash} />
                           </button>
                         </td>
                       </tr>
-                    ))}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+
+                      {/* Subcategories */}
+                      {category.subcategories?.map(subcategory => (
+                        <tr key={subcategory._id}>
+                          <td className="px-4 py-4 text-sm font-medium text-gray-900 pl-8">
+                            <FontAwesomeIcon icon={faFolderTree} className="mr-2 text-green-500" />
+                            {subcategory.name}
+                          </td>
+                          <td className="px-4 py-4 text-sm text-gray-500">Subcategory</td>
+                          <td className="px-4 py-4 text-sm font-medium">
+                            <button
+                              className="text-black hover:text-blue-900 mr-3 disabled:opacity-50"
+                              onClick={() => startEditing(subcategory, 'subcategory', category._id)}
+                              disabled={loading}
+                            >
+                              <FontAwesomeIcon icon={faEdit} />
+                            </button>
+                            <button
+                              className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                              onClick={() => deleteItem(subcategory._id, 'subcategory', category._id, subcategory.name)}
+                              disabled={loading}
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
 
       {/* Deal Types Section */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <FontAwesomeIcon icon={faTags} className="mr-2 text-purple-500" />
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+          <FontAwesomeIcon icon={faTags} className="mr-2 text-purple-500 text-sm sm:text-base" />
           Deal Types
         </h3>
         {dealTypes.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-6 sm:py-8 text-gray-500 text-sm sm:text-base">
             No deal types found. Create your first deal type above.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+          <div className="overflow-x-auto bg-white rounded-lg border border-gray-200">
+            <div className="min-w-full">
+              {/* Mobile Card View */}
+              <div className="sm:hidden space-y-2 p-2">
                 {dealTypes.map(dealType => (
-                  <tr key={dealType._id}>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900">
-                      <FontAwesomeIcon icon={faTag} className="mr-2 text-purple-500" />
-                      {dealType.name}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-500">
+                  <div key={dealType._id} className="bg-white p-3 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <FontAwesomeIcon icon={faTag} className="mr-2 text-purple-500 text-sm" />
+                        <span className="font-medium text-gray-900 text-sm">{dealType.name}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          className="text-black hover:text-blue-900 disabled:opacity-50 p-1"
+                          onClick={() => startEditing(dealType, 'dealType')}
+                          disabled={loading}
+                        >
+                          <FontAwesomeIcon icon={faEdit} className="text-xs" />
+                        </button>
+                        <button
+                          className="text-red-600 hover:text-red-900 disabled:opacity-50 p-1"
+                          onClick={() => deleteItem(dealType._id, 'dealType', null, dealType.name)}
+                          disabled={loading}
+                        >
+                          <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-2">
                       {dealType.description || 'No description'}
-                    </td>
-                    <td className="px-4 py-4 text-sm font-medium">
-                      <button
-                        className="text-black hover:text-blue-900 mr-3 disabled:opacity-50"
-                        onClick={() => startEditing(dealType, 'dealType')}
-                        disabled={loading}
-                      >
-                        <FontAwesomeIcon icon={faEdit} />
-                      </button>
-                      <button
-                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                        onClick={() => deleteItem(dealType._id, 'dealType', null, dealType.name)}
-                        disabled={loading}
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button>
-                    </td>
-                  </tr>
+                    </p>
+                    <div className="text-xs text-gray-500 bg-purple-50 px-2 py-1 rounded inline-block">
+                      Deal Type
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Desktop Table View */}
+              <table className="hidden sm:table min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Description
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {dealTypes.map(dealType => (
+                    <tr key={dealType._id}>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900">
+                        <FontAwesomeIcon icon={faTag} className="mr-2 text-purple-500" />
+                        {dealType.name}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-500">
+                        {dealType.description || 'No description'}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-medium">
+                        <button
+                          className="text-black hover:text-blue-900 mr-3 disabled:opacity-50"
+                          onClick={() => startEditing(dealType, 'dealType')}
+                          disabled={loading}
+                        >
+                          <FontAwesomeIcon icon={faEdit} />
+                        </button>
+                        <button
+                          className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                          onClick={() => deleteItem(dealType._id, 'dealType', null, dealType.name)}
+                          disabled={loading}
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

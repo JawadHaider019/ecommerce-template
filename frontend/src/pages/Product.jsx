@@ -259,7 +259,7 @@ const Product = () => {
           comment: newComment.content,
           images: newComment.reviewImages?.map(img => img.url) || [],
           date: new Date(newComment.date).toLocaleDateString(),
-          author: newComment.author,
+          author: newComment.email,
           likes: newComment.likes || 0,
           dislikes: newComment.dislikes || 0,
           likedBy: newComment.likedBy?.map(user => user._id || user) || [],
@@ -697,22 +697,22 @@ const Product = () => {
         </div>
       </div>
 
-      {/* Customer Reviews Section */}
+      {/* Customer Reviews Section - Made Responsive */}
       <div className="mt-20">
         <h2 className="text-2xl font-medium">Customer Reviews</h2>
-        <div className="mt-4 flex flex-col items-center gap-6 rounded-lg border p-6 sm:flex-row">
+        <div className="mt-4 flex flex-col items-center gap-6 rounded-lg border p-4 sm:p-6 lg:flex-row">
           {/* Left Side – Average Rating */}
-          <div className="flex flex-1 flex-col items-center">
+          <div className="flex flex-1 flex-col items-center w-full lg:w-auto">
             <div className="mt-2 flex items-center gap-2">
-              <span className="text-3xl font-bold">{averageRating.toFixed(1)}</span>
+              <span className="text-2xl sm:text-3xl font-bold">{averageRating.toFixed(1)}</span>
               <span className="text-sm text-gray-500">out of 5</span>
             </div>
-            <div className="mt-2 flex gap-1">{renderRating(averageRating)}</div>
+            <div className="mt-2 flex gap-1 text-sm sm:text-base">{renderRating(averageRating)}</div>
             <p className="mt-2 text-sm text-gray-500">Based on {reviews.length} reviews</p>
           </div>
 
           {/* Right Side – Star Rating Distribution & Filters */}
-          <div className="flex-1">
+          <div className="flex-1 w-full lg:w-auto">
             <div className="mt-2 space-y-2">
               {ratingBreakdown.map(({ star, count }) => (
                 <div
@@ -722,14 +722,14 @@ const Product = () => {
                   }`}
                   onClick={() => filterReviewsByRating(star)}
                 >
-                  <div className="flex gap-1">{renderRating(star)}</div>
+                  <div className="flex gap-1 text-xs sm:text-sm">{renderRating(star)}</div>
                   <div className="h-2 flex-1 rounded-full bg-gray-200">
                     <div
                       className="h-2 rounded-full bg-yellow-400"
                       style={{ width: `${reviews.length > 0 ? (count / reviews.length) * 100 : 0}%` }}
                     ></div>
                   </div>
-                  <span className="text-sm text-gray-500">({count})</span>
+                  <span className="text-xs sm:text-sm text-gray-500">({count})</span>
                 </div>
               ))}
             </div>
@@ -739,15 +739,15 @@ const Product = () => {
 
       {/* Tabs for Description and Reviews */}
       <div className="mt-20">
-        <div className="flex">
+        <div className="flex overflow-x-auto">
           <button
-            className={`border px-5 py-3 text-sm ${activeTab === 'description' ? 'bg-gray-100 font-medium' : ''}`}
+            className={`border px-4 py-3 text-sm whitespace-nowrap ${activeTab === 'description' ? 'bg-gray-100 font-medium' : ''}`}
             onClick={() => setActiveTab('description')}
           >
             Description
           </button>
           <button
-            className={`border px-5 py-3 text-sm ${activeTab === 'reviews' ? 'bg-gray-100 font-medium' : ''}`}
+            className={`border px-4 py-3 text-sm whitespace-nowrap ${activeTab === 'reviews' ? 'bg-gray-100 font-medium' : ''}`}
             onClick={() => setActiveTab('reviews')}
           >
             Reviews ({reviews.length})
@@ -756,14 +756,14 @@ const Product = () => {
 
         {/* Description Tab Content */}
         {activeTab === 'description' && (
-          <div className="flex flex-col gap-4 border p-6 text-sm text-gray-500">
+          <div className="flex flex-col gap-4 border p-4 sm:p-6 text-sm text-gray-500">
             <p>{productData.description}</p>
           </div>
         )}
 
-        {/* Reviews Tab Content */}
+        {/* Reviews Tab Content - Made Responsive */}
         {activeTab === 'reviews' && (
-          <div className="border p-6">
+          <div className="border p-4 sm:p-6">
             {/* Review Form */}
             <div className="mb-8">
               <h3 className="text-lg font-medium">Leave a Review</h3>
@@ -775,12 +775,12 @@ const Product = () => {
                 <>
                   <div className="mt-4">
                     <p className="mb-2">Your Rating:</p>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 text-lg sm:text-xl">
                       {renderClickableStars(rating, setRating)}
                     </div>
                   </div>
                   <textarea
-                    className="mt-4 w-full rounded border-2 border-gray-300 p-2 text-sm"
+                    className="mt-4 w-full rounded border-2 border-gray-300 p-3 text-sm"
                     rows="4"
                     placeholder="Write your review..."
                     value={comment}
@@ -792,9 +792,8 @@ const Product = () => {
                       accept="image/*"
                       multiple
                       onChange={handleImageUpload}
-                      className="text-sm"
+                      className="text-sm w-full sm:w-auto"
                     />
-                  
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {reviewImages.map((imageData, index) => (
@@ -802,11 +801,11 @@ const Product = () => {
                         <img
                           src={imageData.url}
                           alt={`Review Image ${index + 1}`}
-                          className="size-20 rounded object-cover"
+                          className="size-16 sm:size-20 rounded object-cover"
                         />
                         <button
                           onClick={() => removeReviewImage(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full size-5 text-xs flex items-center justify-center"
+                          className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-red-500 text-white rounded-full size-4 sm:size-5 text-xs flex items-center justify-center"
                         >
                           <FaTimes size={8} />
                         </button>
@@ -814,7 +813,7 @@ const Product = () => {
                     ))}
                   </div>
                   <button
-                    className={`btn mt-4 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`btn mt-4 w-full sm:w-auto ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     onClick={handleSubmitReview}
                     disabled={uploading}
                   >
@@ -824,7 +823,7 @@ const Product = () => {
               )}
             </div>
 
-            {/* Display Existing Reviews */}
+            {/* Display Existing Reviews - Made Responsive */}
             <div className="mt-8">
               <h3 className="text-lg font-medium">Customer Reviews</h3>
               {loadingReviews ? (
@@ -838,9 +837,9 @@ const Product = () => {
                     
                     return (
                       <div key={review.id} className="mt-4 border-b pb-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            {renderRating(review.rating)}
+                            <div className="flex gap-1 text-sm">{renderRating(review.rating)}</div>
                             <span className="font-medium text-sm">{maskEmail(review.author)}</span>
                           </div>
                           <p className="text-sm text-gray-500">{review.date}</p>
@@ -852,7 +851,7 @@ const Product = () => {
                               key={index}
                               src={imageUrl}
                               alt={`Review Image ${index + 1}`}
-                              className="size-20 cursor-pointer object-cover"
+                              className="size-16 sm:size-20 cursor-pointer object-cover"
                               onClick={() => handleImageClick(imageUrl)}
                             />
                           ))}
@@ -860,7 +859,7 @@ const Product = () => {
 
                         {/* Admin Reply Section */}
                         {review.hasReply && review.reply && (
-                          <div className="mt-4 ml-4 border-l-2 border-black pl-4">
+                          <div className="mt-4 ml-0 sm:ml-4 border-l-0 sm:border-l-2 border-black sm:pl-4">
                             <div className="mb-3 bg-blue-50 rounded-lg p-3 border border-blue-100">
                               <div className="flex items-center gap-2 mb-1">
                                 <FaUserShield className="text-black" size={14} />
@@ -873,7 +872,8 @@ const Product = () => {
                         )}
 
                         <div className="mt-3 flex items-center gap-4 text-sm text-gray-500">
-                          <span>Was this helpful?</span>
+                          <span className="hidden sm:inline">Was this helpful?</span>
+                          <span className="sm:hidden">Helpful?</span>
                           <button 
                             onClick={() => handleLikeReview(review.id)}
                             className={`flex items-center gap-1 transition-colors ${
@@ -882,7 +882,8 @@ const Product = () => {
                                 : 'hover:text-green-600'
                             }`}
                           >
-                            <FaThumbsUp size={14} /> {review.likes}
+                            <FaThumbsUp size={12} className="sm:size-[14px]" /> 
+                            <span className="text-xs sm:text-sm">{review.likes}</span>
                           </button>
                           <button 
                             onClick={() => handleDislikeReview(review.id)}
@@ -892,7 +893,8 @@ const Product = () => {
                                 : 'hover:text-red-600'
                             }`}
                           >
-                            <FaThumbsDown size={14} /> {review.dislikes}
+                            <FaThumbsDown size={12} className="sm:size-[14px]" /> 
+                            <span className="text-xs sm:text-sm">{review.dislikes}</span>
                           </button>
                         </div>
                       </div>
@@ -900,7 +902,7 @@ const Product = () => {
                   })}
                   {filteredReviews.length > 10 && (
                     <button
-                      className="btn mt-4"
+                      className="btn mt-4 w-full sm:w-auto"
                       onClick={toggleShowAllReviews}
                     >
                       {showAllReviews ? 'Show Less' : `Show All (${filteredReviews.length})`}
@@ -916,11 +918,11 @@ const Product = () => {
       {/* Modal for Enlarged Image */}
       {selectedImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-          <div className="relative">
+          <div className="relative mx-4">
             <img
               src={selectedImage}
               alt="Enlarged Review"
-              className="max-h-[90vh] max-w-[90vw] rounded"
+              className="max-h-[80vh] max-w-[90vw] rounded"
             />
             <button
               className="absolute right-2 top-2 rounded-full bg-white px-2 py-1 text-black hover:bg-gray-200 transition-colors flex items-center justify-center"

@@ -29,6 +29,145 @@ const createTransporter = () => {
   });
 };
 
+// Send password reset OTP email
+export const sendPasswordResetEmail = async (email, otp, userName = 'there') => {
+  try {
+    const transporter = createTransporter();
+
+    if (!transporter) {
+      console.log('❌ Cannot send password reset email - check email configuration');
+      return false;
+    }
+
+    const mailOptions = {
+      from: `"Natura Bliss" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: '🔐 Password Reset OTP - Natura Bliss',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: #000; color: #fff; padding: 25px; text-align: center; border-radius: 8px 8px 0 0; }
+                .content { background: #f9f9f9; padding: 25px; border-radius: 0 0 8px 8px; }
+                .otp-box { background: #fff; padding: 20px; text-align: center; border-radius: 8px; border: 2px dashed #000; margin: 20px 0; }
+                .otp-code { font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #000; font-family: monospace; }
+                .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; border-radius: 4px; }
+                .footer { margin-top: 25px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0;">Password Reset Request</h1>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Natura Bliss</p>
+                </div>
+                <div class="content">
+                    <p>Hi <strong>${userName}</strong>,</p>
+                    
+                    <p>You requested to reset your password for your Natura Bliss account. Use the OTP below to proceed:</p>
+                    
+                    <div class="otp-box">
+                        <div class="otp-code">${otp}</div>
+                        <p style="margin: 10px 0 0; color: #666;">This OTP will expire in 10 minutes</p>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>⚠️ Security Notice:</strong>
+                        <p style="margin: 5px 0 0;">If you didn't request this password reset, please ignore this email. Your account security is important to us.</p>
+                    </div>
+                    
+                    <p>Need help? Contact our support team at <a href="mailto:naturabliss99943@gmail.com">naturabliss99943@gmail.com</a></p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                    <p>&copy; ${new Date().getFullYear()} Natura Bliss. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+      `,
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('✅ Password reset OTP sent to:', email);
+    return true;
+
+  } catch (error) {
+    console.error('❌ Error sending password reset email:', error);
+    return false;
+  }
+};
+
+// Send password reset success email
+export const sendPasswordResetSuccessEmail = async (email, userName = 'there') => {
+  try {
+    const transporter = createTransporter();
+
+    if (!transporter) {
+      console.log('❌ Cannot send success email - check email configuration');
+      return false;
+    }
+
+    const mailOptions = {
+      from: `"Natura Bliss" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: '✅ Password Reset Successful - Natura Bliss',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: #000; color: #fff; padding: 25px; text-align: center; border-radius: 8px 8px 0 0; }
+                .content { background: #f9f9f9; padding: 25px; border-radius: 0 0 8px 8px; }
+                .success-box { background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 15px 0; border-radius: 4px; }
+                .footer { margin-top: 25px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0;">Password Reset Successful</h1>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Natura Bliss</p>
+                </div>
+                <div class="content">
+                    <p>Hi <strong>${userName}</strong>,</p>
+                    
+                    <div class="success-box">
+                        <strong>✅ Success!</strong>
+                        <p style="margin: 5px 0 0;">Your Natura Bliss account password has been reset successfully.</p>
+                    </div>
+                    
+                    <p>You can now login to your account using your new password.</p>
+                    
+                    <p>If you did not make this change, please contact our support team immediately at <a href="mailto:naturabliss99943@gmail.com">naturabliss99943@gmail.com</a></p>
+                    
+                    <p>Thank you for choosing Natura Bliss!</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                    <p>&copy; ${new Date().getFullYear()} Natura Bliss. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+      `,
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('✅ Password reset success email sent to:', email);
+    return true;
+
+  } catch (error) {
+    console.error('❌ Error sending password reset success email:', error);
+    return false;
+  }
+};
+
 // Send newsletter to multiple subscribers
 export const sendNewsletter = async (subscribers, subject, htmlContent) => {
   try {

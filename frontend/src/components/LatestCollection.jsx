@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useMemo } from "react";
+import { useContext, useState, useEffect, useMemo, useRef } from "react";
 import { ShopContext } from "../context/ShopContext";
 import Title from './Title';
 import ProductItem from "./ProductItem";
@@ -12,6 +12,7 @@ const LatestCollection = () => {
   const [latestProducts, setLatestProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const sliderRef = useRef(null); // Added missing ref
 
   // Use useMemo to filter and process products
   const processedProducts = useMemo(() => {
@@ -30,34 +31,26 @@ const LatestCollection = () => {
   }, [processedProducts]);
 
   // Custom Next Arrow Component
-  const NextArrow = (props) => {
-    const { className, style, onClick } = props;
+  const NextArrow = ({ onClick }) => {
     return (
-      <div
-        className={`${className} custom-arrow next-arrow`}
-        style={{ ...style, display: "block", right: "10px" }}
+      <button
+        className="absolute right-2 top-1/2 z-10 -translate-y-1/2 bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20"
         onClick={onClick}
       >
-        <div className="bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20">
-          <FaChevronRight size={16} />
-        </div>
-      </div>
+        <FaChevronRight size={16} />
+      </button>
     );
   };
 
   // Custom Previous Arrow Component
-  const PrevArrow = (props) => {
-    const { className, style, onClick } = props;
+  const PrevArrow = ({ onClick }) => {
     return (
-      <div
-        className={`${className} custom-arrow prev-arrow`}
-        style={{ ...style, display: "block", left: "10px", zIndex: 1 }}
+      <button
+        className="absolute left-2 top-1/2 z-10 -translate-y-1/2 bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20"
         onClick={onClick}
       >
-        <div className="bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20">
-          <FaChevronLeft size={16} />
-        </div>
-      </div>
+        <FaChevronLeft size={16} />
+      </button>
     );
   };
 
@@ -76,33 +69,31 @@ const LatestCollection = () => {
     dots: true,
     infinite: latestProducts.length >= 4,
     speed: 500,
-    slidesToShow: 4,
+    slidesToShow: Math.min(4, latestProducts.length),
     slidesToScroll: 1,
     autoplay: latestProducts.length >= 4,
     autoplaySpeed: 3000,
     pauseOnHover: true,
-    arrows: latestProducts.length >= 4,
-    nextArrow: latestProducts.length >= 4 ? <NextArrow /> : undefined,
-    prevArrow: latestProducts.length >= 4 ? <PrevArrow /> : undefined,
+    arrows: false, // Disable Slick's default arrows completely
     responsive: [
       {
         breakpoint: 1280,
         settings: {
-          slidesToShow: 4,
+          slidesToShow: Math.min(4, latestProducts.length),
           slidesToScroll: 1,
         }
       },
       {
         breakpoint: 1024,
         settings: {
-          slidesToShow: 3,
+          slidesToShow: Math.min(3, latestProducts.length),
           slidesToScroll: 1,
         }
       },
       {
         breakpoint: 768,
         settings: {
-          slidesToShow: 2,
+          slidesToShow: Math.min(2, latestProducts.length),
           slidesToScroll: 1,
         }
       },
@@ -111,7 +102,6 @@ const LatestCollection = () => {
         settings: {
           slidesToShow: 1,
           slidesToScroll: 1,
-          arrows: false,
           dots: latestProducts.length > 1
         }
       }
@@ -171,7 +161,7 @@ const LatestCollection = () => {
       ) : showSlider ? (
         // Show slider when we have 4 or more products
         <div className="relative px-4">
-          <Slider {...sliderSettings}>
+          <Slider ref={sliderRef} {...sliderSettings}>
             {latestProducts.map((item) => (
               <div key={item._id} className="px-2">
                 <ProductItem
@@ -185,6 +175,14 @@ const LatestCollection = () => {
               </div>
             ))}
           </Slider>
+          
+          {/* Add custom arrows outside the slider */}
+          {latestProducts.length >= 4 && (
+            <>
+              <PrevArrow onClick={() => sliderRef.current?.slickPrev()} />
+              <NextArrow onClick={() => sliderRef.current?.slickNext()} />
+            </>
+          )}
         </div>
       ) : (
         // Show regular grid when we have less than 4 products - using the same grid system

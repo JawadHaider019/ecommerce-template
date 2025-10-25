@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useMemo } from "react";
+import { useContext, useState, useEffect, useMemo, useRef } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
 import Title from './Title';
@@ -18,6 +18,7 @@ const DealCollection = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dealRatings, setDealRatings] = useState({});
+  const sliderRef = useRef(null); // Added missing ref
 
   // Helper function to safely get deal type name
   const getDealTypeName = (dealType) => {
@@ -131,34 +132,26 @@ const DealCollection = () => {
   };
 
   // Custom Next Arrow Component
-  const NextArrow = (props) => {
-    const { className, style, onClick } = props;
+  const NextArrow = ({ onClick }) => {
     return (
-      <div
-        className={`${className} custom-arrow next-arrow`}
-        style={{ ...style, display: "block", right: "10px" }}
+      <button
+        className="absolute right-2 top-1/2 z-10 -translate-y-1/2 bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20"
         onClick={onClick}
       >
-        <div className="bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20">
-          <FaChevronRight size={16} />
-        </div>
-      </div>
+        <FaChevronRight size={16} />
+      </button>
     );
   };
 
   // Custom Previous Arrow Component
-  const PrevArrow = (props) => {
-    const { className, style, onClick } = props;
+  const PrevArrow = ({ onClick }) => {
     return (
-      <div
-        className={`${className} custom-arrow prev-arrow`}
-        style={{ ...style, display: "block", left: "10px", zIndex: 1 }}
+      <button
+        className="absolute left-2 top-1/2 z-10 -translate-y-1/2 bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20"
         onClick={onClick}
       >
-        <div className="bg-black/90 hover:bg-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20">
-          <FaChevronLeft size={16} />
-        </div>
-      </div>
+        <FaChevronLeft size={16} />
+      </button>
     );
   };
 
@@ -182,9 +175,7 @@ const DealCollection = () => {
     autoplay: processedDeals.length >= 3,
     autoplaySpeed: 3000,
     pauseOnHover: true,
-    arrows: processedDeals.length >= 3,
-    nextArrow: processedDeals.length >= 3 ? <NextArrow /> : undefined,
-    prevArrow: processedDeals.length >= 3 ? <PrevArrow /> : undefined,
+    arrows: false, // Disable Slick's default arrows completely
     responsive: [
       {
         breakpoint: 1280,
@@ -212,7 +203,6 @@ const DealCollection = () => {
         settings: {
           slidesToShow: 1,
           slidesToScroll: 1,
-          arrows: false,
           dots: processedDeals.length > 1
         }
       }
@@ -272,7 +262,7 @@ const DealCollection = () => {
       ) : showSlider ? (
         // Show slider when we have 3 or more deals
         <div className="relative px-4">
-          <Slider {...sliderSettings}>
+          <Slider ref={sliderRef} {...sliderSettings}>
             {processedDeals.map((deal) => (
               <div key={deal._id || deal.id} className="px-2">
                 <DealItem
@@ -291,6 +281,14 @@ const DealCollection = () => {
               </div>
             ))}
           </Slider>
+          
+          {/* Add custom arrows outside the slider */}
+          {processedDeals.length >= 3 && (
+            <>
+              <PrevArrow onClick={() => sliderRef.current?.slickPrev()} />
+              <NextArrow onClick={() => sliderRef.current?.slickNext()} />
+            </>
+          )}
         </div>
       ) : (
         // Show regular grid when we have 1-2 deals - using the same grid system as RelatedDeals

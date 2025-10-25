@@ -47,33 +47,6 @@ const ContentManagement = () => {
     };
   }, []);
 
-  // Future: Fetch all data from backend APIs
-  useEffect(() => {
-    // Example API fetch (uncomment and adjust later)
-    /*
-    fetch("http://localhost:4000/api/categories")
-      .then((res) => res.json())
-      .then((data) => setCategories(data))
-      .catch((err) => console.error("Error fetching categories:", err));
-
-    fetch("http://localhost:4000/api/blogs")
-      .then((res) => res.json())
-      .then((data) => setBlogs(data));
-
-    fetch("http://localhost:4000/api/comments")
-      .then((res) => res.json())
-      .then((data) => setComments(data));
-
-    fetch("http://localhost:4000/api/testimonials")
-      .then((res) => res.json())
-      .then((data) => setTestimonials(data));
-
-    // Fetch teams data
-    fetch("http://localhost:4000/api/teams")
-      .then((res) => res.json())
-      .then((data) => setTeams(data));
-    */
-  }, []);
 
   // Render tab content
   const renderTabContent = () => {
@@ -120,39 +93,53 @@ const ContentManagement = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-md md:shadow-lg border border-gray-100 mt-6">
-      <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">
+    <div className="bg-white rounded-lg md:rounded-xl lg:rounded-2xl p-3 sm:p-4 md:p-6 shadow-sm md:shadow-md lg:shadow-lg border border-gray-100 mt-4 md:mt-6">
+      <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-4 md:mb-6">
         Content Management
       </h2>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap border-b border-gray-200 mb-6">
-        {[
-          { id: "categories", name: "Categories", icon: faFolder },
-          { id: "blogs", name: "Blogs", icon: faBookOpen },
-          { id: "banner", name: "Banner", icon: faImages },
-          { id: "testimonials", name: "Testimonials", icon: faComment },
-          { id: "comments", name: "Comments", icon: faReply },
-          { id: "teams", name: "Teams", icon: faUsers }, // New tab
-          { id: "other", name: "Other", icon: faCog },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            className={`px-4 py-2 font-medium flex items-center ${
-              activeTab === tab.id
-                ? "text-black border-b-2 border-black"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <FontAwesomeIcon icon={tab.icon} className="mr-2" />
-            {tab.name}
-          </button>
-        ))}
+      {/* Tabs - Mobile responsive with horizontal scroll */}
+      <div className="relative">
+        <div className="flex overflow-x-auto scrollbar-hide border-b border-gray-200 mb-4 md:mb-6 pb-2">
+          <div className="flex space-x-1 md:space-x-0 min-w-max">
+            {[
+              { id: "categories", name: "Categories", icon: faFolder },
+              { id: "blogs", name: "Blogs", icon: faBookOpen },
+              { id: "banner", name: "Banner", icon: faImages },
+              { id: "testimonials", name: "Testimonials", icon: faComment },
+              { id: "comments", name: "Comments", icon: faReply },
+              { id: "teams", name: "Teams", icon: faUsers }, // New tab
+              { id: "other", name: "Other", icon: faCog },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                className={`flex-shrink-0 px-3 py-2 text-sm md:text-base font-medium flex items-center whitespace-nowrap rounded-lg transition-colors ${
+                  activeTab === tab.id
+                    ? "text-black bg-gray-100 md:bg-transparent md:border-b-2 md:border-black"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                }`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <FontAwesomeIcon 
+                  icon={tab.icon} 
+                  className="mr-2 text-xs md:text-sm" 
+                />
+                <span className="hidden xs:inline">{tab.name}</span>
+                <span className="xs:hidden">
+                  {tab.name === 'Categories' ? 'Cat' :
+                   tab.name === 'Testimonials' ? 'Test' :
+                   tab.name === 'Comments' ? 'Com' : tab.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Tab Content */}
-      {renderTabContent()}
+      <div className="min-h-[400px]">
+        {renderTabContent()}
+      </div>
     </div>
   );
 };

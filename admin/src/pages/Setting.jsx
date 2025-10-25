@@ -1458,7 +1458,7 @@ const GeneralSettingsContent = ({
   );
 };
 
-// Business Details Component - UPDATED with delete modal
+
 const BusinessDetailsContent = ({
   businessDetails,
   handleBusinessChange,
@@ -1481,50 +1481,46 @@ const BusinessDetailsContent = ({
   handleSetDefaultStore,
   handleNewStoreChange,
   resetStoreForm,
-  // ✅ ADDED: Delete modal props
   showDeleteModal,
   confirmDeleteStore,
   cancelDeleteStore
 }) => {
-  // ✅ SAFE ACCESS: Ensure all nested properties exist with fallbacks
-// In your BusinessDetailsContent component, update the safeBusinessDetails:
-const safeBusinessDetails = {
-  company: businessDetails?.company || {
-    name: "Natura Bliss",
-    tagline: "Pure Natural Skincare",
-    description: "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
-    foundedYear: 2024
-  },
-  contact: {
-    customerSupport: {
-      email: businessDetails?.contact?.customerSupport?.email || "",
-      phone: businessDetails?.contact?.customerSupport?.phone || "", 
-      hours: businessDetails?.contact?.customerSupport?.hours || ""
+  const safeBusinessDetails = {
+    company: businessDetails?.company || {
+      name: "Natura Bliss",
+      tagline: "Pure Natural Skincare",
+      description: "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
+      foundedYear: 2024
+    },
+    contact: {
+      customerSupport: {
+        email: businessDetails?.contact?.customerSupport?.email || "",
+        phone: businessDetails?.contact?.customerSupport?.phone || "", 
+        hours: businessDetails?.contact?.customerSupport?.hours || ""
+      }
+    },
+    location: businessDetails?.location || {
+      displayAddress: "123 Natural Street, Green Valley, PK",
+      googleMapsLink: ""
+    },
+    socialMedia: businessDetails?.socialMedia || {
+      facebook: "",
+      instagram: "",
+      tiktok: "",
+      whatsapp: ""
+    },
+    multiStore: businessDetails?.multiStore || {
+      enabled: false,
+      stores: [],
+      defaultStore: null
+    },
+    logos: businessDetails?.logos || {
+      website: { url: "", public_id: "" },
+      admin: { url: "", public_id: "" },
+      favicon: { url: "", public_id: "" }
     }
-  },
-  location: businessDetails?.location || {
-    displayAddress: "123 Natural Street, Green Valley, PK",
-    googleMapsLink: ""
-  },
-  socialMedia: businessDetails?.socialMedia || {
-    facebook: "",
-    instagram: "",
-    tiktok: "",
-    whatsapp: ""
-  },
-  multiStore: businessDetails?.multiStore || {
-    enabled: false,
-    stores: [],
-    defaultStore: null
-  },
-  logos: businessDetails?.logos || {
-    website: { url: "", public_id: "" },
-    admin: { url: "", public_id: "" },
-    favicon: { url: "", public_id: "" }
-  }
-};
+  };
 
-  // Helper function to format operating hours
   const formatOperatingHours = (operatingHours) => {
     if (!operatingHours) return "Not specified";
     
@@ -1544,93 +1540,90 @@ const safeBusinessDetails = {
   };
 
   return (
-    <div className="space-y-6">
-{/* Logo Upload Section */}
-<div className="bg-white rounded-xl p-6 border border-gray-200">
-  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-    Brand Logos
-  </h3>
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-    {[
-      { type: 'website', label: 'Website Logo', description: 'Main logo for your website' },
-      { type: 'admin', label: 'Admin Logo', description: 'Logo for admin panel' },
-      { type: 'favicon', label: 'Favicon', description: 'Browser tab icon (32x32px)' }
-    ].map((logo) => {
-      const hasExistingLogo = safeBusinessDetails.logos[logo.type]?.url;
-      const hasPreview = logoPreviews[logo.type];
-      const showLogo = hasPreview || hasExistingLogo;
-      
-      return (
-        <div key={logo.type} className="text-center">
-          <div className="relative mx-auto w-24 h-24 mb-3 group">
-            {showLogo ? (
-              <>
-                <img
-                  src={hasPreview ? logoPreviews[logo.type] : safeBusinessDetails.logos[logo.type].url}
-                  alt={logo.label}
-                  className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-lg"
-                />
-                {/* Cross Icon Button */}
-                <button
-                  type="button"
-                  onClick={() => removeLogo(logo.type)}
-                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-700 transition-all duration-200 z-10 transform hover:scale-110"
-                  title={`Remove ${logo.label}`}
-                >
-                  <FontAwesomeIcon icon={faXmark} />
-                </button>
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded-2xl transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <span className="text-white text-xs font-medium bg-black bg-opacity-70 px-2 py-1 rounded">
-                    Click X to remove
-                  </span>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Logo Upload Section - Responsive */}
+      <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Brand Logos
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {[
+            { type: 'website', label: 'Website Logo', description: 'Main logo for your website' },
+            { type: 'admin', label: 'Admin Logo', description: 'Logo for admin panel' },
+            { type: 'favicon', label: 'Favicon', description: 'Browser tab icon (32x32px)' }
+          ].map((logo) => {
+            const hasExistingLogo = safeBusinessDetails.logos[logo.type]?.url;
+            const hasPreview = logoPreviews[logo.type];
+            const showLogo = hasPreview || hasExistingLogo;
+            
+            return (
+              <div key={logo.type} className="text-center">
+                <div className="relative mx-auto w-20 h-20 sm:w-24 sm:h-24 mb-3 group">
+                  {showLogo ? (
+                    <>
+                      <img
+                        src={hasPreview ? logoPreviews[logo.type] : safeBusinessDetails.logos[logo.type].url}
+                        alt={logo.label}
+                        className="w-full h-full rounded-xl sm:rounded-2xl object-cover border-2 sm:border-4 border-white shadow-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeLogo(logo.type)}
+                        className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-red-600 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-xs hover:bg-red-700 transition-all duration-200 z-10 transform hover:scale-110"
+                        title={`Remove ${logo.label}`}
+                      >
+                        <FontAwesomeIcon icon={faXmark} />
+                      </button>
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded-xl sm:rounded-2xl transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <span className="text-white text-xs font-medium bg-black bg-opacity-70 px-2 py-1 rounded hidden sm:block">
+                          Click X to remove
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full rounded-xl sm:rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                      <FontAwesomeIcon icon={faBuilding} className="text-xl sm:text-2xl text-gray-400" />
+                    </div>
+                  )}
                 </div>
-              </>
-            ) : (
-              <div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
-                <FontAwesomeIcon icon={faBuilding} className="text-2xl text-gray-400" />
+                <h4 className="font-semibold text-gray-900 mb-1 text-sm sm:text-base">{logo.label}</h4>
+                <p className="text-xs text-gray-600 mb-3 hidden sm:block">{logo.description}</p>
+                <input
+                  type="file"
+                  onChange={(e) => handleLogoChange(e, logo.type)}
+                  accept="image/*"
+                  className="hidden"
+                  id={`${logo.type}-upload`}
+                />
+                <label
+                  htmlFor={`${logo.type}-upload`}
+                  className="cursor-pointer bg-black text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-gray-800 transition-colors inline-block"
+                >
+                  <FontAwesomeIcon icon={faUpload} className="mr-1 sm:mr-2" />
+                  {showLogo ? 'Change' : 'Upload'}
+                </label>
+                
+                {showLogo && (
+                  <p className="text-xs mt-2">
+                    <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                      hasPreview ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}></span>
+                    {hasPreview ? 'New image selected' : 'Current logo'}
+                  </p>
+                )}
               </div>
-            )}
-          </div>
-          <h4 className="font-semibold text-gray-900 mb-1">{logo.label}</h4>
-          <p className="text-xs text-gray-600 mb-3">{logo.description}</p>
-          <input
-            type="file"
-            onChange={(e) => handleLogoChange(e, logo.type)}
-            accept="image/*"
-            className="hidden"
-            id={`${logo.type}-upload`}
-          />
-          <label
-            htmlFor={`${logo.type}-upload`}
-            className="cursor-pointer bg-black text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors inline-block"
-          >
-            <FontAwesomeIcon icon={faUpload} className="mr-2" />
-            {showLogo ? 'Change' : 'Upload'}
-          </label>
-          
-          {/* Status indicator */}
-          {showLogo && (
-            <p className="text-xs mt-2">
-              <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                hasPreview ? 'bg-yellow-500' : 'bg-green-500'
-              }`}></span>
-              {hasPreview ? 'New image selected' : 'Current logo'}
-            </p>
-          )}
+            );
+          })}
         </div>
-      );
-    })}
-  </div>
-</div>
+      </div>
 
-      {/* Company Information */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
+      {/* Company Information - Responsive */}
+      <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Company Information
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Business Name *
             </label>
@@ -1639,11 +1632,11 @@ const safeBusinessDetails = {
               name="company.name"
               value={safeBusinessDetails.company.name}
               onChange={handleBusinessChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
               required
             />
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tagline
             </label>
@@ -1652,7 +1645,7 @@ const safeBusinessDetails = {
               name="company.tagline"
               value={safeBusinessDetails.company.tagline}
               onChange={handleBusinessChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
             />
           </div>
           <div className="md:col-span-2">
@@ -1664,64 +1657,65 @@ const safeBusinessDetails = {
               value={safeBusinessDetails.company.description}
               onChange={handleBusinessChange}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
               required
             />
           </div>
         </div>
       </div>
 
-{/* Contact Information */}
-<div className="bg-white rounded-xl p-6 border border-gray-200">
-  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-    Contact Information
-  </h3>
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Support Email *
-      </label>
-      <input
-        type="email"
-        name="contact.customerSupport.email"
-        value={safeBusinessDetails.contact.customerSupport.email || ""}
-        onChange={handleBusinessChange}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-        required
-        placeholder="codewithjerry0o0@gmail.com"
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Support Phone *
-      </label>
-      <input
-        type="text"
-        name="contact.customerSupport.phone"
-        value={safeBusinessDetails.contact.customerSupport.phone || ""}
-        onChange={handleBusinessChange}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-        required
-        placeholder="+92-317 5546007"
-      />
-    </div>
-    <div className="md:col-span-2">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Support Hours
-      </label>
-      <input
-        type="text"
-        name="contact.customerSupport.hours"
-        value={safeBusinessDetails.contact.customerSupport.hours || ""}
-        onChange={handleBusinessChange}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-        placeholder="e.g., 24/7 or 9:00 AM - 6:00 PM"
-      />
-    </div>
-  </div>
-</div>
-      {/* Location Information */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
+      {/* Contact Information - Responsive */}
+      <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Contact Information
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Support Email *
+            </label>
+            <input
+              type="email"
+              name="contact.customerSupport.email"
+              value={safeBusinessDetails.contact.customerSupport.email || ""}
+              onChange={handleBusinessChange}
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
+              required
+              placeholder="codewithjerry0o0@gmail.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Support Phone *
+            </label>
+            <input
+              type="text"
+              name="contact.customerSupport.phone"
+              value={safeBusinessDetails.contact.customerSupport.phone || ""}
+              onChange={handleBusinessChange}
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
+              required
+              placeholder="+92-317 5546007"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Support Hours
+            </label>
+            <input
+              type="text"
+              name="contact.customerSupport.hours"
+              value={safeBusinessDetails.contact.customerSupport.hours || ""}
+              onChange={handleBusinessChange}
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
+              placeholder="e.g., 24/7 or 9:00 AM - 6:00 PM"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Location Information - Responsive */}
+      <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-2 text-gray-500" />
           Address
@@ -1735,7 +1729,7 @@ const safeBusinessDetails = {
             value={safeBusinessDetails.location.displayAddress}
             onChange={handleBusinessChange}
             rows={2}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
             required
           />
         </div>
@@ -1748,18 +1742,18 @@ const safeBusinessDetails = {
             name="location.googleMapsLink"
             value={safeBusinessDetails.location.googleMapsLink}
             onChange={handleBusinessChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
             placeholder="https://maps.google.com/?q=your+address"
           />
         </div>
       </div>
 
-      {/* Social Media */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
+      {/* Social Media - Responsive */}
+      <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Social Media Links
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {[
             { label: "Facebook", name: "facebook" },
             { label: "Instagram", name: "instagram" },
@@ -1775,7 +1769,7 @@ const safeBusinessDetails = {
                 name={social.name}
                 value={safeBusinessDetails.socialMedia[social.name]}
                 onChange={handleSocialMediaChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
                 placeholder={`https://${social.name.toLowerCase()}.com/yourpage`}
               />
             </div>
@@ -1783,9 +1777,9 @@ const safeBusinessDetails = {
         </div>
       </div>
 
-      {/* Store Management Section */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <div className="flex justify-between items-center mb-6">
+      {/* Store Management Section - Responsive */}
+      <div className="bg-white rounded-xl p-4 sm:p-6 border border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
           <h3 className="text-lg font-semibold text-gray-900">
             <FontAwesomeIcon icon={faStore} className="mr-2 text-gray-500" />
             Store Management
@@ -1796,106 +1790,84 @@ const safeBusinessDetails = {
               resetStoreForm();
               setShowStoreForm(true);
             }}
-            className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+            className="flex items-center justify-center gap-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors w-full sm:w-auto"
           >
             <FontAwesomeIcon icon={faPlus} />
             Add Store
           </button>
         </div>
-     {/* Store Form Modal */}
+
+        {/* Store Form Modal - Responsive */}
         {showStoreForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-2xl max-h-[95vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold">
+                <h3 className="text-lg sm:text-xl font-semibold">
                   {editingStore ? 'Edit Store' : 'Add New Store'}
                 </h3>
                 <button
                   onClick={() => {
                     setShowStoreForm(false);
-                    setEditingStore(null); // ✅ NOW THIS WORKS
-                    setNewStore({
-                      storeName: "",
-                      storeType: "warehouse",
-                      location: {
-                        displayName: "",
-                        address: {
-                          street: ""
-                                      },
-                        coordinates: { lat: 0, lng: 0 },
-                        googleMapsLink: ""
-                      },
-                      contact: {
-                        phone: "",
-                        manager: ""
-                      },
-                      operatingHours: {
-                        monday: { open: "09:00", close: "18:00", closed: false },
-                        tuesday: { open: "09:00", close: "18:00", closed: false },
-                        wednesday: { open: "09:00", close: "18:00", closed: false },
-                        thursday: { open: "09:00", close: "18:00", closed: false },
-                        friday: { open: "09:00", close: "18:00", closed: false },
-                        saturday: { open: "09:00", close: "18:00", closed: false },
-                        sunday: { open: "09:00", close: "18:00", closed: true }
-                      },
-                      status: "active",
-                      isActive: true
-                    });
+                    setEditingStore(null);
                   }}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 hover:text-gray-700 p-1"
                 >
-                  <FontAwesomeIcon icon={faXmark} className="text-xl" />
+                  <FontAwesomeIcon icon={faXmark} className="text-lg sm:text-xl" />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Store Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="storeName"
-                    value={newStore.storeName}
-                    onChange={handleNewStoreChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                    required
-                    placeholder="Enter store name"
-                  />
+                {/* Store Basic Info */}
+                <div className="grid grid-cols-1 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Store Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="storeName"
+                      value={newStore.storeName}
+                      onChange={handleNewStoreChange}
+                      className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
+                      required
+                      placeholder="Enter store name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Store Type *
+                    </label>
+                    <select
+                      name="storeType"
+                      value={newStore.storeType}
+                      onChange={handleNewStoreChange}
+                      className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
+                    >
+                      <option value="warehouse">Warehouse</option>
+                      <option value="retail">Retail Store</option>
+                      <option value="cart">Cart</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Display Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="location.displayName"
+                      value={newStore.location.displayName}
+                      onChange={handleNewStoreChange}
+                      className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
+                      required
+                      placeholder="Enter display name for the store"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Store Type *
-                  </label>
-                  <select
-                    name="storeType"
-                    value={newStore.storeType}
-                    onChange={handleNewStoreChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                  >
-                    <option value="warehouse">Warehouse</option>
-                    <option value="retail">Retail Store</option>
-                    <option value="cart">Cart</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Display Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="location.displayName"
-                    value={newStore.location.displayName}
-                    onChange={handleNewStoreChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                    required
-                    placeholder="Enter display name for the store"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                {/* Contact Information */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Phone *
@@ -1905,7 +1877,7 @@ const safeBusinessDetails = {
                       name="contact.phone"
                       value={newStore.contact.phone}
                       onChange={handleNewStoreChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                      className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
                       placeholder="Store phone number"
                       required
                     />
@@ -1919,15 +1891,16 @@ const safeBusinessDetails = {
                       name="contact.manager"
                       value={newStore.contact.manager}
                       onChange={handleNewStoreChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                      className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
                       placeholder="Store manager name"
                     />
                   </div>
                 </div>
 
+                {/* Address Information */}
                 <div className="border-t pt-4">
-                  <h4 className="text-lg font-semibold mb-3">Address Information *</h4>
-                  <div className="grid grid-cols-1 gap-4">
+                  <h4 className="text-base sm:text-lg font-semibold mb-3">Address Information *</h4>
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Street Address
@@ -1937,13 +1910,54 @@ const safeBusinessDetails = {
                         name="location.address.street"
                         value={newStore.location.address.street}
                         onChange={handleNewStoreChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                        className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
                         required
                         placeholder="Enter street address"
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          City
+                        </label>
+                        <input
+                          type="text"
+                          name="location.address.city"
+                          value={newStore.location.address.city}
+                          onChange={handleNewStoreChange}
+                          className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
+                          required
+                          placeholder="City"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          State
+                        </label>
+                        <input
+                          type="text"
+                          name="location.address.state"
+                          value={newStore.location.address.state}
+                          onChange={handleNewStoreChange}
+                          className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
+                          required
+                          placeholder="State"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Zip Code
+                        </label>
+                        <input
+                          type="text"
+                          name="location.address.zipCode"
+                          value={newStore.location.address.zipCode}
+                          onChange={handleNewStoreChange}
+                          className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
+                          required
+                          placeholder="Zip Code"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1954,29 +1968,30 @@ const safeBusinessDetails = {
                         name="location.googleMapsLink"
                         value={newStore.location.googleMapsLink}
                         onChange={handleNewStoreChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                        className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm sm:text-base"
                         placeholder="https://maps.google.com/?q=your+address"
                       />
                     </div>
                   </div>
                 </div>
 
+                {/* Store Timings - Responsive */}
                 <div className="border-t pt-4">
-                  <h4 className="text-lg font-semibold mb-3">Store Timings</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <h4 className="text-base sm:text-lg font-semibold mb-3">Store Timings</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
-                      { day: 'monday', label: 'Monday' },
-                      { day: 'tuesday', label: 'Tuesday' },
-                      { day: 'wednesday', label: 'Wednesday' },
-                      { day: 'thursday', label: 'Thursday' },
-                      { day: 'friday', label: 'Friday' },
-                      { day: 'saturday', label: 'Saturday' },
-                      { day: 'sunday', label: 'Sunday' }
+                      { day: 'monday', label: 'Mon' },
+                      { day: 'tuesday', label: 'Tue' },
+                      { day: 'wednesday', label: 'Wed' },
+                      { day: 'thursday', label: 'Thu' },
+                      { day: 'friday', label: 'Fri' },
+                      { day: 'saturday', label: 'Sat' },
+                      { day: 'sunday', label: 'Sun' }
                     ].map(({ day, label }) => (
-                      <div key={day} className="border rounded-lg p-3">
+                      <div key={day} className="border rounded-lg p-2 sm:p-3">
                         <div className="flex items-center justify-between mb-2">
-                          <label className="font-medium text-gray-700">{label}</label>
-                          <label className="flex items-center gap-2 text-sm">
+                          <label className="font-medium text-gray-700 text-sm sm:text-base">{label}</label>
+                          <label className="flex items-center gap-2 text-xs sm:text-sm">
                             <input
                               type="checkbox"
                               checked={!newStore.operatingHours[day]?.closed}
@@ -2016,7 +2031,7 @@ const safeBusinessDetails = {
                                     }
                                   }));
                                 }}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs sm:text-sm"
                               />
                             </div>
                             <div>
@@ -2036,7 +2051,7 @@ const safeBusinessDetails = {
                                     }
                                   }));
                                 }}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs sm:text-sm"
                               />
                             </div>
                           </div>
@@ -2046,19 +2061,20 @@ const safeBusinessDetails = {
                   </div>
                 </div>
 
-                <div className="flex gap-4 pt-4">
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <button
                     onClick={editingStore ? handleUpdateStore : handleAddStore}
-                    className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+                    className="flex-1 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors text-sm sm:text-base"
                   >
                     {editingStore ? 'Update Store' : 'Add Store'}
                   </button>
                   <button
                     onClick={() => {
                       setShowStoreForm(false);
-                      setEditingStore(null); // ✅ NOW THIS WORKS
+                      setEditingStore(null);
                     }}
-                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors text-sm sm:text-base"
                   >
                     Cancel
                   </button>
@@ -2068,18 +2084,18 @@ const safeBusinessDetails = {
           </div>
         )}
 
-        {/* Stores List */}
+        {/* Stores List - Responsive */}
         {safeBusinessDetails.multiStore.stores.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {safeBusinessDetails.multiStore.stores.map((store) => (
-              <div key={store.storeId} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start">
+              <div key={store.storeId} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="font-semibold text-gray-900 text-lg">{store.storeName}</h4>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h4 className="font-semibold text-gray-900 text-base sm:text-lg">{store.storeName}</h4>
                       {safeBusinessDetails.multiStore.defaultStore === store.storeId && (
                         <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
-                          Default Store
+                          Default
                         </span>
                       )}
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -2097,55 +2113,57 @@ const safeBusinessDetails = {
                         {store.status}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-2 text-gray-400" />
-                      {store.location?.displayName || 'No address provided'}
-                    </p>
-                    <p className="text-sm text-gray-500 mb-1">
-                      <FontAwesomeIcon icon={faPhone} className="mr-2 text-gray-400" />
-                      {store.contact?.phone || 'No phone'}
-                    </p>
-                    <p className="text-sm text-gray-500 mb-1">
-                      <FontAwesomeIcon icon={faClock} className="mr-2 text-gray-400" />
-                      {formatOperatingHours(store.operatingHours)}
-                    </p>
-                    {store.contact?.manager && (
-                      <p className="text-sm text-gray-500">
-                        <FontAwesomeIcon icon={faUserCog} className="mr-2 text-gray-400" />
-                        Manager: {store.contact.manager}
+                    <div className="space-y-1 text-sm text-gray-600">
+                      <p className="flex items-center">
+                        <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-2 text-gray-400 w-4" />
+                        <span className="truncate">{store.location?.displayName || 'No address provided'}</span>
                       </p>
-                    )}
-                    {store.location?.address && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        {store.location.address.street}, {store.location.address.city}, {store.location.address.state} {store.location.address.zipCode}
+                      <p className="flex items-center">
+                        <FontAwesomeIcon icon={faPhone} className="mr-2 text-gray-400 w-4" />
+                        {store.contact?.phone || 'No phone'}
                       </p>
-                    )}
-                    {store.location?.googleMapsLink && (
-                      <div className="mt-2">
-                        <a
-                          href={store.location.googleMapsLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs" />
-                          View on Google Maps
-                        </a>
-                      </div>
-                    )}
+                      <p className="flex items-center">
+                        <FontAwesomeIcon icon={faClock} className="mr-2 text-gray-400 w-4" />
+                        {formatOperatingHours(store.operatingHours)}
+                      </p>
+                      {store.contact?.manager && (
+                        <p className="flex items-center">
+                          <FontAwesomeIcon icon={faUserCog} className="mr-2 text-gray-400 w-4" />
+                          Manager: {store.contact.manager}
+                        </p>
+                      )}
+                      {store.location?.address && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {store.location.address.street}, {store.location.address.city}, {store.location.address.state} {store.location.address.zipCode}
+                        </p>
+                      )}
+                      {store.location?.googleMapsLink && (
+                        <div className="mt-2">
+                          <a
+                            href={store.location.googleMapsLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs sm:text-sm"
+                          >
+                            <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs" />
+                            View on Google Maps
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 self-end sm:self-auto">
                     {safeBusinessDetails.multiStore.defaultStore !== store.storeId && (
                       <button
                         onClick={() => handleSetDefaultStore(store.storeId)}
-                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors"
+                        className="text-xs bg-blue-600 text-white px-2 sm:px-3 py-1 rounded hover:bg-blue-700 transition-colors"
                         title="Set as Default"
                       >
                         Set Default
                       </button>
                     )}
                     <button
-                      onClick={() => handleEditStore(store)} // ✅ NOW THIS WORKS
+                      onClick={() => handleEditStore(store)}
                       className="text-blue-600 hover:text-blue-800 p-1"
                       title="Edit Store"
                     >
@@ -2165,19 +2183,19 @@ const safeBusinessDetails = {
           </div>
         ) : (
           <div className="text-center py-8">
-            <FontAwesomeIcon icon={faStore} className="text-4xl text-gray-300 mb-3" />
-            <p className="text-gray-500 text-lg">No stores added yet</p>
+            <FontAwesomeIcon icon={faStore} className="text-3xl sm:text-4xl text-gray-300 mb-3" />
+            <p className="text-gray-500 text-base sm:text-lg">No stores added yet</p>
             <p className="text-gray-400 text-sm mt-1">Add your first store to get started</p>
           </div>
         )}
       </div>
 
-      {/* Save Button */}
+      {/* Save Button - Responsive */}
       <div className="flex justify-end">
         <button
           onClick={handleSaveBusiness}
           disabled={savingBusiness}
-          className="flex items-center gap-2 bg-black text-white px-6 py-3 rounded-lg disabled:opacity-70"
+          className="flex items-center justify-center gap-2 bg-black text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg disabled:opacity-70 w-full sm:w-auto text-sm sm:text-base"
         >
           <FontAwesomeIcon icon={faSave} />
           {savingBusiness ? "Saving..." : "Save Business Details"}

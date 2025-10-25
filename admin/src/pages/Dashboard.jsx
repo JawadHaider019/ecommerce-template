@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -7,8 +7,10 @@ import {
   faArrowTrendUp, faArrowTrendDown, faUsers, faRocket, faPercent,
   faBell, faSync, faExclamationTriangle, faTimes, faFire,
   faUserCheck, faUserPlus, faMapMarkerAlt, faExclamationCircle,
-  faComments, faStar, faReply
+  faComments, faStar, faReply, faChartBar, faCalendarAlt,
+  faMoneyBillTrendUp, faChartSimple, faCalendarWeek
 } from '@fortawesome/free-solid-svg-icons';
+import { backendUrl } from "../App";
 
 import {
   Chart as ChartJS,
@@ -30,39 +32,145 @@ ChartJS.register(
   ArcElement, Title, Tooltip, Legend, Filler
 );
 
+// Constants
+const API_BASE = `${backendUrl}/api`;
+const TIME_RANGES = ['daily', 'weekly', 'monthly'];
+const CHART_TYPES = ['pie', 'bar'];
+const PROFIT_PERIODS = ['3months', '6months', '12months', '24months'];
+const PROFIT_GROWTH_TYPES = ['monthly', 'yoy', 'detailed'];
+
+// Reusable Components
+const StatCard = React.memo(({ title, value, icon, color, change, subtitle, trend }) => (
+  <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <p className="text-gray-600 text-sm font-medium mb-2">{title}</p>
+        <p className="text-xl sm:text-2xl font-bold text-gray-900">
+          {typeof value === 'number' && value >= 1000 ? `Rs ${value.toLocaleString()}` : value}
+        </p>
+        {subtitle && <p className="text-xs sm:text-sm text-gray-500 mt-1">{subtitle}</p>}
+        {change && (
+          <div className="flex items-center mt-2">
+            <FontAwesomeIcon 
+              icon={change > 0 ? faArrowTrendUp : faArrowTrendDown} 
+              className={`text-xs mr-1 ${change > 0 ? 'text-green-600' : 'text-red-600'}`} 
+            />
+            <p className={`text-xs sm:text-sm ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {change > 0 ? '+' : ''}{change}%
+            </p>
+          </div>
+        )}
+        {trend && <div className="flex items-center mt-1"><span className="text-xs text-gray-500">{trend}</span></div>}
+      </div>
+      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${color} shadow-md`}>
+        <FontAwesomeIcon icon={icon} className="text-lg sm:text-xl text-white" />
+      </div>
+    </div>
+  </div>
+));
+
+const StatusBadge = React.memo(({ status }) => {
+  const colors = { 
+    Delivered: 'bg-green-100 text-green-800', 
+    Processing: 'bg-blue-100 text-blue-800', 
+    Shipped: 'bg-yellow-100 text-yellow-800',
+    'Order Placed': 'bg-purple-100 text-purple-800',
+    Packing: 'bg-orange-100 text-orange-800'
+  };
+  return (
+    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
+      {status}
+    </span>
+  );
+});
+
+const StockBadge = React.memo(({ stock }) => (
+  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+    stock <= 2 ? 'bg-red-100 text-red-800' : 
+    stock <= 5 ? 'bg-yellow-100 text-yellow-800' : 
+    'bg-green-100 text-green-800'
+  }`}>
+    {stock} left
+  </span>
+));
+
+const ChartToggle = React.memo(({ chartKey, currentView, onToggle, options = CHART_TYPES }) => (
+  <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+    {options.map(type => (
+      <button
+        key={type}
+        onClick={() => onToggle(type)}
+        className={`px-2 py-1 sm:px-3 sm:py-1 rounded-md text-xs font-medium transition-colors ${
+          currentView === type ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+        }`}
+      >
+        {type.charAt(0).toUpperCase() + type.slice(1)}
+      </button>
+    ))}
+  </div>
+));
+
+const TimeRangeSelector = ({ currentRange, onRangeChange, options }) => (
+  <div className="flex gap-1 sm:gap-2 flex-wrap">
+    {options.map(range => (
+      <button 
+        key={range} 
+        onClick={() => onRangeChange(range)} 
+        className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium ${
+          currentRange === range ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+        }`}
+      >
+        {range.charAt(0).toUpperCase() + range.slice(1)}
+      </button>
+    ))}
+  </div>
+);
+
+const LoadingSpinner = () => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+      <p className="mt-4 text-gray-600">Loading dashboard data...</p>
+    </div>
+  </div>
+);
+
+const EmptyState = ({ icon, message }) => (
+  <div className="flex items-center justify-center h-full text-gray-500">
+    <div className="text-center">
+      <FontAwesomeIcon icon={icon} className="text-4xl text-gray-300 mb-2" />
+      <p>{message}</p>
+    </div>
+  </div>
+);
+
+// Custom Hook for API calls
+const useApi = () => {
+  const fetchData = useCallback(async (url, options = {}) => {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error(`Error fetching ${url}:`, error);
+      throw error;
+    }
+  }, []);
+
+  return { fetchData };
+};
+
 const Dashboard = () => {
-  const [stats, setStats] = useState({ 
-    totalOrders: 0, 
-    totalProductRevenue: 0, 
-    totalProducts: 0, 
-    pendingOrders: 0, 
-    totalProductProfit: 0, 
-    profitMargin: 0, 
-    totalProductCost: 0, 
-    totalItemsSold: 0,
-    inventoryValue: 0,
-    // Deal stats
-    totalDeals: 0,
-    activeDeals: 0,
-    totalDealRevenue: 0,
-    totalDealCost: 0,
-    totalDealProfit: 0,
-    dealProfitMargin: 0,
-    avgDealDiscount: 0,
-    dealsSold: 0,
-    dealInventoryValue: 0
+  // State management
+  const [dashboardData, setDashboardData] = useState({
+    stats: {},
+    recentOrders: [],
+    topProducts: [],
+    lowStockProducts: [],
+    customerInsights: {},
+    dealData: { topDeals: [], dealPerformance: [], dealStats: {} },
+    alerts: []
   });
-  
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [topProducts, setTopProducts] = useState([]);
-  const [lowStockProducts, setLowStockProducts] = useState([]);
-  const [customerInsights, setCustomerInsights] = useState({});
-  const [dealData, setDealData] = useState({
-    topDeals: [],
-    dealPerformance: [],
-    dealStats: {}
-  });
-  const [alerts, setAlerts] = useState([]);
   const [commentNotifications, setCommentNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('monthly');
@@ -72,141 +180,21 @@ const Dashboard = () => {
     revenue: 'pie',
     customers: 'pie',
     products: 'pie',
-    deals: 'pie'
+    deals: 'pie',
+    profitGrowth: 'bar'
   });
-  const [revenueTimeRange, setRevenueTimeRange] = useState('12months');
-  const [profitTimeRange, setProfitTimeRange] = useState('12months');
-  const [salesTrend, setSalesTrend] = useState([]);
+  const [profitTimeRange, setProfitTimeRange] = useState('6months');
+  const [profitGrowthType, setProfitGrowthType] = useState('monthly');
   const [profitTrend, setProfitTrend] = useState([]);
+  const [profitGrowth, setProfitGrowth] = useState([]);
+  const [yearOverYearProfit, setYearOverYearProfit] = useState([]);
+  const [profitGrowthSummary, setProfitGrowthSummary] = useState({});
 
-  // API base URL
-  const API_BASE = 'http://localhost:4000/api';
+  const { fetchData } = useApi();
 
-  // Fetch dashboard data
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE}/dashboard/stats?timeRange=${timeRange}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setStats(data.stats);
-        setRecentOrders(data.recentOrders || []);
-        setTopProducts(data.topProducts || []);
-        setLowStockProducts(data.lowStockProducts || []);
-        setCustomerInsights(data.customerInsights || {});
-        setDealData(data.dealData || { topDeals: [], dealPerformance: [], dealStats: {} });
-        setAlerts(data.alerts || []);
-      } else {
-        console.error('Error fetching dashboard data:', data.message);
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch comment notifications
-  const fetchCommentNotifications = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/comments/notifications`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setCommentNotifications(data);
-      }
-    } catch (error) {
-      console.error('Error fetching comment notifications:', error);
-    }
-  };
-
-  // Fetch sales trend data for revenue chart
-  const fetchSalesTrend = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/dashboard/sales-trend?period=${revenueTimeRange}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setSalesTrend(data.trend || []);
-      }
-    } catch (error) {
-      console.error('Error fetching sales trend:', error);
-    }
-  };
-
-  // Fetch profit trend data for profit growth chart
-  const fetchProfitTrend = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/dashboard/sales-trend?period=${profitTimeRange}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setProfitTrend(data.trend || []);
-      }
-    } catch (error) {
-      console.error('Error fetching profit trend:', error);
-    }
-  };
-
-  // Fetch alerts
-  const fetchAlerts = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/dashboard/alerts`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setAlerts(data.alerts || []);
-      }
-    } catch (error) {
-      console.error('Error fetching alerts:', error);
-    }
-  };
-
-  // Mark comment as read
-  const handleCommentRead = async (commentId) => {
-    try {
-      await fetch(`${API_BASE}/comments/${commentId}/read`, {
-        method: 'PATCH'
-      });
-      // Refresh notifications
-      fetchCommentNotifications();
-    } catch (error) {
-      console.error('Error marking comment as read:', error);
-    }
-  };
-
-  // Load data on component mount and when timeRange changes
-  useEffect(() => {
-    fetchDashboardData();
-    fetchCommentNotifications();
-  }, [timeRange]);
-
-  // Fetch revenue trend when revenueTimeRange changes
-  useEffect(() => {
-    fetchSalesTrend();
-  }, [revenueTimeRange]);
-
-  // Fetch profit trend when profitTimeRange changes
-  useEffect(() => {
-    fetchProfitTrend();
-  }, [profitTimeRange]);
-
-  // Refresh function
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([
-      fetchDashboardData(), 
-      fetchSalesTrend(), 
-      fetchProfitTrend(),
-      fetchAlerts(),
-      fetchCommentNotifications()
-    ]);
-    setRefreshing(false);
-  };
-
-  // Calculate combined metrics from actual data
-  const calculateCombinedMetrics = () => {
+  // Memoized data calculations
+  const combinedMetrics = useMemo(() => {
+    const { stats } = dashboardData;
     const productRevenue = stats.totalProductRevenue || 0;
     const dealRevenue = stats.totalDealRevenue || 0;
     const totalRevenue = productRevenue + dealRevenue;
@@ -218,8 +206,6 @@ const Dashboard = () => {
     const productProfit = stats.totalProductProfit || 0;
     const dealProfit = stats.totalDealProfit || 0;
     const totalProfit = productProfit + dealProfit;
-
-
 
     return {
       productRevenue,
@@ -234,348 +220,552 @@ const Dashboard = () => {
       totalProductSold: stats.totalItemsSold - (stats.dealsSold || 0),
       totalInventoryValue: (stats.inventoryValue || 0) + (stats.dealInventoryValue || 0)
     };
-  };
+  }, [dashboardData.stats]);
 
-  const combinedMetrics = calculateCombinedMetrics();
+  const totalNotificationsCount = useMemo(() => {
+    const unreadAlertsCount = dashboardData.alerts.filter(alert => !alert.read).length;
+    const unreadCommentsCount = commentNotifications.length;
+    return unreadAlertsCount + unreadCommentsCount;
+  }, [dashboardData.alerts, commentNotifications]);
 
-  // Calculate total notifications count
-  const unreadAlertsCount = alerts.filter(alert => !alert.read).length;
-  const unreadCommentsCount = commentNotifications.length;
-  const totalNotificationsCount = unreadAlertsCount + unreadCommentsCount;
-
-  // Reusable components
-  const StatCard = ({ title, value, icon, color, change, subtitle, trend }) => (
-    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-gray-600 text-sm font-medium mb-2">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {typeof value === 'number' && value >= 1000 ? `Rs ${value.toLocaleString()}` : value}
-          </p>
-          {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
-          {change && (
-            <div className="flex items-center mt-2">
-              <FontAwesomeIcon 
-                icon={change > 0 ? faArrowTrendUp : faArrowTrendDown} 
-                className={`text-xs mr-1 ${change > 0 ? 'text-green-600' : 'text-red-600'}`} 
-              />
-              <p className={`text-sm ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {change > 0 ? '+' : ''}{change}%
-              </p>
-            </div>
-          )}
-          {trend && <div className="flex items-center mt-1"><span className="text-xs text-gray-500">{trend}</span></div>}
-        </div>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color} shadow-md`}>
-          <FontAwesomeIcon icon={icon} className="text-xl text-white" />
-        </div>
-      </div>
-    </div>
-  );
-
-  const StatusBadge = ({ status }) => {
-    const colors = { 
-      Delivered: 'bg-green-100 text-green-800', 
-      Processing: 'bg-blue-100 text-blue-800', 
-      Shipped: 'bg-yellow-100 text-yellow-800',
-      'Order Placed': 'bg-purple-100 text-purple-800',
-      Packing: 'bg-orange-100 text-orange-800'
-    };
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status}
-      </span>
-    );
-  };
-
-  const StockBadge = ({ stock }) => (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-      stock <= 2 ? 'bg-red-100 text-red-800' : 
-      stock <= 5 ? 'bg-yellow-100 text-yellow-800' : 
-      'bg-green-100 text-green-800'
-    }`}>
-      {stock} left
-    </span>
-  );
-
-  const ChartToggle = ({ chartKey, currentView, onToggle }) => (
-    <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-      <button
-        onClick={() => onToggle('pie')}
-        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-          currentView === 'pie' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
-        }`}
-      >
-        Pie
-      </button>
-      <button
-        onClick={() => onToggle('bar')}
-        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-          currentView === 'bar' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
-        }`}
-      >
-        Bar
-      </button>
-    </div>
-  );
-
-  // Chart configurations using real data
-  const chartConfigs = {
-    revenue: {
-      pie: {
-        data: {
-          labels: ['Product Revenue', 'Deal Revenue', 'Total Profit'],
-          datasets: [{
-            data: [combinedMetrics.productRevenue, combinedMetrics.dealRevenue, combinedMetrics.totalProfit],
-            backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
-            borderColor: ['rgb(59, 130, 246)', 'rgb(139, 92, 246)', 'rgb(16, 185, 129)'],
-            borderWidth: 2,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'bottom' },
-            title: { display: true, text: 'Revenue & Profit Breakdown' }
-          }
-        }
-      },
-      bar: {
-        data: {
-          labels: ['Product Revenue', 'Deal Revenue', 'Total Cost', 'Total Profit'],
-          datasets: [{
-            label: 'Amount (Rs)',
-            data: [combinedMetrics.productRevenue, combinedMetrics.dealRevenue, combinedMetrics.totalCost, combinedMetrics.totalProfit],
-            backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(16, 185, 129, 0.8)'],
-            borderColor: ['rgb(59, 130, 246)', 'rgb(139, 92, 246)', 'rgb(239, 68, 68)', 'rgb(16, 185, 129)'],
-            borderWidth: 1,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            title: { display: true, text: 'Revenue & Cost Analysis' }
-          }
-        }
-      }
-    },
-    customers: {
-      pie: {
-        data: {
-          labels: ['New Customers', 'Returning Customers'],
-          datasets: [{
-            data: [customerInsights.newCustomers || 0, customerInsights.repeatBuyers || 0],
-            backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
-            borderColor: ['rgb(59, 130, 246)', 'rgb(16, 185, 129)'],
-            borderWidth: 2,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'bottom' },
-            title: { display: true, text: 'Customer Distribution' }
-          }
-        }
-      },
-      bar: {
-        data: {
-          labels: ['New Customers', 'Returning Customers'],
-          datasets: [{
-            label: 'Count',
-            data: [customerInsights.newCustomers || 0, customerInsights.repeatBuyers || 0],
-            backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
-            borderColor: ['rgb(59, 130, 246)', 'rgb(16, 185, 129)'],
-            borderWidth: 1,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            title: { display: true, text: 'Customer Distribution' }
-          }
-        }
-      }
-    },
-    products: {
-      pie: {
-        data: {
-          labels: topProducts.map(p => p.name),
-          datasets: [{
-            data: topProducts.map(p => p.totalSales || 0),
-            backgroundColor: [
-              'rgba(59, 130, 246, 0.8)', 
-              'rgba(16, 185, 129, 0.8)', 
-              'rgba(139, 92, 246, 0.8)', 
-              'rgba(245, 158, 11, 0.8)',
-              'rgba(239, 68, 68, 0.8)',
-              'rgba(156, 163, 175, 0.8)'
-            ],
-            borderWidth: 2,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'bottom' },
-            title: { display: true, text: 'Top Selling Products' }
-          }
-        }
-      },
-      bar: {
-        data: {
-          labels: topProducts.map(p => p.name),
-          datasets: [{
-            label: 'Units Sold',
-            data: topProducts.map(p => p.totalSales || 0),
-            backgroundColor: 'rgba(59, 130, 246, 0.8)',
-            borderColor: 'rgb(59, 130, 246)',
-            borderWidth: 1,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            title: { display: true, text: 'Top Selling Products' }
-          }
-        }
-      }
-    },
-    deals: {
-      pie: {
-        data: {
-          labels: dealData.topDeals.map(d => d.name),
-          datasets: [{
-            data: dealData.topDeals.map(d => d.totalSales || 0),
-            backgroundColor: [
-              'rgba(139, 92, 246, 0.8)',
-              'rgba(59, 130, 246, 0.8)',
-              'rgba(16, 185, 129, 0.8)',
-              'rgba(245, 158, 11, 0.8)'
-            ],
-            borderWidth: 2,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'bottom' },
-            title: { display: true, text: 'Top Performing Deals' }
-          }
-        }
-      },
-      bar: {
-        data: {
-          labels: dealData.topDeals.map(d => d.name),
-          datasets: [{
-            label: 'Units Sold',
-            data: dealData.topDeals.map(d => d.totalSales || 0),
-            backgroundColor: 'rgba(139, 92, 246, 0.8)',
-            borderColor: 'rgb(139, 92, 246)',
-            borderWidth: 1,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            title: { display: true, text: 'Top Performing Deals' }
-          }
-        }
-      }
-    },
-    revenueTrend: {
-      data: {
-        labels: salesTrend.map(item => item.period),
-        datasets: [
-          {
-            label: 'Revenue',
-            data: salesTrend.map(item => item.revenue),
-            borderColor: 'rgb(59, 130, 246)',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            fill: true,
-            tension: 0.4,
-          },
-          {
-            label: 'Profit',
-            data: salesTrend.map(item => item.profit),
-            borderColor: 'rgb(16, 185, 129)',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            fill: true,
-            tension: 0.4,
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'top' },
-          title: { display: true, text: 'Revenue & Profit Trend' }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              callback: function(value) {
-                return 'Rs ' + value.toLocaleString();
-              }
-            }
-          }
-        }
-      }
-    },
-    profitGrowth: {
-      data: {
-        labels: profitTrend.map(item => item.period),
-        datasets: [{
-          label: 'Profit (Rs)',
-          data: profitTrend.map(item => item.profit),
-          backgroundColor: 'rgba(16, 185, 129, 0.8)',
-          borderColor: 'rgb(16, 185, 129)',
-          borderWidth: 1,
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          title: { display: true, text: 'Monthly Profit Growth' }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              callback: function(value) {
-                return 'Rs ' + value.toLocaleString();
-              }
-            }
-          }
-        }
-      }
+  // API calls
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await fetchData(`${API_BASE}/dashboard/stats?timeRange=${timeRange}`);
+      setDashboardData(data);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [timeRange, fetchData]);
 
-  const handleChartToggle = (chartKey, viewType) => {
+  const fetchCommentNotifications = useCallback(async () => {
+    try {
+      const data = await fetchData(`${API_BASE}/comments/notifications`);
+      setCommentNotifications(data);
+    } catch (error) {
+      console.error('Error fetching comment notifications:', error);
+    }
+  }, [fetchData]);
+
+  // Fetch profit trend data
+  const fetchProfitTrend = useCallback(async () => {
+    try {
+      const data = await fetchData(`${API_BASE}/dashboard/profit-trend?period=${profitTimeRange}`);
+      if (data.trend && data.trend.length > 0) {
+        setProfitTrend(data.trend);
+      } else {
+        setProfitTrend([]);
+      }
+    } catch (error) {
+      console.error('Error fetching profit trend:', error);
+      setProfitTrend([]);
+    }
+  }, [profitTimeRange, fetchData]);
+
+  // Fetch detailed profit growth data
+  const fetchProfitGrowth = useCallback(async () => {
+    try {
+      const data = await fetchData(`${API_BASE}/dashboard/profit-growth?period=${profitTimeRange}`);
+      if (data.profitGrowth && data.profitGrowth.length > 0) {
+        setProfitGrowth(data.profitGrowth);
+        setProfitGrowthSummary(data.summary || {});
+      } else {
+        setProfitGrowth([]);
+        setProfitGrowthSummary({});
+      }
+    } catch (error) {
+      console.error('Error fetching profit growth:', error);
+      setProfitGrowth([]);
+      setProfitGrowthSummary({});
+    }
+  }, [profitTimeRange, fetchData]);
+
+  // Fetch year-over-year profit growth
+  const fetchYearOverYearProfit = useCallback(async () => {
+    try {
+      const data = await fetchData(`${API_BASE}/dashboard/profit-growth/yoy`);
+      if (data.comparison && data.comparison.length > 0) {
+        setYearOverYearProfit(data);
+      } else {
+        setYearOverYearProfit({ comparison: [], summary: {} });
+      }
+    } catch (error) {
+      console.error('Error fetching year-over-year profit growth:', error);
+      setYearOverYearProfit({ comparison: [], summary: {} });
+    }
+  }, [fetchData]);
+
+  // Event handlers
+  const handleCommentRead = useCallback(async (commentId) => {
+    try {
+      await fetchData(`${API_BASE}/comments/${commentId}/read`, { method: 'PATCH' });
+      fetchCommentNotifications();
+    } catch (error) {
+      console.error('Error marking comment as read:', error);
+    }
+  }, [fetchData, fetchCommentNotifications]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchDashboardData(), 
+      fetchProfitTrend(),
+      fetchProfitGrowth(),
+      fetchYearOverYearProfit(),
+      fetchCommentNotifications()
+    ]);
+    setRefreshing(false);
+  }, [fetchDashboardData, fetchProfitTrend, fetchProfitGrowth, fetchYearOverYearProfit, fetchCommentNotifications]);
+
+  const handleChartToggle = useCallback((chartKey, viewType) => {
     setChartViews(prev => ({
       ...prev,
       [chartKey]: viewType
     }));
-  };
+  }, []);
 
-  const handleTimeRangeChange = (range) => {
+  const handleTimeRangeChange = useCallback((range) => {
     setTimeRange(range);
-  };
+  }, []);
 
-  const AlertsModal = () => (
+  const handleProfitGrowthTypeChange = useCallback((type) => {
+    setProfitGrowthType(type);
+  }, []);
+
+  // Effects
+  useEffect(() => {
+    fetchDashboardData();
+    fetchCommentNotifications();
+  }, [fetchDashboardData, fetchCommentNotifications]);
+
+  useEffect(() => {
+    fetchProfitTrend();
+    fetchProfitGrowth();
+    fetchYearOverYearProfit();
+  }, [fetchProfitTrend, fetchProfitGrowth, fetchYearOverYearProfit]);
+
+  // Chart data preparation using actual backend data
+  const chartConfigs = useMemo(() => {
+    const { customerInsights, topProducts, dealData } = dashboardData;
+
+    const getDealNames = () => {
+      if (dealData.topDeals?.length > 0) {
+        return dealData.topDeals.map(deal => deal.dealName || deal.name || `Deal ${deal._id}`);
+      }
+      return ['No Deal Data'];
+    };
+
+    const getDealSalesData = () => {
+      if (dealData.topDeals?.length > 0) {
+        return dealData.topDeals.map(deal => deal.totalSales || 0);
+      }
+      return [0];
+    };
+
+    const getProductNames = () => {
+      if (topProducts?.length > 0) {
+        return topProducts.map(product => product.name || `Product ${product._id}`);
+      }
+      return ['No Product Data'];
+    };
+
+    const getProductSalesData = () => {
+      if (topProducts?.length > 0) {
+        return topProducts.map(product => product.totalSales || 0);
+      }
+      return [0];
+    };
+
+    // Profit Growth Chart Configurations
+    const profitGrowthData = {
+      monthly: {
+        data: {
+          labels: profitTrend.map(item => item.period),
+          datasets: [{
+            label: 'Profit (Rs)',
+            data: profitTrend.map(item => item.profit),
+            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+            borderColor: 'rgb(16, 185, 129)',
+            borderWidth: 1,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { 
+              display: true, 
+              text: `Monthly Profit Trend (${profitTimeRange === '3months' ? '3 Months' : profitTimeRange === '6months' ? '6 Months' : profitTimeRange === '12months' ? '12 Months' : '24 Months'})`
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return 'Rs ' + value.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      },
+      detailed: {
+        data: {
+          labels: profitGrowth.map(item => item.period),
+          datasets: [
+            {
+              label: 'Profit (Rs)',
+              data: profitGrowth.map(item => item.profit),
+              backgroundColor: 'rgba(16, 185, 129, 0.8)',
+              borderColor: 'rgb(16, 185, 129)',
+              borderWidth: 2,
+              type: 'bar'
+            },
+            {
+              label: 'Growth %',
+              data: profitGrowth.map(item => item.growthPercentage),
+              backgroundColor: 'rgba(59, 130, 246, 0.6)',
+              borderColor: 'rgb(59, 130, 246)',
+              borderWidth: 2,
+              type: 'line',
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: { display: true },
+            title: { 
+              display: true, 
+              text: `Profit Growth Analysis (${profitTimeRange})`
+            }
+          },
+          scales: {
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Profit (Rs)'
+              },
+              ticks: {
+                callback: function(value) {
+                  return 'Rs ' + value.toLocaleString();
+                }
+              }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              title: {
+                display: true,
+                text: 'Growth %'
+              },
+              grid: {
+                drawOnChartArea: false,
+              },
+              ticks: {
+                callback: function(value) {
+                  return value + '%';
+                }
+              }
+            }
+          }
+        }
+      },
+      yoy: {
+        data: {
+          labels: yearOverYearProfit.comparison?.map(item => item.month) || [],
+          datasets: [
+            {
+              label: 'Current Year Profit',
+              data: yearOverYearProfit.comparison?.map(item => item.currentYearProfit) || [],
+              backgroundColor: 'rgba(16, 185, 129, 0.8)',
+              borderColor: 'rgb(16, 185, 129)',
+              borderWidth: 2,
+            },
+            {
+              label: 'Previous Year Profit',
+              data: yearOverYearProfit.comparison?.map(item => item.previousYearProfit) || [],
+              backgroundColor: 'rgba(156, 163, 175, 0.8)',
+              borderColor: 'rgb(156, 163, 175)',
+              borderWidth: 2,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: true },
+            title: { 
+              display: true, 
+              text: 'Year-over-Year Profit Comparison'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return 'Rs ' + value.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    return {
+      revenue: {
+        pie: {
+          data: {
+            labels: ['Product Revenue', 'Deal Revenue', 'Total Profit'],
+            datasets: [{
+              data: [combinedMetrics.productRevenue, combinedMetrics.dealRevenue, combinedMetrics.totalProfit],
+              backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+              borderColor: ['rgb(59, 130, 246)', 'rgb(139, 92, 246)', 'rgb(16, 185, 129)'],
+              borderWidth: 2,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' },
+              title: { display: true, text: 'Revenue & Profit Breakdown' }
+            }
+          }
+        },
+        bar: {
+          data: {
+            labels: ['Product Revenue', 'Deal Revenue', 'Total Cost', 'Total Profit'],
+            datasets: [{
+              label: 'Amount (Rs)',
+              data: [combinedMetrics.productRevenue, combinedMetrics.dealRevenue, combinedMetrics.totalCost, combinedMetrics.totalProfit],
+              backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+              borderColor: ['rgb(59, 130, 246)', 'rgb(139, 92, 246)', 'rgb(239, 68, 68)', 'rgb(16, 185, 129)'],
+              borderWidth: 1,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: 'Revenue & Cost Analysis' }
+            }
+          }
+        }
+      },
+      customers: {
+        pie: {
+          data: {
+            labels: ['New Customers', 'Returning Customers'],
+            datasets: [{
+              data: [customerInsights.newCustomers || 0, customerInsights.repeatBuyers || 0],
+              backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+              borderColor: ['rgb(59, 130, 246)', 'rgb(16, 185, 129)'],
+              borderWidth: 2,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' },
+              title: { display: true, text: 'Customer Distribution' }
+            }
+          }
+        },
+        bar: {
+          data: {
+            labels: ['New Customers', 'Returning Customers'],
+            datasets: [{
+              label: 'Count',
+              data: [customerInsights.newCustomers || 0, customerInsights.repeatBuyers || 0],
+              backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+              borderColor: ['rgb(59, 130, 246)', 'rgb(16, 185, 129)'],
+              borderWidth: 1,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: 'Customer Distribution' }
+            }
+          }
+        }
+      },
+      products: {
+        pie: {
+          data: {
+            labels: getProductNames(),
+            datasets: [{
+              data: getProductSalesData(),
+              backgroundColor: [
+                'rgba(59, 130, 246, 0.8)', 
+                'rgba(16, 185, 129, 0.8)', 
+                'rgba(139, 92, 246, 0.8)', 
+                'rgba(245, 158, 11, 0.8)',
+                'rgba(239, 68, 68, 0.8)',
+                'rgba(156, 163, 175, 0.8)'
+              ],
+              borderWidth: 2,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' },
+              title: { display: true, text: 'Top Selling Products' }
+            }
+          }
+        },
+        bar: {
+          data: {
+            labels: getProductNames(),
+            datasets: [{
+              label: 'Units Sold',
+              data: getProductSalesData(),
+              backgroundColor: 'rgba(59, 130, 246, 0.8)',
+              borderColor: 'rgb(59, 130, 246)',
+              borderWidth: 1,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: 'Top Selling Products' }
+            }
+          }
+        }
+      },
+      deals: {
+        pie: {
+          data: {
+            labels: getDealNames(),
+            datasets: [{
+              data: getDealSalesData(),
+              backgroundColor: [
+                'rgba(139, 92, 246, 0.8)',
+                'rgba(59, 130, 246, 0.8)',
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(245, 158, 11, 0.8)',
+                'rgba(239, 68, 68, 0.8)'
+              ],
+              borderWidth: 2,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' },
+              title: { display: true, text: 'Top Performing Deals' }
+            }
+          }
+        },
+        bar: {
+          data: {
+            labels: getDealNames(),
+            datasets: [{
+              label: 'Units Sold',
+              data: getDealSalesData(),
+              backgroundColor: 'rgba(139, 92, 246, 0.8)',
+              borderColor: 'rgb(139, 92, 246)',
+              borderWidth: 1,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: 'Top Performing Deals' }
+            }
+          }
+        }
+      },
+      profitGrowth: profitGrowthData[profitGrowthType] || profitGrowthData.monthly
+    };
+  }, [dashboardData, combinedMetrics, profitTrend, profitGrowth, yearOverYearProfit, profitTimeRange, profitGrowthType]);
+
+  // Quick actions configuration
+  const quickActions = useMemo(() => [
+    { to: "/add", icon: faPlus, text: "Add Product", color: "bg-blue-500" },
+    { to: "/list", icon: faBoxes, text: "Manage Products", color: "bg-green-500" },
+    { to: "/orders", icon: faShoppingCart, text: "View Orders", color: "bg-red-500" },
+    { to: "/content-management", icon: faRocket, text: "Content Management", color: "bg-purple-500" },
+  ], []);
+
+  // Profit Growth Summary Cards
+  const ProfitSummaryCards = useMemo(() => {
+    if (!profitGrowthSummary || Object.keys(profitGrowthSummary).length === 0) {
+      return null;
+    }
+
+    const {
+      totalProfit = 0,
+      averageMonthlyProfit = 0,
+      totalMonths = 0,
+      profitableMonths = 0,
+      profitabilityRate = 0,
+      bestMonth = null,
+      worstMonth = null
+    } = profitGrowthSummary;
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard 
+          title="Total Profit Period" 
+          value={`Rs ${totalProfit.toLocaleString()}`}
+          icon={faMoneyBillTrendUp}
+          color="bg-green-500"
+          subtitle={`${totalMonths} months analyzed`}
+        />
+        <StatCard 
+          title="Avg Monthly Profit" 
+          value={`Rs ${averageMonthlyProfit.toLocaleString()}`}
+          icon={faChartSimple}
+          color="bg-blue-500"
+          subtitle={`${profitabilityRate.toFixed(1)}% profitable months`}
+        />
+        <StatCard 
+          title="Profitable Months" 
+          value={profitableMonths}
+          icon={faCalendarWeek}
+          color="bg-emerald-500"
+          subtitle={`${totalMonths} total months`}
+          trend={`${profitabilityRate.toFixed(1)}% success rate`}
+        />
+        <StatCard 
+          title="Best Month" 
+          value={bestMonth ? `Rs ${bestMonth.profit.toLocaleString()}` : 'N/A'}
+          icon={faChartLine}
+          color="bg-purple-500"
+          subtitle={bestMonth ? bestMonth.period : 'No data'}
+        />
+      </div>
+    );
+  }, [profitGrowthSummary]);
+
+  // Alerts Modal Component
+  const AlertsModal = useCallback(() => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white sticky top-0">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-white sticky top-0">
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faBell} className="text-yellow-500 text-xl" />
-            <h3 className="text-xl font-semibold text-gray-900">Notifications</h3>
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Notifications</h3>
             <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
               {totalNotificationsCount} new
             </span>
@@ -598,11 +788,11 @@ const Dashboard = () => {
                 {commentNotifications.map(comment => (
                   <div 
                     key={comment._id} 
-                    className="p-6 bg-blue-50 transition-colors cursor-pointer hover:bg-blue-100"
+                    className="p-4 sm:p-6 bg-blue-50 transition-colors cursor-pointer hover:bg-blue-100"
                     onClick={() => handleCommentRead(comment._id)}
                   >
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center">
                         <FontAwesomeIcon icon={faComments} className="text-blue-600" />
                       </div>
                       <div className="flex-1">
@@ -636,19 +826,19 @@ const Dashboard = () => {
           )}
 
           {/* Regular Alerts Section */}
-          {alerts.length > 0 && (
+          {dashboardData.alerts.length > 0 && (
             <div>
               <div className="p-4 bg-gray-50">
                 <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                   <FontAwesomeIcon icon={faExclamationTriangle} />
-                  System Alerts ({unreadAlertsCount})
+                  System Alerts ({dashboardData.alerts.filter(alert => !alert.read).length})
                 </h4>
               </div>
               <div className="divide-y divide-gray-200">
-                {alerts.map(alert => (
-                  <div key={alert.id} className={`p-6 transition-colors ${!alert.read ? 'bg-yellow-50' : 'hover:bg-gray-50'}`}>
-                    <div className="flex items-start gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                {dashboardData.alerts.map(alert => (
+                  <div key={alert.id} className={`p-4 sm:p-6 transition-colors ${!alert.read ? 'bg-yellow-50' : 'hover:bg-gray-50'}`}>
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${
                         alert.priority === 'high' ? 'bg-red-100' : 'bg-yellow-100'
                       }`}>
                         <FontAwesomeIcon 
@@ -678,70 +868,51 @@ const Dashboard = () => {
           )}
 
           {/* Empty State */}
-          {commentNotifications.length === 0 && alerts.length === 0 && (
+          {commentNotifications.length === 0 && dashboardData.alerts.length === 0 && (
             <div className="text-center py-12">
               <FontAwesomeIcon icon={faBell} className="text-gray-300 text-4xl mb-4" />
               <p className="text-gray-500">No new notifications</p>
             </div>
           )}
         </div>
-        <div className="p-6 border-t border-gray-200 bg-gray-50 flex gap-3">
+        <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex gap-3">
           <button 
             onClick={() => setShowAlertsModal(false)} 
-            className="flex-1 bg-black text-white py-3"
+            className="flex-1 bg-black text-white py-3 rounded-lg hover:bg-gray-800 transition-colors"
           >
             Close Notifications
           </button>
         </div>
       </div>
     </div>
-  );
-
-  const quickActions = [
-    { to: "/add", icon: faPlus, text: "Add Product", color: "bg-blue-500" },
-    { to: "/list", icon: faBoxes, text: "Manage Products", color: "bg-green-500" },
-    { to: "/orders", icon: faShoppingCart, text: "View Orders", color: "bg-red-500" },
-    { to: "/content-management", icon: faRocket, text: "Content Management", color: "bg-purple-500" },
-  ];
+  ), [commentNotifications, dashboardData.alerts, totalNotificationsCount, handleCommentRead]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard data...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
+  const { stats, recentOrders, topProducts, lowStockProducts, dealData, customerInsights } = dashboardData;
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8 px-3 sm:px-4 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-            <p className="text-gray-600 mt-2">Welcome back! Here's what's happening with your store today.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+            <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Welcome back! Here's what's happening with your store today.</p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex gap-2">
-              {['daily', 'weekly', 'monthly'].map(range => (
-                <button 
-                  key={range} 
-                  onClick={() => handleTimeRangeChange(range)} 
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                    timeRange === range ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {range.charAt(0).toUpperCase() + range.slice(1)}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+            <TimeRangeSelector 
+              currentRange={timeRange} 
+              onRangeChange={handleTimeRangeChange}
+              options={TIME_RANGES}
+            />
             <button 
               onClick={handleRefresh}
               disabled={refreshing}
               className="p-2 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50"
+              title="Refresh data"
             >
               <FontAwesomeIcon 
                 icon={faSync} 
@@ -751,6 +922,7 @@ const Dashboard = () => {
             <button 
               onClick={() => setShowAlertsModal(true)} 
               className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              title="View notifications"
             >
               <FontAwesomeIcon icon={faBell} className="text-xl" />
               {totalNotificationsCount > 0 && (
@@ -763,7 +935,7 @@ const Dashboard = () => {
         </div>
 
         {/* Main Stats Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <StatCard 
             title="Total Revenue" 
             value={`Rs ${combinedMetrics.totalRevenue?.toLocaleString()}`} 
@@ -788,7 +960,7 @@ const Dashboard = () => {
         </div>
 
         {/* Secondary Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <StatCard 
             title="Active Deals" 
             value={stats.activeDeals} 
@@ -807,16 +979,16 @@ const Dashboard = () => {
             icon={faBoxes} 
             color="bg-indigo-500" 
           />
-      <StatCard 
-            title="Product Sold" 
-            value={stats.totalItemsSold || 0} 
+          <StatCard 
+            title="Products Sold" 
+            value={combinedMetrics.totalProductSold} 
             icon={faShoppingCart} 
             color="bg-blue-500" 
           />
         </div>
 
         {/* Tertiary Stats Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <StatCard 
             title="Inventory Value" 
             value={`Rs ${combinedMetrics.totalInventoryValue?.toLocaleString()}`} 
@@ -840,10 +1012,10 @@ const Dashboard = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
           {/* Revenue & Profit Chart */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
               <h3 className="text-lg font-semibold text-gray-900">Revenue & Profit</h3>
               <ChartToggle 
                 chartKey="revenue" 
@@ -851,7 +1023,7 @@ const Dashboard = () => {
                 onToggle={(view) => handleChartToggle('revenue', view)} 
               />
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               {chartViews.revenue === 'pie' ? (
                 <Doughnut {...chartConfigs.revenue.pie} />
               ) : (
@@ -861,8 +1033,8 @@ const Dashboard = () => {
           </div>
 
           {/* Customer Distribution Chart */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
               <h3 className="text-lg font-semibold text-gray-900">Customer Analytics</h3>
               <ChartToggle 
                 chartKey="customers" 
@@ -870,18 +1042,22 @@ const Dashboard = () => {
                 onToggle={(view) => handleChartToggle('customers', view)} 
               />
             </div>
-            <div className="h-80">
-              {chartViews.customers === 'pie' ? (
-                <Pie {...chartConfigs.customers.pie} />
+            <div className="h-64 sm:h-80">
+              {customerInsights.newCustomers > 0 || customerInsights.repeatBuyers > 0 ? (
+                chartViews.customers === 'pie' ? (
+                  <Pie {...chartConfigs.customers.pie} />
+                ) : (
+                  <Bar {...chartConfigs.customers.bar} />
+                )
               ) : (
-                <Bar {...chartConfigs.customers.bar} />
+                <EmptyState icon={faUsers} message="No customer data available" />
               )}
             </div>
           </div>
 
           {/* Product Sales Chart */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
               <h3 className="text-lg font-semibold text-gray-900">Top Selling Products</h3>
               <ChartToggle 
                 chartKey="products" 
@@ -889,7 +1065,7 @@ const Dashboard = () => {
                 onToggle={(view) => handleChartToggle('products', view)} 
               />
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               {topProducts.length > 0 ? (
                 chartViews.products === 'pie' ? (
                   <Pie {...chartConfigs.products.pie} />
@@ -897,16 +1073,14 @@ const Dashboard = () => {
                   <Bar {...chartConfigs.products.bar} />
                 )
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  No product data available
-                </div>
+                <EmptyState icon={faChartBar} message="No product sales data available" />
               )}
             </div>
           </div>
 
           {/* Deal Performance Chart */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
               <h3 className="text-lg font-semibold text-gray-900">Top Performing Deals</h3>
               <ChartToggle 
                 chartKey="deals" 
@@ -914,173 +1088,110 @@ const Dashboard = () => {
                 onToggle={(view) => handleChartToggle('deals', view)} 
               />
             </div>
-            <div className="h-80">
-              {dealData.topDeals.length > 0 ? (
+            <div className="h-64 sm:h-80">
+              {dealData.topDeals && dealData.topDeals.length > 0 ? (
                 chartViews.deals === 'pie' ? (
                   <Pie {...chartConfigs.deals.pie} />
                 ) : (
                   <Bar {...chartConfigs.deals.bar} />
                 )
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  No deal data available
-                </div>
+                <EmptyState icon={faRocket} message="No deal performance data available" />
               )}
             </div>
           </div>
         </div>
 
         {/* Recent Orders & Low Stock - Parallel Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
           {/* Recent Orders */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
               <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
               <NavLink to="/orders" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
                 View all →
               </NavLink>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {recentOrders.length > 0 ? (
                 recentOrders.map(order => (
-                  <div key={order._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
+                  <div key={order._id} className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
                     <div className="flex items-center">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                        <FontAwesomeIcon icon={faUsers} className="text-blue-600" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3 sm:mr-4">
+                        <FontAwesomeIcon icon={faUsers} className="text-blue-600 text-sm sm:text-base" />
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">#{order._id}</p>
-                        <div className="flex items-center text-sm text-gray-600 mt-1">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 text-sm sm:text-base truncate">#{order._id?.toString().slice(-6)}</p>
+                        <div className="flex items-center text-xs sm:text-sm text-gray-600 mt-1">
                           <FontAwesomeIcon icon={faMapMarkerAlt} className="text-xs mr-1" />
-                          <span>{order.user?.location || 'Unknown'}</span>
+                          <span className="truncate">{order.user?.location || 'Unknown'}</span>
                         </div>
-                        <p className="text-xs text-gray-500">
-                          {order.items?.map(item => `${item.quantity}x ${item.name}`).join(', ')}
+                        <p className="text-xs text-gray-500 truncate">
+                          {order.items?.slice(0, 2).map(item => `${item.quantity}x ${item.name}`).join(', ')}
+                          {order.items?.length > 2 && `... +${order.items.length - 2} more`}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-900">Rs {order.amount}</p>
+                    <div className="text-right ml-2">
+                      <p className="font-semibold text-gray-900 text-sm sm:text-base">Rs {order.amount}</p>
                       <StatusBadge status={order.status} />
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No recent orders
-                </div>
+                <EmptyState icon={faShoppingCart} message="No recent orders" />
               )}
             </div>
           </div>
 
           {/* Low Stock Section */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
               <h3 className="text-lg font-semibold text-gray-900">Low Stock Alert</h3>
               <NavLink to="/list" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
                 Manage Inventory →
               </NavLink>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {lowStockProducts.length > 0 ? (
-                lowStockProducts.map((product, index) => (
-                  <div key={product._id} className="flex items-center justify-between p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                lowStockProducts.map((product) => (
+                  <div key={product._id} className="flex items-center justify-between p-3 sm:p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
                     <div className="flex items-center">
-                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-4">
-                        <FontAwesomeIcon icon={faExclamationCircle} className="text-red-600" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 rounded-full flex items-center justify-center mr-3 sm:mr-4">
+                        <FontAwesomeIcon icon={faExclamationCircle} className="text-red-600 text-sm sm:text-base" />
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{product.name}</p>
-                        <p className="text-sm text-gray-600">{product.category} • Ideal: {product.idealStock}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 text-sm sm:text-base truncate">{product.name}</p>
+                        <p className="text-xs sm:text-sm text-gray-600">{product.category} • Ideal: {product.idealStock}</p>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right ml-2">
                       <StockBadge stock={product.quantity} />
-                      <p className="text-sm text-gray-600 mt-1">Value: Rs {(product.quantity * product.cost).toLocaleString()}</p>
+                      <p className="text-xs text-gray-600 mt-1">Value: Rs {(product.quantity * product.cost).toLocaleString()}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  All products are well stocked
-                </div>
+                <EmptyState icon={faBoxes} message="All products are well stocked" />
               )}
             </div>
           </div>
         </div>
 
-        {/* Revenue Trend Chart */}
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-              {['3months', '6months', '12months'].map(range => (
-                <button
-                  key={range}
-                  onClick={() => setRevenueTimeRange(range)}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                    revenueTimeRange === range ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
-                  }`}
-                >
-                  {range === '3months' ? '3 Months' : range === '6months' ? '6 Months' : '12 Months'}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="h-80">
-            {salesTrend.length > 0 ? (
-              <Line {...chartConfigs.revenueTrend} />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                No trend data available
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Profit Growth Chart */}
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Profit Growth</h3>
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-              {['3months', '6months', '12months'].map(range => (
-                <button
-                  key={range}
-                  onClick={() => setProfitTimeRange(range)}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                    profitTimeRange === range ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
-                  }`}
-                >
-                  {range === '3months' ? '3 Months' : range === '6months' ? '6 Months' : '12 Months'}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="h-80">
-            {profitTrend.length > 0 ? (
-              <Bar {...chartConfigs.profitGrowth} />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                No profit data available
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Quick Actions */}
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-100 mb-6 sm:mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Quick Actions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {quickActions.map((action, i) => (
               <NavLink 
                 key={i} 
                 to={action.to} 
-                className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 transition-all hover:bg-gray-100 hover:shadow-md"
+                className="flex items-center gap-3 p-3 sm:p-4 rounded-xl bg-gray-50 transition-all hover:bg-gray-100 hover:shadow-md"
               >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${action.color}`}>
-                  <FontAwesomeIcon icon={action.icon} className="text-white" />
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center ${action.color}`}>
+                  <FontAwesomeIcon icon={action.icon} className="text-white text-sm sm:text-base" />
                 </div>
-                <span className="font-medium text-gray-900">{action.text}</span>
+                <span className="font-medium text-gray-900 text-sm sm:text-base">{action.text}</span>
               </NavLink>
             ))}
           </div>

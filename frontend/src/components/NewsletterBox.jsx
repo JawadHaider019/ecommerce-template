@@ -104,11 +104,14 @@ const NewsletterBox = () => {
         {/* Message Display */}
         {message.text && (
           <div
-            className={`mt-4 rounded-lg p-3 animate-fade-in ${
+            className={`mt-4 rounded-lg p-3 ${
               message.type === "success"
                 ? "bg-black text-white border border-green-400"
                 : "bg-red-600 text-white border border-red-400"
             }`}
+            style={{
+              animation: 'fade-in 0.3s ease-out'
+            }}
           >
             <div className="flex items-center justify-center">
               {message.type === "success" && (
@@ -174,17 +177,6 @@ const NewsletterBox = () => {
           </p>
         </div>
       </div>
-
-      {/* Add some custom CSS for animations */}
-      <style jsx>{`
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 };

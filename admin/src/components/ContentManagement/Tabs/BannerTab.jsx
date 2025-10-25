@@ -36,12 +36,12 @@ const Toast = ({ message, type, onClose }) => {
   }[type];
 
   return (
-    <div className={`fixed top-4 right-4 ${bgColor} text-white px-6 py-4 shadow-lg z-50 flex items-center gap-3 min-w-80`}>
-      <i className={`fas ${icon} text-lg`}></i>
-      <span className="flex-1">{message}</span>
+    <div className={`fixed top-4 right-4 ${bgColor} text-white px-4 py-3 sm:px-6 sm:py-4 shadow-lg z-50 flex items-center gap-3 max-w-xs sm:max-w-md sm:min-w-80 mx-2 sm:mx-0`}>
+      <i className={`fas ${icon} text-base sm:text-lg`}></i>
+      <span className="flex-1 text-sm sm:text-base">{message}</span>
       <button
         onClick={onClose}
-        className="text-white hover:text-gray-200 text-lg"
+        className="text-white hover:text-gray-200 text-base sm:text-lg"
       >
         <i className="fas fa-times"></i>
       </button>
@@ -54,23 +54,23 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, banner }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white max-w-md w-full">
-        <div className="p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="bg-white max-w-sm sm:max-w-md w-full mx-2 sm:mx-0">
+        <div className="p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="bg-red-100 p-3">
-              <i className="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+            <div className="bg-red-100 p-2 sm:p-3">
+              <i className="fas fa-exclamation-triangle text-red-600 text-lg sm:text-xl"></i>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Delete Banner</h3>
-              <p className="text-gray-600">This action cannot be undone.</p>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900">Delete Banner</h3>
+              <p className="text-gray-600 text-sm sm:text-base">This action cannot be undone.</p>
             </div>
           </div>
           
           {banner && (
-            <div className="bg-gray-50 p-4 mb-4">
-              <p className="font-medium text-gray-800">Banner Details:</p>
-              <p className="text-sm text-gray-600 mt-1">
+            <div className="bg-gray-50 p-3 sm:p-4 mb-4">
+              <p className="font-medium text-gray-800 text-sm sm:text-base">Banner Details:</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
                 {banner.headingLine1 || 'Untitled Banner'} (Order: {banner.order})
               </p>
               {banner.imageUrl && (
@@ -78,27 +78,27 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, banner }) => {
                   <img 
                     src={banner.imageUrl} 
                     alt="Banner preview" 
-                    className="h-20 w-32 object-cover border"
+                    className="h-16 sm:h-20 w-24 sm:w-32 object-cover border"
                   />
                 </div>
               )}
             </div>
           )}
 
-          <p className="text-gray-700 mb-6">
+          <p className="text-gray-700 mb-4 sm:mb-6 text-sm sm:text-base">
             Are you sure you want to delete this banner? This will permanently remove the banner and its associated image.
           </p>
 
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-2 sm:gap-3 justify-end">
             <button
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors text-sm sm:text-base"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center gap-2"
+              className="px-3 sm:px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center gap-2 text-sm sm:text-base"
             >
               <i className="fas fa-trash-alt"></i>
               Delete Banner
@@ -358,7 +358,7 @@ export const BannerManager = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-lg text-gray-600">
+        <div className="text-base sm:text-lg text-gray-600">
           <i className="fas fa-spinner fa-spin mr-2"></i>
           Loading banners...
         </div>
@@ -367,7 +367,7 @@ export const BannerManager = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       {/* Toast Notification */}
       {toast && (
         <Toast
@@ -385,23 +385,23 @@ export const BannerManager = () => {
         banner={deleteModal.banner}
       />
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Banner Management</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Banner Management</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">
             {banners.length} banner{banners.length !== 1 ? 's' : ''} found
             {banners.filter(b => b._id).length > 0 && ` (${banners.filter(b => b._id).length} saved)`}
           </p>
           {error && (
-            <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700">
+            <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 text-sm">
               <strong>Error:</strong> {error}
             </div>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <button
             onClick={handleAddBanner}
-            className="bg-black text-white px-4 py-2 hover:bg-gray-800 transition-colors flex items-center gap-2"
+            className="flex-1 sm:flex-none bg-black text-white px-3 sm:px-4 py-2 hover:bg-gray-800 transition-colors flex items-center gap-2 justify-center text-sm sm:text-base"
           >
             <i className="fas fa-plus"></i>
             Add Banner
@@ -409,7 +409,7 @@ export const BannerManager = () => {
           <button
             onClick={handleSaveAll}
             disabled={saving}
-            className="bg-black text-white px-4 py-2 hover:bg-gray-800 disabled:opacity-50 transition-colors flex items-center gap-2"
+            className="flex-1 sm:flex-none bg-black text-white px-3 sm:px-4 py-2 hover:bg-gray-800 disabled:opacity-50 transition-colors flex items-center gap-2 justify-center text-sm sm:text-base"
           >
             <i className={`fas ${saving ? 'fa-spinner fa-spin' : 'fa-save'}`}></i>
             {saving ? 'Saving...' : 'Save All'}
@@ -417,10 +417,8 @@ export const BannerManager = () => {
         </div>
       </div>
 
- 
-
       {/* Banner List */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {banners.map((banner, index) => (
           <BannerCard
             key={banner._id || `banner-${index}`}
@@ -443,12 +441,12 @@ export const BannerManager = () => {
       </div>
 
       {banners.length === 0 && !loading && (
-        <div className="text-center py-12 border-2 border-dashed border-gray-300">
-          <i className="fas fa-image text-4xl text-gray-400 mb-4"></i>
-          <p className="text-gray-500 text-lg">No banners created yet</p>
+        <div className="text-center py-8 sm:py-12 border-2 border-dashed border-gray-300">
+          <i className="fas fa-image text-3xl sm:text-4xl text-gray-400 mb-3 sm:mb-4"></i>
+          <p className="text-gray-500 text-base sm:text-lg">No banners created yet</p>
           <button
             onClick={handleAddBanner}
-            className="mt-4 bg-black text-white px-4 py-2 hover:bg-gray-800 transition-colors"
+            className="mt-3 sm:mt-4 bg-black text-white px-3 sm:px-4 py-2 hover:bg-gray-800 transition-colors text-sm sm:text-base"
           >
             Create Your First Banner
           </button>
@@ -457,8 +455,8 @@ export const BannerManager = () => {
 
       {/* Image Modal */}
       {selectedImage && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="relative max-w-4xl max-h-full">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="relative max-w-full max-h-full">
             <img
               src={selectedImage}
               alt="Preview"
@@ -466,9 +464,9 @@ export const BannerManager = () => {
             />
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-4 right-4 bg-white text-gray-800 p-2 hover:bg-gray-200 transition-colors"
+              className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-white text-gray-800 p-1 sm:p-2 hover:bg-gray-200 transition-colors"
             >
-              <i className="fas fa-times"></i>
+              <i className="fas fa-times text-sm sm:text-base"></i>
             </button>
           </div>
         </div>
@@ -595,24 +593,24 @@ const BannerCard = ({
   return (
     <div className="border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
       {/* Header */}
-      <div className="flex items-center justify-between p-5 border-b border-gray-200">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 md:p-5 border-b border-gray-200 gap-3 sm:gap-0">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-500">Order: {banner.order}</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-500">Order: {banner.order}</span>
             <div className="flex flex-col gap-1">
               <button
                 onClick={onMoveUp}
                 disabled={index === 0}
-                className="bg-gray-200 text-gray-700 p-1 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="bg-gray-200 text-gray-700 p-1 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs"
               >
-                <i className="fas fa-chevron-up text-xs"></i>
+                <i className="fas fa-chevron-up"></i>
               </button>
               <button
                 onClick={onMoveDown}
                 disabled={index === banners.length - 1}
-                className="bg-gray-200 text-gray-700 p-1 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="bg-gray-200 text-gray-700 p-1 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs"
               >
-                <i className="fas fa-chevron-down text-xs"></i>
+                <i className="fas fa-chevron-down"></i>
               </button>
             </div>
           </div>
@@ -624,11 +622,11 @@ const BannerCard = ({
               onChange={(e) => handleActiveToggle(e.target.checked)}
               className="border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
-            <span className="text-sm text-gray-600">Active</span>
+            <span className="text-xs sm:text-sm text-gray-600">Active</span>
           </label>
           
           {/* Status Badges */}
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2">
             {banner._id && (
               <span className="text-xs bg-green-100 text-green-800 px-2 py-1 flex items-center gap-1">
                 <i className="fas fa-check"></i>
@@ -642,28 +640,28 @@ const BannerCard = ({
               </span>
             )}
             {lastSaved && (
-              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1">
+              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 hidden sm:block">
                 Saved {lastSaved.toLocaleTimeString()}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={banner.isEditing ? handleSaveSingle : onToggleEdit}
             disabled={saving}
-            className={`flex items-center gap-1 text-sm px-3 py-2 transition-colors ${
+            className={`flex-1 sm:flex-none flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-3 py-2 transition-colors ${
               banner.isEditing 
                 ? 'bg-black text-white hover:bg-gray-800 disabled:opacity-50' 
                 : 'bg-black text-white hover:bg-gray-800'
             }`}
           >
             <i className={`fas ${saving ? 'fa-spinner fa-spin' : banner.isEditing ? 'fa-save' : 'fa-edit'}`}></i>
-            {saving ? 'Saving...' : banner.isEditing ? 'Save Banner' : 'Edit Banner'}
+            {saving ? 'Saving...' : banner.isEditing ? 'Save' : 'Edit'}
           </button>
           <button
             onClick={onRemove}
-            className="flex items-center gap-1 text-sm bg-red-600 text-white px-3 py-2 hover:bg-red-700 transition-colors"
+            className="flex-1 sm:flex-none flex items-center gap-1 text-xs sm:text-sm bg-red-600 text-white px-2 sm:px-3 py-2 hover:bg-red-700 transition-colors"
           >
             <i className="fas fa-trash-alt"></i>
             Delete
@@ -672,22 +670,22 @@ const BannerCard = ({
       </div>
 
       {/* Content */}
-      <div className="p-5">
+      <div className="p-3 sm:p-4 md:p-5">
         {banner.isEditing ? (
           /* Edit Mode */
           <>
             {/* Image Upload */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Banner Image {!banner.imageUrl && <span className="text-red-500">*</span>}
               </label>
-              <div className="flex flex-col sm:flex-row items-start gap-4">
-                <div className="relative flex-1">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 cursor-pointer hover:border-indigo-400 transition-colors bg-gray-50">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <i className="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
-                      <p className="text-sm text-gray-500">Click to upload an image</p>
-                      <p className="text-xs text-gray-400 mt-1">Recommended: 1920x600px</p>
+              <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+                <div className="relative flex-1 w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed border-gray-300 cursor-pointer hover:border-indigo-400 transition-colors bg-gray-50">
+                    <div className="flex flex-col items-center justify-center pt-4 pb-5 sm:pt-5 sm:pb-6">
+                      <i className="fas fa-cloud-upload-alt text-xl sm:text-3xl text-gray-400 mb-1 sm:mb-2"></i>
+                      <p className="text-xs sm:text-sm text-gray-500">Click to upload an image</p>
+                      <p className="text-xs text-gray-400 mt-1 hidden sm:block">Recommended: 1920x600px</p>
                     </div>
                     <input
                       type="file"
@@ -706,17 +704,17 @@ const BannerCard = ({
                     <img
                       src={banner.imagePreview || banner.imageUrl}
                       alt={`Banner ${index + 1} Preview`}
-                      className="h-32 w-48 object-cover border-2 border-gray-200 cursor-pointer shadow-sm"
+                      className="h-24 sm:h-32 w-32 sm:w-48 object-cover border-2 border-gray-200 cursor-pointer shadow-sm"
                       onClick={() => setSelectedImage(banner.imagePreview || banner.imageUrl)}
                     />
                     <button
                       onClick={() => removeBannerImage(index)}
-                      className="absolute -top-2 -right-2 bg-red-600 text-white p-1 text-xs hover:bg-red-700 transition-colors shadow-md"
+                      className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-red-600 text-white p-1 text-xs hover:bg-red-700 transition-colors shadow-md"
                     >
-                      <i className="fas fa-times w-3 h-3"></i>
+                      <i className="fas fa-times w-2 h-2 sm:w-3 sm:h-3"></i>
                     </button>
                     {banner.imageUrl && !banner.imageFile && (
-                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1">
+                      <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 bg-black bg-opacity-50 text-white text-xs px-1 sm:px-2 py-1">
                         From DB
                       </div>
                     )}
@@ -726,7 +724,7 @@ const BannerCard = ({
             </div>
 
             {/* Text Inputs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
               {[
                 { 
                   label: "Order Number", 
@@ -776,12 +774,12 @@ const BannerCard = ({
                     {item.required && <span className="text-red-500 ml-1">*</span>}
                   </label>
                   <div className="relative">
-                    <i className={`${item.icon} absolute left-3 top-3 text-gray-400`}></i>
+                    <i className={`${item.icon} absolute left-3 top-2 sm:top-3 text-gray-400 text-sm sm:text-base`}></i>
                     {item.type === "textarea" ? (
                       <textarea
                         placeholder={item.placeholder}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 resize-none"
-                        rows={3}
+                        className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 resize-none text-sm sm:text-base"
+                        rows={2}
                         value={banner[item.field] || ""}
                         onChange={(e) => {
                           const updated = [...banners];
@@ -793,7 +791,7 @@ const BannerCard = ({
                       <input
                         type="number"
                         placeholder={item.placeholder}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 text-sm sm:text-base"
                         value={banner[item.field] || 0}
                         min="0"
                         onChange={(e) => {
@@ -805,7 +803,7 @@ const BannerCard = ({
                       <input
                         type="text"
                         placeholder={item.placeholder}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 text-sm sm:text-base"
                         value={banner[item.field] || ""}
                         onChange={(e) => {
                           const updated = [...banners];
@@ -823,8 +821,8 @@ const BannerCard = ({
           /* View Mode */
           <div className="flex flex-col gap-2">
             {/* Banner Preview */}
-            <div >
-              <div className="relative h-100 overflow-hidden bg-gradient-to-r from-green-50 to-emerald-50 border">
+            <div>
+              <div className="relative h-60 sm:h-80 overflow-hidden bg-gradient-to-r from-green-50 to-emerald-50 border">
                 {(banner.imagePreview || banner.imageUrl) ? (
                   <img
                     src={banner.imagePreview || banner.imageUrl}
@@ -834,16 +832,16 @@ const BannerCard = ({
                 ) : (
                   <div className="w-full h-full bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center">
                     <div className="text-center text-gray-400">
-                      <i className="fas fa-image text-2xl mb-2"></i>
+                      <i className="fas fa-image text-xl sm:text-2xl mb-2"></i>
                       <p className="text-sm">Banner Image</p>
                     </div>
                   </div>
                 )}
                 
                 <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center">
-                  <div className="text-white p-6 max-w-md">
-                    <div className="mb-3">
-                      <h2 className="text-3xl font-bold leading-tight sm:py-3 sm:text-4xl lg:text-5xl">
+                  <div className="text-white p-3 sm:p-4 md:p-6 max-w-md">
+                    <div className="mb-2 sm:mb-3">
+                      <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold leading-tight">
                         {banner.headingLine1 ? (
                           <div>
                             <div>{banner.headingLine1}</div>
@@ -857,13 +855,13 @@ const BannerCard = ({
                       </h2>
                     </div>
                     
-                    <p className="mt-2 text-sm font-medium sm:text-base">
+                    <p className="mt-1 sm:mt-2 text-xs sm:text-sm font-medium">
                       {banner.subtext || "Banner description text will appear here"}
                     </p>
                     
                     {banner.buttonText && (
-                      <button className="text-sm font-medium transition hover:text-gray-300 md:text-base flex items-center justify-center gap-2 mt-4">
-                        <p className="h-px w-8 bg-white"></p>
+                      <button className="text-xs sm:text-sm font-medium transition hover:text-gray-300 flex items-center justify-center gap-2 mt-2 sm:mt-4">
+                        <p className="h-px w-6 sm:w-8 bg-white"></p>
                         {banner.buttonText}
                       </button>
                     )}
@@ -873,10 +871,10 @@ const BannerCard = ({
             </div>
 
             {/* Banner Details */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Banner Details</h4>
-                <div className="space-y-2 text-sm">
+                <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
                   <div>
                     <span className="font-medium">Order:</span>
                     <p className="text-gray-600">{banner.order}</p>
@@ -916,10 +914,10 @@ const BannerCard = ({
         )}
 
         {/* Preview Info */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
           <div className="text-xs text-gray-500 flex items-center justify-between">
-            <span>{banner.isEditing ? "Edit mode - Make changes and click Save" : "View mode - Click Edit to modify this banner"}</span>
-            <span className={`px-2 py-1 ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+            <span className="text-xs">{banner.isEditing ? "Edit mode - Make changes and click Save" : "View mode - Click Edit to modify this banner"}</span>
+            <span className={`px-2 py-1 text-xs ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
               {isActive ? 'Active' : 'Inactive'}
             </span>
           </div>
@@ -974,10 +972,10 @@ export const BannerDisplay = ({ banners = [] }) => {
 
   if (loading) {
     return (
-      <div className="relative h-96 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center justify-center">
+      <div className="relative h-64 sm:h-80 md:h-96 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center justify-center">
         <div className="text-center text-gray-500">
-          <i className="fas fa-spinner fa-spin text-4xl mb-4"></i>
-          <p className="text-lg">Loading banners...</p>
+          <i className="fas fa-spinner fa-spin text-2xl sm:text-3xl md:text-4xl mb-3 sm:mb-4"></i>
+          <p className="text-base sm:text-lg">Loading banners...</p>
         </div>
       </div>
     );
@@ -985,17 +983,17 @@ export const BannerDisplay = ({ banners = [] }) => {
 
   if (activeBanners.length === 0) {
     return (
-      <div className="relative h-96 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center justify-center">
+      <div className="relative h-64 sm:h-80 md:h-96 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center justify-center">
         <div className="text-center text-gray-500">
-          <i className="fas fa-image text-4xl mb-4"></i>
-          <p className="text-lg">No active banners available</p>
+          <i className="fas fa-image text-2xl sm:text-3xl md:text-4xl mb-3 sm:mb-4"></i>
+          <p className="text-base sm:text-lg">No active banners available</p>
         </div>
       </div>
     );
   }
 
   return (
-    <section className="relative h-[600px] overflow-hidden">
+    <section className="relative h-[400px] sm:h-[500px] md:h-[600px] overflow-hidden">
       {/* Slides */}
       {activeBanners.map((banner, index) => (
         <div
@@ -1017,13 +1015,13 @@ export const BannerDisplay = ({ banners = [] }) => {
           
           {/* Overlay Content */}
           <div className="absolute inset-0 bg-black bg-opacity-25 flex items-center">
-            <div className="container mx-auto px-6">
+            <div className="container mx-auto px-4 sm:px-6">
               <div className="max-w-2xl text-white">
                 {/* Two-line Heading */}
-                <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 md:mb-6 leading-tight">
                   {banner.headingLine1 && (
                     <div>
-                      <div className="mb-2">{banner.headingLine1}</div>
+                      <div className="mb-1 sm:mb-2">{banner.headingLine1}</div>
                       {banner.headingLine2 && (
                         <div>{banner.headingLine2}</div>
                       )}
@@ -1032,7 +1030,7 @@ export const BannerDisplay = ({ banners = [] }) => {
                 </h1>
                 
                 {/* Subtext */}
-                <p className="text-xl md:text-2xl mb-8 opacity-95 max-w-lg leading-relaxed">
+                <p className="text-sm sm:text-base md:text-xl mb-4 sm:mb-6 md:mb-8 opacity-95 max-w-lg leading-relaxed">
                   {banner.subtext}
                 </p>
                 
@@ -1040,7 +1038,7 @@ export const BannerDisplay = ({ banners = [] }) => {
                 {banner.buttonText && (
                   <a
                     href={banner.redirectUrl || "#"}
-                    className="inline-block bg-white text-green-800 px-10 py-4 font-semibold text-lg hover:bg-green-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                    className="inline-block bg-white text-green-800 px-6 sm:px-8 md:px-10 py-2 sm:py-3 md:py-4 font-semibold text-sm sm:text-base md:text-lg hover:bg-green-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                   >
                     {banner.buttonText}
                   </a>
@@ -1053,12 +1051,12 @@ export const BannerDisplay = ({ banners = [] }) => {
 
       {/* Navigation Dots */}
       {activeBanners.length > 1 && (
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-3 z-20">
+        <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-3 z-20">
           {activeBanners.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`w-4 h-4 transition-all duration-300 ${
+              className={`w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 transition-all duration-300 ${
                 index === currentSlide 
                   ? 'bg-white scale-110' 
                   : 'bg-white bg-opacity-50 hover:bg-opacity-75'
@@ -1075,17 +1073,17 @@ export const BannerDisplay = ({ banners = [] }) => {
             onClick={() => setCurrentSlide((prev) => 
               (prev - 1 + activeBanners.length) % activeBanners.length
             )}
-            className="absolute left-6 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 transition-all duration-300 z-20 hover:scale-110"
+            className="absolute left-2 sm:left-4 md:left-6 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-2 sm:p-3 transition-all duration-300 z-20 hover:scale-110"
           >
-            <i className="fas fa-chevron-left w-5 h-5"></i>
+            <i className="fas fa-chevron-left w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5"></i>
           </button>
           <button
             onClick={() => setCurrentSlide((prev) => 
               (prev + 1) % activeBanners.length
             )}
-            className="absolute right-6 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 transition-all duration-300 z-20 hover:scale-110"
+            className="absolute right-2 sm:right-4 md:right-6 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-2 sm:p-3 transition-all duration-300 z-20 hover:scale-110"
           >
-            <i className="fas fa-chevron-right w-5 h-5"></i>
+            <i className="fas fa-chevron-right w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5"></i>
           </button>
         </>
       )}
@@ -1093,4 +1091,4 @@ export const BannerDisplay = ({ banners = [] }) => {
   );
 };
 
-export default BannerCard;
+export default BannerCard;  

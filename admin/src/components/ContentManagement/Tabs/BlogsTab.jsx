@@ -45,17 +45,17 @@ const CustomAlert = ({ type, message, onClose, duration = 5000 }) => {
   if (!isVisible) return null;
 
   return (
-    <div className={`fixed top-4 right-4 z-50 flex items-center p-4 mb-4 border rounded-lg shadow-lg transform transition-all duration-300 ${alertStyles[type]}`}>
-      <FontAwesomeIcon icon={icons[type]} className={`mr-3 ${iconStyles[type]}`} />
-      <div className="text-sm font-medium">{message}</div>
+    <div className={`fixed top-4 right-4 z-50 flex items-center p-3 sm:p-4 mb-4 border rounded-lg shadow-lg transform transition-all duration-300 max-w-xs sm:max-w-md ${alertStyles[type]}`}>
+      <FontAwesomeIcon icon={icons[type]} className={`mr-2 sm:mr-3 ${iconStyles[type]}`} />
+      <div className="text-sm font-medium flex-1">{message}</div>
       <button
         onClick={() => {
           setIsVisible(false);
           setTimeout(onClose, 300);
         }}
-        className="ml-auto bg-transparent hover:opacity-70 transition-opacity"
+        className="ml-2 bg-transparent hover:opacity-70 transition-opacity flex-shrink-0"
       >
-        <FontAwesomeIcon icon={faTimes} className="text-gray-400 hover:text-gray-600" />
+        <FontAwesomeIcon icon={faTimes} className="text-gray-400 hover:text-gray-600 text-sm" />
       </button>
     </div>
   );
@@ -76,7 +76,7 @@ const MarkdownRenderer = ({ content }) => {
       if (listItems.length > 0) {
         if (listType === 'ul') {
           elements.push(
-            <ul key={`list-${elements.length}`} className="list-disc ml-6 mb-4 space-y-2 text-gray-700">
+            <ul key={`list-${elements.length}`} className="list-disc ml-4 sm:ml-6 mb-4 space-y-2 text-gray-700 text-sm sm:text-base">
               {listItems.map((item, idx) => (
                 <li key={`${idx}-${Date.now()}`} className="leading-relaxed">{renderInlineFormatting(item)}</li>
               ))}
@@ -84,7 +84,7 @@ const MarkdownRenderer = ({ content }) => {
           );
         } else if (listType === 'ol') {
           elements.push(
-            <ol key={`list-${elements.length}`} className="list-decimal ml-6 mb-4 space-y-2 text-gray-700">
+            <ol key={`list-${elements.length}`} className="list-decimal ml-4 sm:ml-6 mb-4 space-y-2 text-gray-700 text-sm sm:text-base">
               {listItems.map((item, idx) => (
                 <li key={`${idx}-${Date.now()}`} className="leading-relaxed">{renderInlineFormatting(item)}</li>
               ))}
@@ -118,10 +118,10 @@ const MarkdownRenderer = ({ content }) => {
         flushList();
         const videoUrl = line.substring(10, line.length - 1);
         elements.push(
-          <div key={`video-${index}`} className="my-6">
+          <div key={`video-${index}`} className="my-4 sm:my-6">
             <video
               controls
-              className="w-full rounded-lg shadow-md max-h-96 object-cover"
+              className="w-full rounded-lg shadow-md max-h-64 sm:max-h-96 object-cover"
               poster={videoUrl.replace(/\.(mp4|mov|avi|webm)$/, '.jpg')}
             >
               <source src={videoUrl} type="video/mp4" />
@@ -136,31 +136,31 @@ const MarkdownRenderer = ({ content }) => {
         const altText = line.substring(2, line.indexOf(']('));
         const imageUrl = line.substring(line.indexOf('](') + 2, line.length - 1);
         elements.push(
-          <div key={`image-${index}`} className="my-6">
+          <div key={`image-${index}`} className="my-4 sm:my-6">
             <img
               src={imageUrl}
               alt={altText}
-              className="w-full rounded-lg shadow-md max-h-96 object-cover"
+              className="w-full rounded-lg shadow-md max-h-64 sm:max-h-96 object-cover"
             />
           </div>
         );
       }
       else if (line.startsWith('# ')) {
         flushList();
-        elements.push(<h1 key={`h1-${index}`} className="text-3xl font-bold text-gray-900 mt-6 mb-4 leading-tight">{line.substring(2)}</h1>);
+        elements.push(<h1 key={`h1-${index}`} className="text-2xl sm:text-3xl font-bold text-gray-900 mt-4 sm:mt-6 mb-3 sm:mb-4 leading-tight">{line.substring(2)}</h1>);
       }
       else if (line.startsWith('## ')) {
         flushList();
-        elements.push(<h2 key={`h2-${index}`} className="text-2xl font-bold text-gray-800 mt-5 mb-3 leading-tight">{line.substring(3)}</h2>);
+        elements.push(<h2 key={`h2-${index}`} className="text-xl sm:text-2xl font-bold text-gray-800 mt-3 sm:mt-5 mb-2 sm:mb-3 leading-tight">{line.substring(3)}</h2>);
       }
       else if (line.startsWith('### ')) {
         flushList();
-        elements.push(<h3 key={`h3-${index}`} className="text-xl font-semibold text-gray-800 mt-4 mb-2 leading-tight">{line.substring(4)}</h3>);
+        elements.push(<h3 key={`h3-${index}`} className="text-lg sm:text-xl font-semibold text-gray-800 mt-3 sm:mt-4 mb-2 leading-tight">{line.substring(4)}</h3>);
       }
       else if (line.startsWith('> ')) {
         flushList();
         elements.push(
-          <blockquote key={`blockquote-${index}`} className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4 bg-gray-50 py-3 px-4 rounded-r text-base">
+          <blockquote key={`blockquote-${index}`} className="border-l-4 border-gray-300 pl-3 sm:pl-4 italic text-gray-600 my-3 sm:my-4 bg-gray-50 py-2 sm:py-3 px-3 sm:px-4 rounded-r text-sm sm:text-base">
             {renderInlineFormatting(line.substring(2))}
           </blockquote>
         );
@@ -184,12 +184,12 @@ const MarkdownRenderer = ({ content }) => {
       }
       else if (line.trim().startsWith('```')) {
         if (!line.trim().endsWith('```')) {
-          elements.push(<div key={`code-${index}`} className="bg-gray-900 text-gray-100 p-4 rounded-lg my-4 font-mono text-sm overflow-x-auto" />);
+          elements.push(<div key={`code-${index}`} className="bg-gray-900 text-gray-100 p-3 sm:p-4 rounded-lg my-3 sm:my-4 font-mono text-sm overflow-x-auto" />);
         }
       }
       else if (line.trim()) {
         flushList();
-        elements.push(<p key={`p-${index}`} className="mb-4 text-gray-700 leading-relaxed text-base">{renderInlineFormatting(line)}</p>);
+        elements.push(<p key={`p-${index}`} className="mb-3 sm:mb-4 text-gray-700 leading-relaxed text-sm sm:text-base">{renderInlineFormatting(line)}</p>);
       }
       else {
         flushList();
@@ -753,13 +753,13 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
     return (
       <div className="mt-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="text-lg font-semibold text-gray-900">Image Preview</h4>
+          <h4 className="text-base sm:text-lg font-semibold text-gray-900">Image Preview</h4>
           <button
             onClick={() => {
               setNewBlog(prev => ({ ...prev, imageUrl: '' }));
               addAlert('info', 'Image removed');
             }}
-            className="text-red-500 hover:text-red-700 transition-colors text-sm flex items-center"
+            className="text-red-500 hover:text-red-700 transition-colors text-xs sm:text-sm flex items-center"
           >
             <FontAwesomeIcon icon={faTimes} className="mr-1" />
             Remove Image
@@ -767,7 +767,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
         </div>
 
         <div className="rounded-lg overflow-hidden border border-gray-200">
-          <img src={newBlog.imageUrl} alt="Preview" className="w-full h-48 object-cover" />
+          <img src={newBlog.imageUrl} alt="Preview" className="w-full h-32 sm:h-48 object-cover" />
         </div>
       </div>
     );
@@ -775,42 +775,42 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
 
   // Formatting toolbar component (video button removed)
   const FormattingToolbar = ({ isEditMode = false }) => (
-    <div className="flex flex-wrap gap-1 mb-4 p-3 bg-gray-50 rounded-lg">
+    <div className="flex flex-wrap gap-1 mb-4 p-2 sm:p-3 bg-gray-50 rounded-lg">
       <div className="flex gap-1 border-r border-gray-300 pr-2 mr-2">
-        <button onClick={() => insertFormatting('bold', isEditMode)} className="p-2 hover:bg-gray-200 rounded transition-colors" title="Bold">
+        <button onClick={() => insertFormatting('bold', isEditMode)} className="p-1 sm:p-2 hover:bg-gray-200 rounded transition-colors text-xs sm:text-sm" title="Bold">
           <FontAwesomeIcon icon={faBold} />
         </button>
-        <button onClick={() => insertFormatting('italic', isEditMode)} className="p-2 hover:bg-gray-200 rounded transition-colors" title="Italic">
+        <button onClick={() => insertFormatting('italic', isEditMode)} className="p-1 sm:p-2 hover:bg-gray-200 rounded transition-colors text-xs sm:text-sm" title="Italic">
           <FontAwesomeIcon icon={faItalic} />
         </button>
-        <button onClick={() => insertFormatting('bold-italic', isEditMode)} className="p-2 hover:bg-gray-200 rounded transition-colors font-bold italic" title="Bold & Italic">
+        <button onClick={() => insertFormatting('bold-italic', isEditMode)} className="p-1 sm:p-2 hover:bg-gray-200 rounded transition-colors font-bold italic text-xs sm:text-sm" title="Bold & Italic">
           B/I
         </button>
       </div>
       <div className="flex gap-1 border-r border-gray-300 pr-2 mr-2">
-        <button onClick={() => insertFormatting('heading', isEditMode)} className="p-2 hover:bg-gray-200 rounded transition-colors" title="Heading">
+        <button onClick={() => insertFormatting('heading', isEditMode)} className="p-1 sm:p-2 hover:bg-gray-200 rounded transition-colors text-xs sm:text-sm" title="Heading">
           <FontAwesomeIcon icon={faHeading} />
         </button>
-        <button onClick={() => insertFormatting('quote', isEditMode)} className="p-2 hover:bg-gray-200 rounded transition-colors" title="Quote">
+        <button onClick={() => insertFormatting('quote', isEditMode)} className="p-1 sm:p-2 hover:bg-gray-200 rounded transition-colors text-xs sm:text-sm" title="Quote">
           <FontAwesomeIcon icon={faQuoteLeft} />
         </button>
-        <button onClick={() => insertFormatting('code', isEditMode)} className="p-2 hover:bg-gray-200 rounded transition-colors" title="Code">
+        <button onClick={() => insertFormatting('code', isEditMode)} className="p-1 sm:p-2 hover:bg-gray-200 rounded transition-colors text-xs sm:text-sm" title="Code">
           <FontAwesomeIcon icon={faCode} />
         </button>
       </div>
       <div className="flex gap-1 border-r border-gray-300 pr-2 mr-2">
-        <button onClick={() => insertFormatting('ul', isEditMode)} className="p-2 hover:bg-gray-200 rounded transition-colors" title="Bullet List">
+        <button onClick={() => insertFormatting('ul', isEditMode)} className="p-1 sm:p-2 hover:bg-gray-200 rounded transition-colors text-xs sm:text-sm" title="Bullet List">
           <FontAwesomeIcon icon={faListUl} />
         </button>
-        <button onClick={() => insertFormatting('ol', isEditMode)} className="p-2 hover:bg-gray-200 rounded transition-colors" title="Numbered List">
+        <button onClick={() => insertFormatting('ol', isEditMode)} className="p-1 sm:p-2 hover:bg-gray-200 rounded transition-colors text-xs sm:text-sm" title="Numbered List">
           <FontAwesomeIcon icon={faListOl} />
         </button>
       </div>
       <div className="flex gap-1">
-        <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-200 rounded text-gray-600 transition-colors" title="Add Image">
+        <button onClick={() => fileInputRef.current?.click()} className="p-1 sm:p-2 hover:bg-gray-200 rounded text-gray-600 transition-colors text-xs sm:text-sm" title="Add Image">
           <FontAwesomeIcon icon={faImage} />
         </button>
-        <button onClick={openLinkModal} className="p-2 hover:bg-gray-200 rounded text-gray-600 transition-colors" title="Add Link">
+        <button onClick={openLinkModal} className="p-1 sm:p-2 hover:bg-gray-200 rounded text-gray-600 transition-colors text-xs sm:text-sm" title="Add Link">
           <FontAwesomeIcon icon={faLink} />
         </button>
       </div>
@@ -1000,11 +1000,11 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
     if (!isAddingCategory && !editingCategory) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-          <div className="p-6 border-b border-gray-200">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl max-w-sm sm:max-w-md w-full mx-2">
+          <div className="p-4 sm:p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                 {editingCategory ? 'Edit Category' : 'Add New Category'}
               </h3>
               <button
@@ -1013,7 +1013,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                   setEditingCategory(null);
                   setNewCategoryName('');
                 }}
-                className="text-gray-400 hover:text-gray-600 p-2 transition-colors"
+                className="text-gray-400 hover:text-gray-600 p-1 sm:p-2 transition-colors"
                 disabled={isLoading}
               >
                 <FontAwesomeIcon icon={faTimes} />
@@ -1021,11 +1021,11 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <input
               type="text"
               placeholder="Enter category name..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors mb-4"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors mb-4 text-sm sm:text-base"
               value={editingCategory ? editingCategory.name : newCategoryName}
               onChange={(e) =>
                 editingCategory
@@ -1040,16 +1040,16 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             {/* Categories List */}
             <div className="mt-4">
               <h4 className="text-sm font-medium text-gray-700 mb-2">Existing Categories</h4>
-              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
+              <div className="max-h-32 sm:max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
                 {localCategories.length === 0 ? (
                   <div className="p-3 text-center text-gray-500 text-sm">
                     No categories yet
                   </div>
                 ) : (
                   localCategories.map(category => (
-                    <div key={category._id || category.name} className="flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
-                      <span className="text-sm text-gray-800">{category.name} ({category.blogCount || 0})</span>
-                      <div className="flex space-x-2">
+                    <div key={category._id || category.name} className="flex items-center justify-between p-2 sm:p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+                      <span className="text-xs sm:text-sm text-gray-800">{category.name} ({category.blogCount || 0})</span>
+                      <div className="flex space-x-1 sm:space-x-2">
                         <button
                           onClick={() => setEditingCategory({ ...category, oldName: category.name })}
                           className="text-blue-600 hover:text-blue-800 p-1 transition-colors"
@@ -1074,15 +1074,15 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-200">
-            <div className="flex space-x-3">
+          <div className="p-4 sm:p-6 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
               <button
                 onClick={() => {
                   setIsAddingCategory(false);
                   setEditingCategory(null);
                   setNewCategoryName('');
                 }}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm sm:text-base"
                 disabled={isLoading}
               >
                 Cancel
@@ -1090,7 +1090,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
               <button
                 onClick={editingCategory ? updateCategory : addCategory}
                 disabled={(editingCategory ? !editingCategory.name.trim() : !newCategoryName.trim()) || isLoading}
-                className="flex-1 px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base"
               >
                 {isLoading ? (
                   <>
@@ -1118,15 +1118,15 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
         <div className="relative">
           {/* Image Thumbnail */}
           {hasImage && (
-            <div className="h-32 bg-gray-200 overflow-hidden">
+            <div className="h-24 sm:h-32 bg-gray-200 overflow-hidden">
               <img src={blog.imageUrl} alt={blog.title} className="w-full h-full object-cover" />
             </div>
           )}
 
           {/* No media placeholder */}
           {!hasImage && (
-            <div className="h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-              <FontAwesomeIcon icon={faImage} className="text-gray-400 text-xl" />
+            <div className="h-24 sm:h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+              <FontAwesomeIcon icon={faImage} className="text-gray-400 text-lg sm:text-xl" />
             </div>
           )}
 
@@ -1137,7 +1137,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
           )}
         </div>
 
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <span className={`px-2 py-1 text-xs rounded-full ${blog.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
               }`}>
@@ -1148,7 +1148,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             </div>
           </div>
 
-          <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 leading-tight text-base">
+          <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 leading-tight text-sm sm:text-base">
             {blog.title}
           </h3>
 
@@ -1171,10 +1171,10 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
           </div>
 
           <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-            <div className="flex space-x-2">
+            <div className="flex space-x-1 sm:space-x-2">
               <button
                 onClick={() => setViewingBlog(blog)}
-                className="text-blue-600 hover:text-blue-800 p-1 rounded-lg hover:bg-blue-50 transition-colors text-sm flex items-center"
+                className="text-blue-600 hover:text-blue-800 p-1 rounded-lg hover:bg-blue-50 transition-colors text-xs sm:text-sm flex items-center"
                 title="View Post"
               >
                 <FontAwesomeIcon icon={faEye} className="mr-1" />
@@ -1182,7 +1182,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
               </button>
               <button
                 onClick={() => setEditingBlog(blog)}
-                className="text-gray-600 hover:text-black p-1 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center"
+                className="text-gray-600 hover:text-black p-1 rounded-lg hover:bg-gray-50 transition-colors text-xs sm:text-sm flex items-center"
                 title="Edit Post"
               >
                 <FontAwesomeIcon icon={faEdit} className="mr-1" />
@@ -1193,10 +1193,10 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             <div className="flex space-x-1">
               <button onClick={() => toggleFeatured(blog._id)} className={`p-1 rounded-lg transition-colors ${blog.featured ? 'text-yellow-600 hover:text-yellow-700 bg-yellow-50' : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'
                 }`} title={blog.featured ? 'Remove featured' : 'Make featured'}>
-                <FontAwesomeIcon icon={faPalette} size="sm" />
+                <FontAwesomeIcon icon={faPalette} size="xs" />
               </button>
               <button onClick={() => togglePublishStatus(blog._id)} className="text-gray-400 hover:text-green-600 p-1 rounded-lg hover:bg-green-50 transition-colors" title={blog.status === 'published' ? 'Unpublish' : 'Publish'}>
-                <FontAwesomeIcon icon={blog.status === 'published' ? faEyeSlash : faEye} size="sm" />
+                <FontAwesomeIcon icon={blog.status === 'published' ? faEyeSlash : faEye} size="xs" />
               </button>
               <button
                 onClick={(e) => {
@@ -1207,7 +1207,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                 className="text-gray-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors"
                 title="Delete"
               >
-                <FontAwesomeIcon icon={faTrash} size="sm" />
+                <FontAwesomeIcon icon={faTrash} size="xs" />
               </button>
             </div>
           </div>
@@ -1218,8 +1218,8 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
 
   // Enhanced Search and Filter Component
   const EnhancedSearchFilter = () => (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="relative sm:col-span-2 lg:col-span-2">
           <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-3 text-gray-400" />
           <input
@@ -1321,17 +1321,17 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
     if (!linkModalOpen) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
         <div
-          className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+          className="bg-white rounded-lg sm:rounded-xl shadow-2xl max-w-sm sm:max-w-md w-full mx-2"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-4 sm:p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">Insert Link</h3>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Insert Link</h3>
               <button
                 onClick={() => setLinkModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-2 transition-colors"
+                className="text-gray-400 hover:text-gray-600 p-1 sm:p-2 transition-colors"
                 type="button"
               >
                 <FontAwesomeIcon icon={faTimes} />
@@ -1339,13 +1339,13 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             </div>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="p-4 sm:p-6 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Link Text</label>
               <input
                 type="text"
                 placeholder="Enter link text..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
                 value={localLinkData.text}
                 onChange={(e) => setLocalLinkData({ ...localLinkData, text: e.target.value })}
                 onKeyDown={handleKeyDown}
@@ -1358,7 +1358,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
               <input
                 type="url"
                 placeholder="https://example.com"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
                 value={localLinkData.url}
                 onChange={(e) => setLocalLinkData({ ...localLinkData, url: e.target.value })}
                 onKeyDown={handleKeyDown}
@@ -1366,11 +1366,11 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-200">
-            <div className="flex space-x-3">
+          <div className="p-4 sm:p-6 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
               <button
                 onClick={() => setLinkModalOpen(false)}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base"
                 type="button"
               >
                 Cancel
@@ -1378,7 +1378,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
               <button
                 onClick={handleInsertLink}
                 disabled={!localLinkData.url}
-                className="flex-1 px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 type="button"
               >
                 Insert Link
@@ -1395,34 +1395,34 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
     if (!viewingBlog) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="p-6 border-b border-gray-200">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl max-w-2xl sm:max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-2">
+          <div className="p-4 sm:p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">View Blog Post</h3>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900">View Blog Post</h3>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setEditingBlog(viewingBlog)}
-                  className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm"
+                  className="px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm"
                 >
                   Edit
                 </button>
-                <button onClick={() => setViewingBlog(null)} className="text-gray-400 hover:text-gray-600 p-2 transition-colors">
+                <button onClick={() => setViewingBlog(null)} className="text-gray-400 hover:text-gray-600 p-1 sm:p-2 transition-colors">
                   <FontAwesomeIcon icon={faTimes} />
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               {viewingBlog.imageUrl && (
-                <div className="w-full h-64 bg-gray-200 overflow-hidden">
+                <div className="w-full h-48 sm:h-64 bg-gray-200 overflow-hidden">
                   <img src={viewingBlog.imageUrl} alt={viewingBlog.title} className="w-full h-full object-cover" />
                 </div>
               )}
-              <div className="p-6">
-                <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                   <span className="flex items-center">
                     <FontAwesomeIcon icon={faCalendar} className="mr-1" />
                     {new Date(viewingBlog.createdAt).toLocaleDateString()}
@@ -1447,7 +1447,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                   )}
                 </div>
 
-                <h1 className="text-2xl font-bold text-gray-900 mb-4">{viewingBlog.title}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">{viewingBlog.title}</h1>
 
                 <div className="text-gray-700">
                   {viewingBlog.content ? (
@@ -1458,9 +1458,9 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                 </div>
 
                 {viewingBlog.tags && viewingBlog.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-200">
+                  <div className="flex flex-wrap gap-2 mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-200">
                     {viewingBlog.tags.map(tag => (
-                      <span key={tag} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                      <span key={tag} className="px-2 sm:px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs sm:text-sm">
                         #{tag}
                       </span>
                     ))}
@@ -1498,17 +1498,17 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-          <div className="p-6 border-b border-gray-200">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl max-w-sm sm:max-w-md w-full mx-2">
+          <div className="p-4 sm:p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-red-100 rounded-lg">
-                  <FontAwesomeIcon icon={faWarning} className="text-red-600 text-xl" />
+                  <FontAwesomeIcon icon={faWarning} className="text-red-600 text-lg sm:text-xl" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">Delete Blog Post</h3>
-                  <p className="text-sm text-gray-600 mt-1">This action cannot be undone</p>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Delete Blog Post</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">This action cannot be undone</p>
                 </div>
               </div>
               <button
@@ -1516,20 +1516,20 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                   setDeleteModalOpen(false);
                   setBlogToDelete(null);
                 }}
-                className="text-gray-400 hover:text-gray-600 p-2 transition-colors"
+                className="text-gray-400 hover:text-gray-600 p-1 sm:p-2 transition-colors"
               >
                 <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
           </div>
 
-          <div className="p-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <div className="p-4 sm:p-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
               <div className="flex items-start space-x-3">
                 <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-medium text-red-800">Warning: Permanent Deletion</h4>
-                  <p className="text-sm text-red-700 mt-1">
+                  <p className="text-xs sm:text-sm text-red-700 mt-1">
                     You are about to delete "<span className="font-semibold">{blogToDelete.title}</span>".
                     This will permanently remove the blog post and all its contents.
                   </p>
@@ -1537,9 +1537,9 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
               <h5 className="text-sm font-medium text-gray-700 mb-2">Blog Details:</h5>
-              <div className="space-y-2 text-sm text-gray-600">
+              <div className="space-y-2 text-xs sm:text-sm text-gray-600">
                 <div className="flex justify-between">
                   <span>Title:</span>
                   <span className="font-medium">{blogToDelete.title}</span>
@@ -1561,21 +1561,21 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-200">
-            <div className="flex space-x-3">
+          <div className="p-4 sm:p-6 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
               <button
                 onClick={() => {
                   setDeleteModalOpen(false);
                   setBlogToDelete(null);
                 }}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isLoading}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base"
               >
                 {isLoading ? (
                   <>
@@ -1614,22 +1614,22 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40">
-        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="p-6 border-b border-gray-200">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-40">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl max-w-2xl sm:max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-2">
+          <div className="p-4 sm:p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">Edit Blog Post</h3>
-              <button onClick={() => setEditingBlog(null)} className="text-gray-400 hover:text-gray-600 p-2 transition-colors">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Edit Blog Post</h3>
+              <button onClick={() => setEditingBlog(null)} className="text-gray-400 hover:text-gray-600 p-1 sm:p-2 transition-colors">
                 <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
           </div>
 
-          <div className="p-6 space-y-4">
+          <div className="p-4 sm:p-6 space-y-4">
             <input
               type="text"
               placeholder="Blog post title..."
-              className="w-full px-4 py-3 text-lg font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 text-lg font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
               value={editingBlog.title}
               onChange={(e) => setEditingBlog({ ...editingBlog, title: e.target.value })}
             />
@@ -1639,8 +1639,8 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             <textarea
               ref={editContentTextareaRef}
               placeholder="Blog content..."
-              rows="8"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors resize-none text-base leading-relaxed"
+              rows="6"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors resize-none text-sm sm:text-base leading-relaxed"
               value={editingBlog.content}
               onChange={(e) => setEditingBlog({ ...editingBlog, content: e.target.value })}
             />
@@ -1654,7 +1654,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center justify-center gap-2"
+                  className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs sm:text-sm flex items-center justify-center gap-2"
                 >
                   <FontAwesomeIcon icon={faUpload} />
                   Upload Image
@@ -1666,7 +1666,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                       setEditingBlog({ ...editingBlog, imageUrl: '' });
                       addAlert('info', 'Image removed');
                     }}
-                    className="px-4 py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm flex items-center"
+                    className="px-3 sm:px-4 py-2 sm:py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-xs sm:text-sm flex items-center"
                   >
                     <FontAwesomeIcon icon={faTimes} />
                   </button>
@@ -1677,7 +1677,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                   <img 
                     src={editingBlog.imageUrl} 
                     alt="Current featured" 
-                    className="w-full h-32 object-cover rounded-lg border"
+                    className="w-full h-24 sm:h-32 object-cover rounded-lg border"
                   />
                   <p className="text-xs text-gray-500 mt-1 truncate">
                     Current image: {editingBlog.imageUrl.substring(0, 50)}...
@@ -1686,7 +1686,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <CategorySelect
                 value={editingBlog.category}
                 onChange={(newCategoryArray) => setEditingBlog({ ...editingBlog, category: newCategoryArray })}
@@ -1698,7 +1698,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                   <input
                     type="text"
                     placeholder="Add tags..."
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-xs sm:text-sm"
                     onKeyPress={(e) => e.key === 'Enter' && e.target.value.trim() && setEditingBlog({
                       ...editingBlog,
                       tags: [...(editingBlog.tags || []), e.target.value.trim()]
@@ -1707,12 +1707,12 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {editingBlog.tags?.map((tag, index) => (
-                    <span key={`${tag}-${index}`} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm flex items-center">
+                    <span key={`${tag}-${index}`} className="px-2 sm:px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs flex items-center">
                       {tag}
                       <button onClick={() => {
                         const newTags = editingBlog.tags.filter((_, i) => i !== index);
                         setEditingBlog({ ...editingBlog, tags: newTags });
-                      }} className="ml-2 hover:text-gray-600 transition-colors">
+                      }} className="ml-1 sm:ml-2 hover:text-gray-600 transition-colors">
                         <FontAwesomeIcon icon={faTimes} size="xs" />
                       </button>
                     </span>
@@ -1722,7 +1722,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <label className="flex items-center text-gray-700 cursor-pointer">
+              <label className="flex items-center text-gray-700 cursor-pointer text-sm">
                 <input
                   type="checkbox"
                   checked={editingBlog.featured || false}
@@ -1734,12 +1734,12 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-200">
-            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-              <button onClick={() => setEditingBlog(null)} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+          <div className="p-4 sm:p-6 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+              <button onClick={() => setEditingBlog(null)} className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base">
                 Cancel
               </button>
-              <button onClick={updateBlog} disabled={isLoading} className="flex-1 px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+              <button onClick={updateBlog} disabled={isLoading} className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base">
                 {isLoading ? <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" /> : null}
                 Update Post
               </button>
@@ -1760,7 +1760,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4">
       {/* Alerts */}
       {alerts.map(alert => (
         <CustomAlert key={alert.id} type={alert.type} message={alert.message} onClose={() => removeAlert(alert.id)} />
@@ -1778,9 +1778,9 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
       <DeleteConfirmationModal />
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
+      <div className="flex border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
         <button
-          className={`flex-shrink-0 px-4 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === 'create' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
+          className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${activeTab === 'create' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
             }`}
           onClick={() => setActiveTab('create')}
         >
@@ -1788,7 +1788,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
           Write New Post
         </button>
         <button
-          className={`flex-shrink-0 px-4 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === 'manage' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
+          className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-3 font-medium transition-colors whitespace-nowrap text-sm sm:text-base ${activeTab === 'manage' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'
             }`}
           onClick={() => setActiveTab('manage')}
         >
@@ -1798,14 +1798,14 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
       </div>
 
       {activeTab === 'create' && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
           {/* Editor */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
               <input
                 type="text"
                 placeholder="Amazing blog post title..."
-                className="w-full px-4 py-3 text-xl font-bold border-0 focus:ring-0 placeholder-gray-400 bg-transparent"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-lg sm:text-xl font-bold border-0 focus:ring-0 placeholder-gray-400 bg-transparent text-sm sm:text-base"
                 value={newBlog.title}
                 onChange={(e) => setNewBlog({ ...newBlog, title: e.target.value })}
               />
@@ -1814,7 +1814,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
 
               {uploadProgress > 0 && uploadProgress < 100 && (
                 <div className="mb-4">
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                  <div className="flex justify-between text-xs sm:text-sm text-gray-600 mb-1">
                     <span>Uploading...</span>
                     <span>{uploadProgress}%</span>
                   </div>
@@ -1827,21 +1827,21 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
               <textarea
                 ref={contentTextareaRef}
                 placeholder="Start writing your amazing blog post... (Use **bold**, *italic*, # heading, - lists, [text](url) for links)"
-                rows="12"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black resize-none font-sans text-base leading-relaxed transition-colors"
+                rows="8"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black resize-none font-sans text-sm sm:text-base leading-relaxed transition-colors"
                 value={newBlog.content}
                 onChange={(e) => setNewBlog({ ...newBlog, content: e.target.value })}
               />
 
               {renderMediaPreview()}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Excerpt</label>
                   <textarea
                     placeholder="Short description..."
                     rows="2"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-xs sm:text-sm"
                     value={newBlog.excerpt}
                     onChange={(e) => setNewBlog({ ...newBlog, excerpt: e.target.value })}
                   />
@@ -1851,14 +1851,14 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                   <textarea
                     placeholder="SEO description..."
                     rows="2"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-xs sm:text-sm"
                     value={newBlog.metaDescription}
                     onChange={(e) => setNewBlog({ ...newBlog, metaDescription: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
                 <CategorySelect
                   value={newBlog.category}
                   onChange={(newCategoryArray) => setNewBlog({ ...newBlog, category: newCategoryArray })}
@@ -1870,12 +1870,12 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                     <input
                       type="text"
                       placeholder="Add tags..."
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-xs sm:text-sm"
                       value={newTag}
                       onChange={(e) => setNewTag(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && addTag()}
                     />
-                    <button onClick={addTag} className="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm">
+                    <button onClick={addTag} className="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-xs sm:text-sm">
                       <FontAwesomeIcon icon={faPlus} />
                     </button>
                   </div>
@@ -1892,9 +1892,9 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-6 pt-4 border-t border-gray-200">
-                <div className="flex items-center space-x-4">
-                  <label className="flex items-center text-gray-600 hover:text-black cursor-pointer transition-colors text-sm">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-200">
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <label className="flex items-center text-gray-600 hover:text-black cursor-pointer transition-colors text-xs sm:text-sm">
                     <input
                       type="checkbox"
                       checked={newBlog.featured}
@@ -1903,18 +1903,18 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                     />
                     Featured Post
                   </label>
-                  <button onClick={() => setShowPreview(!showPreview)} className="flex items-center text-gray-600 hover:text-black transition-colors text-sm">
+                  <button onClick={() => setShowPreview(!showPreview)} className="flex items-center text-gray-600 hover:text-black transition-colors text-xs sm:text-sm">
                     <FontAwesomeIcon icon={showPreview ? faEyeSlash : faEye} className="mr-2" />
                     {showPreview ? 'Hide Preview' : 'Show Preview'}
                   </button>
                 </div>
 
-                <div className="flex space-x-3 w-full sm:w-auto">
-                  <button onClick={() => quickAddBlog('draft')} disabled={!newBlog.content.trim() || isLoading || !newBlog.category || newBlog.category.length === 0} className="flex-1 sm:flex-none px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto mt-3 sm:mt-0">
+                  <button onClick={() => quickAddBlog('draft')} disabled={!newBlog.content.trim() || isLoading || !newBlog.category || newBlog.category.length === 0} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm">
                     {isLoading ? <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" /> : null}
                     Save Draft
                   </button>
-                  <button onClick={() => quickAddBlog('published')} disabled={!newBlog.content.trim() || isLoading || !newBlog.category || newBlog.category.length === 0} className="flex-1 sm:flex-none px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 flex items-center justify-center font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                  <button onClick={() => quickAddBlog('published')} disabled={!newBlog.content.trim() || isLoading || !newBlog.category || newBlog.category.length === 0} className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 flex items-center justify-center font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm">
                     {isLoading ? <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" /> : <FontAwesomeIcon icon={faPaperPlane} className="mr-2" />}
                     Publish Now
                   </button>
@@ -1927,19 +1927,19 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
 
           {/* Preview */}
           {showPreview && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Live Preview</h3>
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Live Preview</h3>
                 </div>
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                   {newBlog.imageUrl && (
-                    <div className="w-full h-48 bg-gray-200 overflow-hidden">
+                    <div className="w-full h-32 sm:h-48 bg-gray-200 overflow-hidden">
                       <img src={newBlog.imageUrl} alt={newBlog.title} className="w-full h-full object-cover" />
                     </div>
                   )}
-                  <div className="p-4">
-                    <div className="flex items-center space-x-4 text-xs text-gray-600 mb-3">
+                  <div className="p-3 sm:p-4">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 mb-2 sm:mb-3">
                       <span>{newBlog.author}</span>
                       <span>{new Date().toLocaleDateString()}</span>
                       <span>{newBlog.readTime} min read</span>
@@ -1949,7 +1949,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                         </span>
                       )}
                     </div>
-                    <h1 className="text-xl font-bold text-gray-900 mb-3">{newBlog.title || "Your Blog Title"}</h1>
+                    <h1 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 sm:mb-3">{newBlog.title || "Your Blog Title"}</h1>
                     <div className="text-gray-700">
                       {newBlog.content ? (
                         <MarkdownRenderer content={newBlog.content} />
@@ -1958,7 +1958,7 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
                       )}
                     </div>
                     {newBlog.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-4">
+                      <div className="flex flex-wrap gap-2 mt-3 sm:mt-4">
                         {newBlog.tags.map(tag => (
                           <span key={`${tag}-${Date.now()}`} className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">#{tag}</span>
                         ))}
@@ -1973,21 +1973,21 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
       )}
 
       {activeTab === 'manage' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Enhanced Search and Filter */}
           <EnhancedSearchFilter />
 
           {/* Loading State */}
           {(isLoading || isLoadingBlogs) && (
-            <div className="flex justify-center items-center py-8">
-              <FontAwesomeIcon icon={faSpinner} className="animate-spin text-2xl text-gray-400 mr-3" />
-              <span className="text-gray-600">Loading...</span>
+            <div className="flex justify-center items-center py-6 sm:py-8">
+              <FontAwesomeIcon icon={faSpinner} className="animate-spin text-xl sm:text-2xl text-gray-400 mr-2 sm:mr-3" />
+              <span className="text-gray-600 text-sm sm:text-base">Loading...</span>
             </div>
           )}
 
           {/* Blog Grid */}
           {!isLoading && !isLoadingBlogs && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
               {blogs.map(blog => (
                 <BlogCard key={blog._id} blog={blog} />
               ))}
@@ -1995,10 +1995,10 @@ const BlogsTab = ({ blogs, setBlogs, categories: initialCategories = [] }) => {
           )}
 
           {!isLoading && !isLoadingBlogs && blogs.length === 0 && (
-            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <FontAwesomeIcon icon={faSearch} className="text-4xl text-gray-400 mb-4" />
-              <h4 className="text-lg font-medium text-gray-600 mb-2">No posts found</h4>
-              <p className="text-gray-500">Try adjusting your search or create a new post.</p>
+            <div className="text-center py-8 sm:py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <FontAwesomeIcon icon={faSearch} className="text-3xl sm:text-4xl text-gray-400 mb-3 sm:mb-4" />
+              <h4 className="text-base sm:text-lg font-medium text-gray-600 mb-2">No posts found</h4>
+              <p className="text-gray-500 text-sm sm:text-base">Try adjusting your search or create a new post.</p>
             </div>
           )}
         </div>
