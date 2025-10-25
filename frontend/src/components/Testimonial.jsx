@@ -6,7 +6,7 @@ import { FaStar } from 'react-icons/fa';
 import { useRef, useState, useEffect } from "react";
 import Title from '../components/Title';
 
-const API_BASE_URL = `${VITE_BACKEND_URL}/api`;
+const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
 const Testimonial = () => {
     const sliderRef = useRef(null);
