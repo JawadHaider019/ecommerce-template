@@ -8,7 +8,9 @@ const CartTotal = () => {
         getCartAmount, 
         getDeliveryCharge,
         isFreeDeliveryAvailable,
-        getAmountForFreeDelivery 
+        getAmountForFreeDelivery,
+        deliverySettings,
+        deliverySettingsLoading 
     } = useContext(ShopContext)
 
     // Safe calculations with fallbacks
@@ -17,6 +19,19 @@ const CartTotal = () => {
     const totalAmount = subtotal + deliveryCharge
     const isFreeDelivery = isFreeDeliveryAvailable?.(subtotal) || false
     const amountNeeded = getAmountForFreeDelivery?.(subtotal) || 0
+
+    if (deliverySettingsLoading) {
+        return (
+            <div className="w-full">
+                <div className="text-2xl">
+                    <Title text1={'CART'} text2={'TOTAL'}/>
+                </div>
+                <div className="mt-4 text-center">
+                    <p className="text-gray-600">Loading delivery charges...</p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="w-full">

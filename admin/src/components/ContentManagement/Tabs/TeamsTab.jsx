@@ -19,7 +19,8 @@ import {
   faArrowsUpDown
 } from "@fortawesome/free-solid-svg-icons";
 
-const API_BASE = 'http://localhost:4000/api';
+
+const API_BASE = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
 const TeamsTab = () => {
   const [teams, setTeams] = useState([]);

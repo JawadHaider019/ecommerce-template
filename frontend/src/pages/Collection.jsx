@@ -13,17 +13,11 @@ const Collection = () => {
   const [sortType, setSortType] = useState('default');
   const [backendCategories, setBackendCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [categoriesMap, setCategoriesMap] = useState({});
-  const [subcategoriesMap, setSubcategoriesMap] = useState({});
-
+  const backendURL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const backendURL =
-          typeof window !== "undefined" && window.location.hostname === "localhost"
-            ? "http://localhost:4000"
-            : process.env.NEXT_PUBLIC_BACKEND_URL || "";
-
+    
         const response = await fetch(`${backendURL}/api/categories`);
 
         if (!response.ok) {
@@ -39,28 +33,8 @@ const Collection = () => {
         const data = await response.json();
         setBackendCategories(data);
         
-        // Create lookup maps for IDs to names and vice versa
-        const catMap = {};
-        const subMap = {};
-        
-        data.forEach(category => {
-          // Map ID to name and name to ID for both ways lookup
-          catMap[category._id] = category.name;
-          catMap[category.name] = category._id;
-          
-          // Map subcategories
-          if (category.subcategories && Array.isArray(category.subcategories)) {
-            category.subcategories.forEach(sub => {
-              subMap[sub._id] = sub.name;
-              subMap[sub.name] = sub._id;
-            });
-          }
-        });
-        
-        setCategoriesMap(catMap);
-        setSubcategoriesMap(subMap);
-        
       } catch (error) {
+      
         const fallbackCategories = extractCategoriesFromProducts(products);
         setBackendCategories(fallbackCategories);
       } finally {
@@ -90,50 +64,21 @@ const Collection = () => {
     return Object.values(categoryMap).map(cat => ({
       name: cat.name,
       subcategories: Array.from(cat.subcategories).map(sub => ({
-        name: sub,
-        _id: sub
+        name: sub
       }))
     }));
   };
 
-  // Helper function to normalize category for comparison
-  const normalizeCategory = (categoryValue) => {
-    if (!categoryValue) return null;
-    
-    // If it's an ID, return the ID
-    if (typeof categoryValue === 'string' && categoryValue.match(/^[0-9a-fA-F]{24}$/)) {
-      return categoryValue;
-    }
-    
-    // If it's a name, try to get the ID from the map
-    return categoriesMap[categoryValue] || categoryValue;
-  };
-
-  // Helper function to normalize subcategory for comparison
-  const normalizeSubcategory = (subcategoryValue) => {
-    if (!subcategoryValue) return null;
-    
-    // If it's an ID, return the ID
-    if (typeof subcategoryValue === 'string' && subcategoryValue.match(/^[0-9a-fA-F]{24}$/)) {
-      return subcategoryValue;
-    }
-    
-    // If it's a name, try to get the ID from the map
-    return subcategoriesMap[subcategoryValue] || subcategoryValue;
-  };
-
-  const toggleCategory = (e) => {
-    const value = e.target.value;
+  const toggleCategory = (categoryName) => {
     setSelectedCategories(prev => 
-      prev.includes(value) ? prev.filter(c => c !== value) : [...prev, value]
+      prev.includes(categoryName) ? prev.filter(c => c !== categoryName) : [...prev, categoryName]
     );
     setSelectedSubCategories([]);
   };
 
-  const toggleSubCategory = (e) => {
-    const value = e.target.value;
+  const toggleSubCategory = (subcategoryName) => {
     setSelectedSubCategories(prev => 
-      prev.includes(value) ? prev.filter(s => s !== value) : [...prev, value]
+      prev.includes(subcategoryName) ? prev.filter(s => s !== subcategoryName) : [...prev, subcategoryName]
     );
   };
 
@@ -154,25 +99,17 @@ const Collection = () => {
       );
     }
 
-    // Category filter
+    // Category filter - only compare by names
     if (selectedCategories.length > 0) {
-      const normalizedSelectedCategories = selectedCategories.map(normalizeCategory);
-      
       productsCopy = productsCopy.filter(item => {
-        const itemCategoryNormalized = normalizeCategory(item.category);
-        const isMatch = normalizedSelectedCategories.includes(itemCategoryNormalized);
-        return isMatch;
+        return selectedCategories.includes(item.category);
       });
     }
 
-    // Sub-category filter
+    // Sub-category filter - only compare by names
     if (selectedSubCategories.length > 0) {
-      const normalizedSelectedSubCategories = selectedSubCategories.map(normalizeSubcategory);
-      
       productsCopy = productsCopy.filter(item => {
-        const itemSubcategoryNormalized = normalizeSubcategory(item.subcategory);
-        const isMatch = normalizedSelectedSubCategories.includes(itemSubcategoryNormalized);
-        return isMatch;
+        return selectedSubCategories.includes(item.subcategory);
       });
     }
 
@@ -209,18 +146,14 @@ const Collection = () => {
 
   // Get product counts for categories
   const getCategoryProductCount = (categoryName) => {
-    const normalizedCategoryName = normalizeCategory(categoryName);
-    return products.filter(product => 
-      normalizeCategory(product.category) === normalizedCategoryName
-    ).length;
+    return products.filter(product => product.category === categoryName).length;
   };
 
   const getSubcategoryProductCount = (subcategoryName) => {
-    const normalizedSubcategoryName = normalizeSubcategory(subcategoryName);
     return products.filter(product => {
       const parentCategorySelected = selectedCategories.length === 0 || 
-        selectedCategories.some(cat => normalizeCategory(cat) === normalizeCategory(product.category));
-      return parentCategorySelected && normalizeSubcategory(product.subcategory) === normalizedSubcategoryName;
+        selectedCategories.includes(product.category);
+      return parentCategorySelected && product.subcategory === subcategoryName;
     }).length;
   };
 
@@ -247,26 +180,6 @@ const Collection = () => {
       });
       return Array.from(availableSubcategories);
     }
-  };
-
-  // Get display name for category
-  const getCategoryDisplayName = (categoryValue) => {
-    if (categoriesMap[categoryValue]) {
-      return typeof categoryValue === 'string' && categoryValue.match(/^[0-9a-fA-F]{24}$/) 
-        ? categoriesMap[categoryValue] 
-        : categoryValue;
-    }
-    return categoryValue;
-  };
-
-  // Get display name for subcategory
-  const getSubcategoryDisplayName = (subcategoryValue) => {
-    if (subcategoriesMap[subcategoryValue]) {
-      return typeof subcategoryValue === 'string' && subcategoryValue.match(/^[0-9a-fA-F]{24}$/) 
-        ? subcategoriesMap[subcategoryValue] 
-        : subcategoryValue;
-    }
-    return subcategoryValue;
   };
 
   // Initialize with all products
@@ -326,9 +239,8 @@ const Collection = () => {
                   <input 
                     className="w-4 h-4 accent-black text-black" 
                     type="checkbox" 
-                    value={cat.name} 
-                    onChange={toggleCategory}
                     checked={selectedCategories.includes(cat.name)}
+                    onChange={() => toggleCategory(cat.name)}
                   />
                   <span className="flex justify-between w-full">
                     <span>{cat.name}</span>
@@ -351,9 +263,8 @@ const Collection = () => {
                       <input 
                         className="w-4 h-4 accent-black text-black" 
                         type="checkbox" 
-                        value={sub} 
-                        onChange={toggleSubCategory}
                         checked={selectedSubCategories.includes(sub)}
+                        onChange={() => toggleSubCategory(sub)}
                         disabled={productCount === 0}
                       />
                       <span className="flex justify-between w-full">
@@ -393,8 +304,8 @@ const Collection = () => {
             </div>
             {hasActiveFilters && (
               <div className="text-xs text-gray-500">
-                {selectedCategories.length > 0 && `Categories: ${selectedCategories.map(getCategoryDisplayName).join(', ')} `}
-                {selectedSubCategories.length > 0 && `Subcategories: ${selectedSubCategories.map(getSubcategoryDisplayName).join(', ')} `}
+                {selectedCategories.length > 0 && `Categories: ${selectedCategories.join(', ')} `}
+                {selectedSubCategories.length > 0 && `Subcategories: ${selectedSubCategories.join(', ')} `}
                 {sortType !== 'default' && `Sorted by: ${sortType}`}
               </div>
             )}
@@ -422,7 +333,7 @@ const Collection = () => {
                 key={cat} 
                 className="bg-gray-100 px-3 py-1 rounded-full text-sm flex items-center gap-1"
               >
-                {getCategoryDisplayName(cat)}
+                {cat}
                 <button 
                   onClick={() => setSelectedCategories(prev => prev.filter(c => c !== cat))}
                   className="text-gray-500 hover:text-gray-700"
@@ -436,7 +347,7 @@ const Collection = () => {
                 key={sub} 
                 className="bg-gray-100 px-3 py-1 rounded-full text-sm flex items-center gap-1"
               >
-                {getSubcategoryDisplayName(sub)}
+                {sub}
                 <button 
                   onClick={() => setSelectedSubCategories(prev => prev.filter(s => s !== sub))}
                   className="text-gray-500 hover:text-gray-700"

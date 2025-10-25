@@ -33,7 +33,9 @@ ChartJS.register(
 );
 
 // Constants
-const API_BASE = `${backendUrl}/api`;
+
+const API_BASE = `${import.meta.env.VITE_BACKEND_URL}/api`;
+
 const TIME_RANGES = ['daily', 'weekly', 'monthly'];
 const CHART_TYPES = ['pie', 'bar'];
 const PROFIT_PERIODS = ['3months', '6months', '12months', '24months'];

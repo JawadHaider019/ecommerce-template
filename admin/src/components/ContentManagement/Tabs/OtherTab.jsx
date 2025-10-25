@@ -30,7 +30,8 @@ const OtherTab = () => {
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   // API base URL - use the same as your dashboard
-  const API_BASE = 'http://localhost:4000/api';
+
+  const API_BASE = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
   // Show toast function
   const showToast = (message, type = "success") => {

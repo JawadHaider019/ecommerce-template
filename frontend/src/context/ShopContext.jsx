@@ -21,11 +21,7 @@ const ShopContextProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [productReviews, setProductReviews] = useState({});
   const [dealReviews, setDealReviews] = useState({});
-  const [deliverySettings, setDeliverySettings] = useState({
-    mode: "fixed",
-    fixedCharge: 250,
-    freeDeliveryAbove: 0
-  });
+  const [deliverySettings, setDeliverySettings] = useState(null);
   const [deliverySettingsLoading, setDeliverySettingsLoading] = useState(false);
   
   const [loading, setLoading] = useState({
@@ -63,10 +59,8 @@ const ShopContextProvider = ({ children }) => {
   const decodeToken = useCallback((token) => {
     try {
       if (!token) return null;
-      
       const payload = token.split('.')[1];
       const decoded = JSON.parse(atob(payload));
-      
       return decoded;
     } catch (error) {
       console.error('Error decoding token:', error);
@@ -83,7 +77,6 @@ const ShopContextProvider = ({ children }) => {
     setLoadingState('user', true, "Loading user profile...");
     try {
       const decoded = decodeToken(token);
-      
       if (decoded && decoded.id) {
         setUser({
           _id: decoded.id,
@@ -102,10 +95,14 @@ const ShopContextProvider = ({ children }) => {
 
   const fetchDeliverySettings = useCallback(async () => {
     setDeliverySettingsLoading(true);
-    setLoadingState('general', true, "Loading delivery settings...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/delivery-settings`);
-      if (response.data) {
+      
+      if (response.data && response.data.success && response.data.settings) {
+        setDeliverySettings(response.data.settings);
+      } else if (response.data && response.data.settings) {
+        setDeliverySettings(response.data.settings);
+      } else if (response.data) {
         setDeliverySettings(response.data);
       }
     } catch (error) {
@@ -113,19 +110,28 @@ const ShopContextProvider = ({ children }) => {
       toast.error("Failed to load delivery settings");
     } finally {
       setDeliverySettingsLoading(false);
-      setLoadingState('general', false);
     }
-  }, [BACKEND_URL, setLoadingState]);
+  }, [BACKEND_URL]);
 
   const updateDeliverySettings = useCallback(async (settings) => {
     setLoadingState('general', true, "Updating delivery settings...");
     try {
       const response = await axios.post(`${BACKEND_URL}/api/delivery-settings`, settings);
-      if (response.data) {
+      
+      if (response.data && response.data.success && response.data.settings) {
         setDeliverySettings(response.data.settings);
         toast.success("Delivery settings updated successfully");
         return true;
+      } else if (response.data && response.data.settings) {
+        setDeliverySettings(response.data.settings);
+        toast.success("Delivery settings updated successfully");
+        return true;
+      } else if (response.data) {
+        setDeliverySettings(response.data);
+        toast.success("Delivery settings updated successfully");
+        return true;
       }
+      return false;
     } catch (error) {
       console.error("Error updating delivery settings:", error);
       toast.error(error.response?.data?.error || "Failed to update delivery settings");
@@ -137,21 +143,16 @@ const ShopContextProvider = ({ children }) => {
 
   const calculateAverageRating = useCallback((reviews) => {
     if (!reviews || reviews.length === 0) return 0;
-    
     const validRatings = reviews.filter(review => review.rating && review.rating > 0);
     if (validRatings.length === 0) return 0;
-    
     const totalRating = validRatings.reduce((sum, review) => sum + review.rating, 0);
     const average = totalRating / validRatings.length;
-    
     return Math.round(average * 10) / 10;
   }, []);
 
   const fetchProductReviews = useCallback(async (productId) => {
-    setLoadingState('reviews', true, "Loading product reviews...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/comments?productId=${productId}`);
-      
       if (response.data) {
         const reviews = response.data.map(comment => ({
           id: comment._id,
@@ -175,16 +176,12 @@ const ShopContextProvider = ({ children }) => {
     } catch (error) {
       console.error("Error fetching product reviews:", error);
       return [];
-    } finally {
-      setLoadingState('reviews', false);
     }
-  }, [BACKEND_URL, setLoadingState]);
+  }, [BACKEND_URL]);
 
   const fetchDealReviews = useCallback(async (dealId) => {
-    setLoadingState('reviews', true, "Loading deal reviews...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/comments?dealId=${dealId}`);
-      
       if (response.data) {
         const reviews = response.data.map(comment => ({
           id: comment._id,
@@ -208,34 +205,28 @@ const ShopContextProvider = ({ children }) => {
     } catch (error) {
       console.error("Error fetching deal reviews:", error);
       return [];
-    } finally {
-      setLoadingState('reviews', false);
     }
-  }, [BACKEND_URL, setLoadingState]);
+  }, [BACKEND_URL]);
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     setLoadingState('products', true, "Loading products...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/product/list`);
-      
       if (response.data?.products) {
         const productsData = response.data.products;
-        
         const productsWithRatings = await Promise.all(
           productsData.map(async (product) => {
             try {
               const reviews = await fetchProductReviews(product._id);
               const averageRating = calculateAverageRating(reviews);
               const reviewCount = reviews.length;
-
               return {
                 ...product,
                 rating: averageRating,
                 reviewCount: reviewCount
               };
             } catch (error) {
-              console.error(`Error processing product ${product._id}:`, error);
               return { 
                 ...product, 
                 rating: 0, 
@@ -244,7 +235,6 @@ const ShopContextProvider = ({ children }) => {
             }
           })
         );
-        
         setProducts(productsWithRatings);
       } else {
         toast.error(response.data?.message || "No products found");
@@ -263,16 +253,13 @@ const ShopContextProvider = ({ children }) => {
     setLoadingState('deals', true, "Loading deals...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/deal/list`);
-      
       if (response.data?.success) {
         const dealsData = response.data.deals || [];
-        
         const currentDate = new Date();
         const activeDeals = dealsData.filter((deal) => {
           const isPublished = deal.status === 'published';
           const isActive = (!deal.dealStartDate || new Date(deal.dealStartDate) <= currentDate) &&
                           (!deal.dealEndDate || new Date(deal.dealEndDate) >= currentDate);
-          
           return isPublished && isActive;
         });
 
@@ -282,14 +269,12 @@ const ShopContextProvider = ({ children }) => {
               const reviews = await fetchDealReviews(deal._id);
               const averageRating = calculateAverageRating(reviews);
               const reviewCount = reviews.length;
-
               return {
                 ...deal,
                 rating: averageRating,
                 reviewCount: reviewCount
               };
             } catch (error) {
-              console.error(`Error processing deal ${deal._id}:`, error);
               return {
                 ...deal,
                 rating: 0,
@@ -298,7 +283,6 @@ const ShopContextProvider = ({ children }) => {
             }
           })
         );
-        
         setDeals(dealsWithRatings);
         return dealsWithRatings;
       } else {
@@ -350,7 +334,6 @@ const ShopContextProvider = ({ children }) => {
       if (response.data) {
         await fetchProductReviews(reviewData.productId);
         await fetchProducts();
-        
         toast.success("Review submitted successfully!");
         return true;
       }
@@ -398,7 +381,6 @@ const ShopContextProvider = ({ children }) => {
       if (response.data) {
         await fetchDealReviews(reviewData.dealId);
         await fetchDeals();
-        
         toast.success("Review submitted successfully!");
         return true;
       }
@@ -434,6 +416,7 @@ const ShopContextProvider = ({ children }) => {
   }, [deals]);
 
   const getDeliveryCharge = useCallback((subtotal = 0) => {
+    if (!deliverySettings) return 0;
     const { mode, fixedCharge, freeDeliveryAbove } = deliverySettings;
     
     if (freeDeliveryAbove > 0 && subtotal >= freeDeliveryAbove) {
@@ -444,15 +427,17 @@ const ShopContextProvider = ({ children }) => {
       return fixedCharge;
     }
     
-    return fixedCharge;
+    return fixedCharge || 0;
   }, [deliverySettings]);
 
   const isFreeDeliveryAvailable = useCallback((subtotal = 0) => {
+    if (!deliverySettings) return false;
     const { freeDeliveryAbove } = deliverySettings;
-    return freeDeliveryAbove > 0 && subtotal < freeDeliveryAbove;
+    return freeDeliveryAbove > 0 && subtotal >= freeDeliveryAbove;
   }, [deliverySettings]);
 
   const getAmountForFreeDelivery = useCallback((subtotal = 0) => {
+    if (!deliverySettings) return 0;
     const { freeDeliveryAbove } = deliverySettings;
     if (freeDeliveryAbove > 0 && subtotal < freeDeliveryAbove) {
       return freeDeliveryAbove - subtotal;
@@ -494,18 +479,15 @@ const ShopContextProvider = ({ children }) => {
 
     setCartDeals(prev => {
       const updated = { ...prev };
-      
       if (quantity === 0) {
         delete updated[dealId];
       } else {
         updated[dealId] = quantity;
       }
-      
       return updated;
     });
 
     if (token) {
-      setLoadingState('cart', true, "Updating cart...");
       try {
         await axios.post(
           `${BACKEND_URL}/api/cart/update-deal`,
@@ -514,23 +496,18 @@ const ShopContextProvider = ({ children }) => {
         );
       } catch (error) {
         toast.error(error.response?.data?.message || "Failed to update deal quantity");
-      } finally {
-        setLoadingState('cart', false);
       }
     }
-  }, [token, BACKEND_URL, deals, setLoadingState]);
+  }, [token, BACKEND_URL, deals]);
 
   const removeDealFromCart = useCallback(async (dealId) => {
     await updateDealQuantity(dealId, 0);
   }, [updateDealQuantity]);
 
   const addDealToCart = useCallback(async (dealId, quantity = 1) => {
-    if (!dealId || quantity < 1) {
-      return;
-    }
+    if (!dealId || quantity < 1) return;
 
     const deal = deals.find(d => d._id === dealId);
-    
     if (!deal) {
       toast.error("Deal not found");
       return;
@@ -548,7 +525,6 @@ const ShopContextProvider = ({ children }) => {
     }));
 
     if (token) {
-      setLoadingState('cart', true, "Adding to cart...");
       try {
         await axios.post(
           `${BACKEND_URL}/api/cart/add-deal`,
@@ -567,13 +543,11 @@ const ShopContextProvider = ({ children }) => {
           }
           return updated;
         });
-      } finally {
-        setLoadingState('cart', false);
       }
     } else {
       toast.success("Deal added to cart!");
     }
-  }, [token, BACKEND_URL, deals, cartDeals, setLoadingState]);
+  }, [token, BACKEND_URL, deals, cartDeals]);
 
   const addToCart = useCallback(async (itemId, quantity = 1, itemType = 'product') => {
     if (itemType === 'deal') {
@@ -587,7 +561,6 @@ const ShopContextProvider = ({ children }) => {
       }));
 
       if (token) {
-        setLoadingState('cart', true, "Adding to cart...");
         try {
           await axios.post(
             `${BACKEND_URL}/api/cart/add`,
@@ -606,14 +579,12 @@ const ShopContextProvider = ({ children }) => {
             }
             return updated;
           });
-        } finally {
-          setLoadingState('cart', false);
         }
       } else {
         toast.success("Product added to cart!");
       }
     }
-  }, [token, BACKEND_URL, addDealToCart, setLoadingState]);
+  }, [token, BACKEND_URL, addDealToCart]);
 
   const updateCartItemQuantity = useCallback(async (itemId, quantity, itemType = 'product') => {
     if (itemType === 'deal') {
@@ -623,18 +594,15 @@ const ShopContextProvider = ({ children }) => {
       
       setCartItems(prev => {
         const updated = { ...prev };
-        
         if (quantity === 0) {
           delete updated[itemId];
         } else {
           updated[itemId] = quantity;
         }
-        
         return updated;
       });
       
       if (token) {
-        setLoadingState('cart', true, "Updating cart...");
         try {
           await axios.post(
             `${BACKEND_URL}/api/cart/update`,
@@ -643,12 +611,10 @@ const ShopContextProvider = ({ children }) => {
           );
         } catch (error) {
           toast.error(error.message);
-        } finally {
-          setLoadingState('cart', false);
         }
       }
     }
-  }, [token, BACKEND_URL, updateDealQuantity, setLoadingState]);
+  }, [token, BACKEND_URL, updateDealQuantity]);
 
   const getCart = useCallback(async (token) => {
     setLoadingState('cart', true, "Loading cart...");
@@ -695,18 +661,14 @@ const ShopContextProvider = ({ children }) => {
   const getTotalDiscount = useCallback(() => {
     const productDiscount = Object.entries(cartItems).reduce((total, [id, quantity]) => {
       const product = products.find(p => p._id === id);
-      
       if (!product || !product.discountprice || quantity <= 0) return total;
-      
       const discountAmount = product.price * (product.discountprice / 100);
       return total + discountAmount * quantity;
     }, 0);
 
     const dealDiscount = Object.entries(cartDeals).reduce((total, [id, quantity]) => {
       const deal = deals.find(d => d._id === id);
-      
       if (!deal || !deal.dealFinalPrice || quantity <= 0) return total;
-      
       const discountAmount = (deal.dealTotal - deal.dealFinalPrice) * quantity;
       return total + discountAmount;
     }, 0);

@@ -10,13 +10,14 @@ const About = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
   // Fetch team members from backend API
   const fetchTeamMembers = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await fetch('http://localhost:4000/api/teams');
+     
+      const response = await fetch(`${backendUrl}/api/teams`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch team members: ${response.status}`);

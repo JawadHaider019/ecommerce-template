@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faReply, faTrash, faEnvelope, faEnvelopeOpen, faEye, faStar, faStarHalfAlt, faTimes, faChevronLeft, faChevronRight, faCheck, faExclamationTriangle, faImage, faThumbsUp, faThumbsDown } from '@fortawesome/free-solid-svg-icons';
 
-const API_BASE_URL = 'http://localhost:4000/api/comments';
+
+const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api/comments`;
 
 // Toast Component (responsive)
 const Toast = ({ message, type, onClose }) => {

@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import RelatedProduct from '../components/RelatedProduct';
@@ -23,6 +23,10 @@ const Product = () => {
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+
+  // Use ref to track if addToCart was called to prevent multiple calls
+  const addToCartCalledRef = useRef(false);
 
   // Email masking function
   const maskEmail = (email) => {
@@ -500,7 +504,13 @@ const Product = () => {
     return stars;
   };
 
-  const handleAddToCart = () => {
+  // Updated handleAddToCart with proper debouncing and single call guarantee
+  const handleAddToCart = async () => {
+    // Prevent multiple clicks
+    if (isAddingToCart || addToCartCalledRef.current) {
+      return;
+    }
+
     if (stock === 0) {
       toast.error('This product is out of stock');
       return;
@@ -513,9 +523,24 @@ const Product = () => {
       toast.info(`Quantity adjusted to available stock: ${finalQuantity}`);
     }
     
-    addToCart(productData._id, finalQuantity);
-    setQuantity(1);
-    toast.success('Product added to cart!');
+    // Set loading state and mark as called
+    setIsAddingToCart(true);
+    addToCartCalledRef.current = true;
+
+    try {
+      // Call addToCart only once
+      addToCart(productData._id, finalQuantity);
+      setQuantity(1);
+    
+    } catch (error) {
+      toast.error('Failed to add product to cart');
+    } finally {
+      // Reset after a short delay to prevent rapid successive clicks
+      setTimeout(() => {
+        setIsAddingToCart(false);
+        addToCartCalledRef.current = false;
+      }, 1000);
+    }
   };
 
   const renderClickableStars = (currentRating, setRatingFunc) => {
@@ -665,7 +690,6 @@ const Product = () => {
               >
                 +
               </button>
-             
             </div>
           </div>
           
@@ -674,17 +698,19 @@ const Product = () => {
           <button
             onClick={handleAddToCart}
             className={`btn mt-4 ${
-              stock === 0 
+              stock === 0 || isAddingToCart
                 ? 'opacity-50 cursor-not-allowed bg-gray-400' 
                 : 'hover:bg-black hover:text-white transition-colors'
             }`}
-            disabled={stock === 0}
+            disabled={stock === 0 || isAddingToCart}
           >
-            {stock === 0 
-              ? 'OUT OF STOCK' 
-              : quantity > stock 
-                ? `ADD ${stock} TO CART` 
-                : `ADD TO CART`
+            {isAddingToCart 
+              ? 'ADDING TO CART...' 
+              : stock === 0 
+                ? 'OUT OF STOCK' 
+                : quantity > stock 
+                  ? `ADD ${stock} TO CART` 
+                  : `ADD TO CART`
             }
           </button>
           

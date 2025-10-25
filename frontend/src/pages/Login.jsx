@@ -34,9 +34,24 @@ const Login = () => {
     return emailRegex.test(email)
   }
 
+  // Normalize email to lowercase
+  const normalizeEmail = (email) => {
+    return email.toLowerCase().trim()
+  }
+
   // Handle input changes
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    if (field === 'email') {
+      // Keep original case for display but store normalized version
+      setFormData(prev => ({ ...prev, [field]: value }))
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }))
+    }
+  }
+
+  // Get normalized email for API calls
+  const getNormalizedEmail = () => {
+    return normalizeEmail(formData.email)
   }
 
   // Resend OTP function
@@ -46,7 +61,7 @@ const Login = () => {
     try {
       setIsLoading(true)
       const response = await axios.post(`${backendUrl}/api/user/resend-otp`, {
-        email: formData.email
+        email: getNormalizedEmail() // Use normalized email
       })
       
       if (response.data.success) {
@@ -111,10 +126,12 @@ const Login = () => {
     setIsLoading(true)
 
     try {
+      const normalizedEmail = getNormalizedEmail() // Get normalized email once
+
       if (isSignUp) {
         const response = await axios.post(`${backendUrl}/api/user/register`, {
           name: formData.name,
-          email: formData.email,
+          email: normalizedEmail, // Use normalized email
           password: formData.password
         })
         
@@ -128,7 +145,7 @@ const Login = () => {
         }
       } else if (isLogin) {
         const response = await axios.post(`${backendUrl}/api/user/login`, {
-          email: formData.email,
+          email: normalizedEmail, // Use normalized email
           password: formData.password
         })
         
@@ -143,7 +160,7 @@ const Login = () => {
       } else if (isForgotPassword) {
         // Send OTP for password reset
         const response = await axios.post(`${backendUrl}/api/user/forgot-password`, {
-          email: formData.email
+          email: normalizedEmail // Use normalized email
         })
         
         if (response.data.success) {
@@ -169,7 +186,7 @@ const Login = () => {
       } else if (isResetPassword) {
         // Verify OTP and reset password
         const response = await axios.post(`${backendUrl}/api/user/reset-password`, {
-          email: formData.email,
+          email: normalizedEmail, // Use normalized email
           otp: formData.otp,
           newPassword: formData.newPassword
         })

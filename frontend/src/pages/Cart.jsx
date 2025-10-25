@@ -15,7 +15,7 @@ const Cart = () => {
     cartDeals,
     updateQuantity,
     updateDealQuantity,
-    getCart
+ 
   } = useContext(ShopContext);
   
   const [productCartData, setProductCartData] = useState([]);
