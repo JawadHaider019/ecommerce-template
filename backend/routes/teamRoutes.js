@@ -7,7 +7,7 @@ import {
   updateTeam,
   deleteTeam,
   updateTeamOrder
-} from '../controllers/TeamController.js';
+} from '../controllers/teamController.js';
 
 import upload from '../middleware/multer.js';
 import  adminAuth  from '../middleware/adminAuth.js';
