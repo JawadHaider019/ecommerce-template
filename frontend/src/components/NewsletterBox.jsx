@@ -26,10 +26,10 @@ const NewsletterBox = () => {
     setMessage({ text: "", type: "" });
 
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+      const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
       const endpoint = isUnsubscribing ? 'unsubscribe' : 'subscribe';
       
-      const response = await fetch(`${API_BASE_URL}/newsletter/${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}/api/newsletter/${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

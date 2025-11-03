@@ -21,15 +21,15 @@ const categorySchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    unique: true
+    unique: true // This automatically creates a unique index
   },
   subcategories: [subcategorySchema]
 }, {
   timestamps: true
 });
 
-// Add index for better performance
-categorySchema.index({ name: 1 });
+// Remove this duplicate index - the unique: true above already creates it
+// categorySchema.index({ name: 1 }); // ← DELETE OR COMMENT THIS LINE
 
 const Category = mongoose.model('Category', categorySchema);
 export default Category;

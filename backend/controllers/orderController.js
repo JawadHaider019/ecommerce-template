@@ -27,10 +27,14 @@ const createNotification = async (notificationData) => {
   }
 };
 
-// 🆕 Send Order Placed Notification
+// 🆕 UPDATED: Send Order Placed Notification with Customer Details
 const sendOrderPlacedNotification = async (order) => {
   const userDetails = await userModel.findById(order.userId);
   const shortOrderId = order._id.toString().slice(-6);
+  
+  // Use customer details from order (which may be edited) or fallback to user profile
+  const customerName = order.customerDetails?.name || userDetails?.name || 'Customer';
+  const customerEmail = order.customerDetails?.email || userDetails?.email || '';
   
   // User notification
   await createNotification({
@@ -44,16 +48,18 @@ const sendOrderPlacedNotification = async (order) => {
     metadata: {
       orderId: order._id.toString(),
       amount: order.amount,
-      itemsCount: order.items.length
+      itemsCount: order.items.length,
+      customerName: customerName,
+      customerEmail: customerEmail
     }
   });
 
-  // Admin notification
+  // Admin notification - using order customer details
   await createNotification({
     userId: 'admin',
     type: NOTIFICATION_TYPES.ORDER_PLACED,
     title: '🛒 New Order Received',
-    message: `New order #${shortOrderId} from ${userDetails?.name || 'Customer'}. Amount: $${order.amount}`,
+    message: `New order #${shortOrderId} from ${customerName}. Amount: $${order.amount}`,
     relatedId: order._id.toString(),
     relatedType: 'order',
     isAdmin: true,
@@ -61,20 +67,24 @@ const sendOrderPlacedNotification = async (order) => {
     priority: 'high',
     metadata: {
       orderId: order._id.toString(),
-      customerName: userDetails?.name || 'Customer',
+      customerName: customerName,
+      customerEmail: customerEmail,
       amount: order.amount,
       itemsCount: order.items.length
     }
   });
 
-  console.log(`🔔 Order placed notifications sent for order ${order._id}`);
+  console.log(`🔔 Order placed notifications sent for order ${order._id} from customer ${customerName}`);
 };
 
-// 🆕 Send Order Cancelled Notification
+// 🆕 UPDATED: Send Order Cancelled Notification with Customer Details
 const sendOrderCancelledNotification = async (order, cancelledBy, reason = '') => {
   const userDetails = await userModel.findById(order.userId);
   const shortOrderId = order._id.toString().slice(-6);
   const cancelledByText = cancelledBy === 'user' ? 'You have' : 'Admin has';
+  
+  // Use customer details from order
+  const customerName = order.customerDetails?.name || userDetails?.name || 'Customer';
   
   // User notification
   await createNotification({
@@ -89,7 +99,8 @@ const sendOrderCancelledNotification = async (order, cancelledBy, reason = '') =
       orderId: order._id.toString(),
       cancelledBy,
       reason,
-      amount: order.amount
+      amount: order.amount,
+      customerName: customerName
     }
   });
 
@@ -99,14 +110,14 @@ const sendOrderCancelledNotification = async (order, cancelledBy, reason = '') =
       userId: 'admin',
       type: NOTIFICATION_TYPES.ORDER_CANCELLED,
       title: '❌ Order Cancelled by Customer',
-      message: `Order #${shortOrderId} cancelled by ${userDetails?.name || 'Customer'}.${reason ? ` Reason: ${reason}` : ''}`,
+      message: `Order #${shortOrderId} cancelled by ${customerName}.${reason ? ` Reason: ${reason}` : ''}`,
       relatedId: order._id.toString(),
       relatedType: 'order',
       isAdmin: true,
       actionUrl: `/admin/orders/${order._id}`,
       metadata: {
         orderId: order._id.toString(),
-        customerName: userDetails?.name || 'Customer',
+        customerName: customerName,
         reason,
         amount: order.amount
       }
@@ -233,12 +244,12 @@ const sendLowStockNotification = async (product) => {
   console.log(`🔔 Low stock notification sent for product ${product.name}`);
 };
 
-// Fixed placeOrder function with improved product lookup AND DEAL IMAGE SUPPORT
+// 🆕 UPDATED: placeOrder function with CUSTOMER DETAILS SUPPORT
 const placeOrder = async (req, res) => {
   try {
     console.log("🛒 ========== BACKEND ORDER PLACEMENT ==========");
     
-    const { items, amount, address, deliveryCharges } = req.body;
+    const { items, amount, address, deliveryCharges, customerDetails } = req.body;
     const userId = req.userId;
 
     // Validate required fields
@@ -253,6 +264,49 @@ const placeOrder = async (req, res) => {
     if (!address) {
       return res.json({ success: false, message: "Address is required" });
     }
+
+    // 🆕 GET USER PROFILE DATA FOR DEFAULTS
+    const userProfile = await userModel.findById(userId);
+    if (!userProfile) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    // 🆕 VALIDATE AND SET CUSTOMER DETAILS
+    let finalCustomerDetails = {
+      name: userProfile.name, // Default from profile
+      email: userProfile.email, // Default from profile
+      phone: userProfile.phone || '' // Default from profile
+    };
+
+    // Override with provided customer details if available
+    if (customerDetails) {
+      if (customerDetails.name && customerDetails.name.trim() !== '') {
+        finalCustomerDetails.name = customerDetails.name.trim();
+      }
+      
+      if (customerDetails.email && customerDetails.email.trim() !== '') {
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(customerDetails.email.trim())) {
+          return res.json({ success: false, message: "Invalid email format" });
+        }
+        finalCustomerDetails.email = customerDetails.email.trim();
+      }
+      
+      if (customerDetails.phone) {
+        finalCustomerDetails.phone = customerDetails.phone;
+      }
+    }
+
+    console.log("👤 CUSTOMER DETAILS FOR ORDER:", {
+      defaultFromProfile: {
+        name: userProfile.name,
+        email: userProfile.email,
+        phone: userProfile.phone
+      },
+      providedDetails: customerDetails,
+      finalDetails: finalCustomerDetails
+    });
 
     // Check stock availability
     console.log("📦 Checking stock availability...");
@@ -388,7 +442,7 @@ const placeOrder = async (req, res) => {
       }
     }
 
-    // ✅ ENHANCED: Create order with COMPLETE DEAL DATA SUPPORT
+    // ✅ ENHANCED: Create order with CUSTOMER DETAILS & DEAL DATA SUPPORT
     const orderData = {
       userId,
       items: validatedItems.map(item => ({
@@ -410,23 +464,20 @@ const placeOrder = async (req, res) => {
       payment: false,
       status: "Order Placed",
       date: Date.now(),
+      customerDetails: finalCustomerDetails // 🆕 INCLUDING CUSTOMER DETAILS
     };
 
     console.log("📝 FINAL ORDER DATA SAVED:", {
       totalItems: orderData.items.length,
-      dealItems: orderData.items.filter(item => item.isFromDeal).map(item => ({
-        name: item.name,
-        dealName: item.dealName,
-        dealImage: item.dealImage,
-        isFromDeal: item.isFromDeal
-      })),
+      customerDetails: orderData.customerDetails,
+      dealItems: orderData.items.filter(item => item.isFromDeal).length,
       regularItems: orderData.items.filter(item => !item.isFromDeal).length
     });
 
     const newOrder = new orderModel(orderData);
     await newOrder.save();
 
-    console.log(`✅ Order created: ${newOrder._id} with ${newOrder.items.length} items`);
+    console.log(`✅ Order created: ${newOrder._id} with customer: ${newOrder.customerDetails.name}`);
 
     // Clear user cart
     await userModel.findByIdAndUpdate(userId, { 
@@ -436,14 +487,15 @@ const placeOrder = async (req, res) => {
 
     console.log(`✅ Cleared cart for user: ${userId}`);
 
-    // 🆕 SEND ORDER PLACED NOTIFICATION
+    // 🆕 SEND ORDER PLACED NOTIFICATION (UPDATED TO USE CUSTOMER DETAILS)
     await sendOrderPlacedNotification(newOrder);
 
     res.json({ 
       success: true, 
       message: "Order Placed Successfully", 
       orderId: newOrder._id,
-      deliveryCharges: newOrder.deliveryCharges
+      deliveryCharges: newOrder.deliveryCharges,
+      customerDetails: newOrder.customerDetails // 🆕 Return customer details
     });
 
   } catch (error) {
@@ -469,12 +521,13 @@ const userOrders = async (req, res) => {
     const userId = req.userId;
     const orders = await orderModel.find({ userId }).sort({ date: -1 });
     
-    // Enhanced logging for debugging deal images
-    console.log("📦 USER ORDERS RETRIEVED - DEAL IMAGE DEBUG:", {
+    // Enhanced logging for debugging deal images and customer details
+    console.log("📦 USER ORDERS RETRIEVED - DEBUG:", {
       totalOrders: orders.length,
       orders: orders.map(order => ({
         id: order._id,
         totalItems: order.items.length,
+        customerDetails: order.customerDetails, // 🆕 Log customer details
         dealItems: order.items.filter(item => item.isFromDeal).map(item => ({
           name: item.name,
           isFromDeal: item.isFromDeal,
@@ -491,6 +544,35 @@ const userOrders = async (req, res) => {
     res.json({ success: true, orders });
   } catch (error) {
     console.error("❌ Error in userOrders:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// 🆕 Get Order Details with Customer Information
+const getOrderDetails = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.userId;
+
+    const order = await orderModel.findById(orderId);
+    if (!order) {
+      return res.json({ success: false, message: "Order not found" });
+    }
+
+    // Check if user owns this order or is admin
+    if (order.userId !== userId && userId !== 'admin') {
+      return res.json({ success: false, message: "Unauthorized to view this order" });
+    }
+
+    res.json({ 
+      success: true, 
+      order,
+      // Include customer details prominently
+      customerDetails: order.customerDetails
+    });
+
+  } catch (error) {
+    console.error("❌ Error in getOrderDetails:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -540,7 +622,7 @@ const updateStatus = async (req, res) => {
         }
       }
 
-      // 🆕 SEND ORDER CANCELLED NOTIFICATION
+      // 🆕 SEND ORDER CANCELLED NOTIFICATION (UPDATED)
       await sendOrderCancelledNotification(currentOrder, 'admin', cancellationReason);
     }
 
@@ -639,7 +721,7 @@ const cancelOrder = async (req, res) => {
       { new: true }
     );
 
-    // 🆕 SEND ORDER CANCELLED NOTIFICATION
+    // 🆕 SEND ORDER CANCELLED NOTIFICATION (UPDATED)
     await sendOrderCancelledNotification(updatedOrder, 'user', cancellationReason);
 
     res.json({ 
@@ -823,6 +905,7 @@ export {
   placeOrder, 
   allOrders, 
   userOrders, 
+  getOrderDetails, // 🆕 Export the new function
   updateStatus, 
   cancelOrder,
   getCancellationReasons,

@@ -170,9 +170,9 @@ const BestSeller = () => {
   if (error) {
     return (
       <div className="my-24">
-        <div className="py-8 text-center text-3xl">
+        <div className="py-4 text-center text-3xl">
           <Title text1={"BEST"} text2={"SELLERS"} />
-          <p className="m-auto w-3/4 text-xs text-gray-600 sm:text-sm md:text-base">
+                 <p className="text-[16px] text-gray-600 font-light">
             From Nature to Your Shelf — Discover the Organic Skincare Products Everyone's Talking About.
           </p>
         </div>
@@ -185,8 +185,11 @@ const BestSeller = () => {
 
   return (
     <div className="my-24">
-      <div className="py-2 text-center text-3xl">
+      <div className="py-4 text-center text-3xl">
         <Title text1={"BEST"} text2={"SELLERS"} />
+            <p className="text-[16px] text-gray-600  font-light">
+            From Nature to Your Shelf — Discover the Organic Skincare Products Everyone's Talking About.
+          </p>
       </div>
 
       {bestSeller.length === 0 ? (

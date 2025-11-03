@@ -3,8 +3,9 @@ import { useParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import RelatedProduct from '../components/RelatedProduct';
 import RelatedDeals from '../components/RelatedDeals';
-import { FaStar, FaStarHalf, FaRegStar, FaThumbsUp, FaThumbsDown, FaTimes, FaUserShield } from 'react-icons/fa';
+import { FaStar, FaStarHalf, FaRegStar, FaThumbsUp, FaThumbsDown, FaTimes, FaUserShield, FaClock, FaFire } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import { motion, AnimatePresence } from "framer-motion";
 
 const Deal = () => {
   const { dealId } = useParams();
@@ -20,7 +21,7 @@ const Deal = () => {
   const [error, setError] = useState(null);
   const [image, setImage] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState('description');
+  const [activeTab, setActiveTab] = useState('reviews');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [reviewImages, setReviewImages] = useState([]);
@@ -140,33 +141,13 @@ const Deal = () => {
     }
   };
 
-  // Calculate total stock for the deal
-  const calculateTotalStock = () => {
-    if (!dealData?.dealProducts) return 0;
-    return dealData.dealProducts.reduce((total, product) => total + (product.quantity || 0), 0);
-  };
-
-  const stock = calculateTotalStock();
-
-  // Render stock status
-  const renderStockStatus = () => {
-    if (stock === 0) {
-      return <p className="p-4 text-red-500">Out of Stock</p>;
-    } else if (stock < 10) {
-      return <p className="p-4 text-red-500">{stock} items left</p>;
-    } else if (stock < 20) {
-      return <p className="p-4 text-orange-500">Limited items left</p>;
-    } else {
-      return <p className="p-4 text-green-500">In Stock</p>;
-    }
-  };
-
   const handleQuantityChange = (e) => {
     let value = Number(e.target.value);
     if (isNaN(value) || value < 1) {
       value = 1;
     }
-    value = Math.min(value, stock);
+    // Set maximum quantity to 10
+    value = Math.min(value, 10);
     setQuantity(value);
   };
 
@@ -525,11 +506,6 @@ const Deal = () => {
 
   // UPDATED: Use addDealToCart function
   const handleAddToCart = () => {
-    if (stock === 0) {
-      toast.error('This deal is out of stock');
-      return;
-    }
-    
     // Use the specific deal function
     if (addDealToCart) {
       addDealToCart(dealId, quantity);
@@ -617,23 +593,27 @@ const Deal = () => {
     };
   }, [reviewImages]);
 
-  // Compact Countdown Timer
+  // Enhanced Countdown Timer Component
   const CompactCountdownTimer = ({ endDate }) => {
     const [timeLeft, setTimeLeft] = useState({});
+    const [expired, setExpired] = useState(false);
 
     useEffect(() => {
       const calculateTimeLeft = () => {
-        const difference = endDate - new Date();
+        const difference = new Date(endDate) - new Date();
         
         if (difference <= 0) {
+          setExpired(true);
           return {};
         }
         
-        return {
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60)
-        };
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+        const seconds = Math.floor((difference / 1000) % 60);
+
+        setExpired(false);
+        return { days, hours, minutes, seconds };
       };
 
       setTimeLeft(calculateTimeLeft());
@@ -645,24 +625,132 @@ const Deal = () => {
       return () => clearInterval(timer);
     }, [endDate]);
 
-    if (Object.keys(timeLeft).length === 0) {
+    if (expired) {
       return (
-        <div className="mt-1 text-xs text-red-500">
-          Expired
+        <div className="mt-2 p-2">
+          <div className="flex items-center gap-2 text-red-600 font-medium">
+            <FaClock className="text-red-500" />
+            <span>Deal Expired</span>
+          </div>
         </div>
       );
     }
 
+    const showDays = timeLeft.days > 1; 
+    const showSeconds = true; 
+
     return (
-      <div className="absolute top-8 right-2 mt-1 flex items-center gap-1 text-lg text-red-500">
-        <span>Ends in:</span>
-        <span className="text-xl">
-          {timeLeft.hours?.toString().padStart(2, '0')}:
-          {timeLeft.minutes?.toString().padStart(2, '0')}:
-          {timeLeft.seconds?.toString().padStart(2, '0')}
-        </span>
+      <div className="mt-2">
+        <div className="flex items-center gap-2 mb-2 justify-center">
+          <FaFire className="text-red-500" size={16} />
+          <span className="text-red-600 font-bold text-sm">Flash Sale Ends In:</span>
+        </div>
+        
+        <FlipCountdown
+          days={timeLeft.days}
+          hours={timeLeft.hours}
+          minutes={timeLeft.minutes}
+          seconds={timeLeft.seconds}
+          showDays={showDays}
+          showSeconds={showSeconds}
+        />
+
+        <div className="mt-2 text-xs text-red-500 text-center">
+          {showDays ? 'Hurry! Limited time offer' : 'Final hours! Don\'t miss out'}
+        </div>
       </div>
     );
+  };
+
+  // Flip Countdown Components
+  const FlipUnit = ({ value }) => (
+    <div className="relative w-6 h-8 sm:w-8 sm:h-10 perspective-200">
+      <AnimatePresence mode="popLayout">
+        <motion.div
+          key={value}
+          initial={{ rotateX: 90, opacity: 0 }}
+          animate={{ rotateX: 0, opacity: 1 }}
+          exit={{ rotateX: -90, opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="absolute inset-0 bg-black text-white rounded-md flex items-center justify-center text-sm sm:text-base font-bold shadow-md"
+        >
+          {value}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+
+  const FlipCountdown = ({ days, hours, minutes, seconds, showDays, showSeconds }) => {
+    const format = (num) => num.toString().padStart(2, "0").split("");
+
+    const d = format(days || 0);
+    const h = format(hours || 0);
+    const m = format(minutes || 0);
+    const s = format(seconds || 0);
+
+    return (
+      <div className="flex items-center justify-center gap-1 text-black px-2 py-1">
+        {/* Days - only show if showDays is true */}
+        {showDays && (
+          <>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1">
+                <FlipUnit value={d[0]} />
+                <FlipUnit value={d[1]} />
+              </div>
+              <span className="text-xs text-black">days</span>
+            </div>
+            <span className="font-bold text-base pb-4">:</span>
+          </>
+        )}
+
+        {/* Hours */}
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex items-center gap-1">
+            <FlipUnit value={h[0]} />
+            <FlipUnit value={h[1]} />
+          </div>
+          <span className="text-xs text-black">hours</span>
+        </div>
+        <span className="font-bold text-base pb-4">:</span>
+
+        {/* Minutes */}
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex items-center gap-1">
+            <FlipUnit value={m[0]} />
+            <FlipUnit value={m[1]} />
+          </div>
+          <span className="text-xs text-black">mins</span>
+        </div>
+
+        {/* Seconds - only show when showSeconds is true */}
+        {showSeconds && (
+          <>
+            <span className="font-bold text-base pb-4">:</span>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1">
+                <FlipUnit value={s[0]} />
+                <FlipUnit value={s[1]} />
+              </div>
+              <span className="text-xs text-black">sec</span>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // Check if deal is a flash sale
+  const isFlashSale = () => {
+    if (!dealData?.dealType) return false;
+    
+    const dealType = dealData.dealType;
+    if (typeof dealType === 'string') {
+      return dealType.toLowerCase().includes('flash');
+    } else if (typeof dealType === 'object') {
+      return dealType.slug?.includes('flash') || dealType.name?.toLowerCase().includes('flash');
+    }
+    return false;
   };
 
   if (loading) {
@@ -696,6 +784,7 @@ const Deal = () => {
   }
 
   const dealType = getDealTypeBadge(dealData.dealType);
+  const flashSale = isFlashSale();
 
   return (
     <div className="border-t-2 pt-10">
@@ -731,12 +820,12 @@ const Deal = () => {
           <h1 className="mt-2 text-2xl font-medium">{dealData.dealName}</h1>
           
           {/* Deal Type Badge */}
-          <div className={`inline-block text-center  px-3 py-1 text-xs font-bold ${dealType.color} mb-2`}>
+          <div className={`inline-block text-center px-3 py-1 text-xs font-bold ${dealType.color} mb-2`}>
             {dealType.label}
           </div>
           
-          {/* Countdown Timer for Flash Sales */}
-          {dealData.dealType && (dealData.dealType.slug === 'flash_sale' || dealData.dealType === 'flash_sale') && dealData.dealEndDate && (
+          {/* Enhanced Countdown Timer for Flash Sales - MOVED RIGHT AFTER DEAL TYPE BADGE */}
+          {flashSale && dealData.dealEndDate && (
             <CompactCountdownTimer endDate={new Date(dealData.dealEndDate)} />
           )}
           
@@ -768,24 +857,49 @@ const Deal = () => {
           
           {/* Deal Products List */}
           {dealData.dealProducts && dealData.dealProducts.length > 0 && (
-            <div className="mt-4">
-              <p className="font-medium">Includes {dealData.dealProducts.length} products:</p>
-              <div className="mt-2 max-h-40 overflow-y-auto">
+            <div className="mt-6 bg-gradient-to-br from-gray-50 to-white p-4 border border-gray-200">
+              <div className="flex items-center gap-3 mb-4">
+                <div>
+                  <h3 className="font-bold text-gray-900">Bundle Contents</h3>
+                  <p className="text-sm text-gray-600">{dealData.dealProducts.length} premium products included</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3 max-h-56 overflow-y-auto pr-2">
                 {dealData.dealProducts.map((product, index) => (
-                  <div key={index} className="flex items-center justify-between py-1 text-sm">
-                    <span className="flex-1 truncate">{product.name} X {product.quantity}</span>
-                    <span className="ml-2 text-gray-600">Subtotal: Rs. {product.price}</span>
-                    <span className="ml-2 text-gray-600">Total: Rs. {product.price*product.quantity}</span>
+                  <div 
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-white border border-gray-200"
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-1 h-1 bg-black rounded-full "></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{product.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">Quantity: {product.quantity}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">Unit</p>
+                        <p className="font-medium text-gray-700">Rs. {product.price}</p>
+                      </div>
+                      <div className="w-px h-6 bg-gray-300"></div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">Total</p>
+                        <p className="font-bold text-green-600">Rs. {product.price * product.quantity}</p>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-          
+
           {/* Deal Period */}
-          <div className="mt-4 text-sm text-gray-600">
+          <div className="mt-4 text-md text-gray-600">
             <p>
-              <strong>Deal is valid till: </strong>
+              <span>End Date: </span>
               <span className='text-red-500'>{dealData.dealEndDate && `  ${new Date(dealData.dealEndDate).toLocaleDateString()}`}</span>
             </p>
           </div>
@@ -798,32 +912,30 @@ const Deal = () => {
                 type="number"
                 value={quantity}
                 min={1}
-                max={stock} 
+                max={10} 
                 onChange={handleQuantityChange}
               />
             </div>
           </div>
           
-          {renderStockStatus()}
-          
           <button
             onClick={handleAddToCart}
-            className={`btn ${stock === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-            disabled={stock === 0}
+            className="btn"
           >
-            {stock === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
+            ADD TO CART
           </button>
           
           <hr className="mt-8 sm:w-4/5" />
-          <div className="mt-5 flex flex-col gap-1 text-sm text-gray-500">
-            <p>100% Original products.</p>
-            <p>Cash on delivery is available on this deal.</p>
-            <p>Easy return and exchange policy within 7 days.</p>
-          </div>
+          <ul className="mt-5 flex flex-col gap-1 text-sm text-gray-700 leading-relaxed list-disc list-inside ">
+            <li>Don't miss out — nature's best is on sale for a limited time!</li>
+            <li>Handmade with organic herbs and oils, free from harsh chemicals.</li>
+            <li>Available now with cash on delivery across Pakistan.</li>
+          </ul>
         </div>
       </div>
 
-      {/* Customer Reviews Section - Made Responsive */}
+      {/* Rest of your existing code remains the same... */}
+      {/* Customer Reviews Section */}
       <div className="mt-20">
         <h2 className="text-2xl font-medium">Customer Reviews</h2>
         <div className="mt-4 flex flex-col items-center gap-6 rounded-lg border p-4 sm:p-6 lg:flex-row">
@@ -880,27 +992,43 @@ const Deal = () => {
           </button>
         </div>
 
-        {/* Description Tab Content */}
-        {activeTab === 'description' && (
-          <div className="flex flex-col gap-4 border p-4 sm:p-6 text-sm text-gray-500">
-            <p>{dealData.dealDescription}</p>
-            {dealData.dealProducts && dealData.dealProducts.length > 0 && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Products Included:</h4>
-                <ul className="list-disc pl-5 space-y-1">
-                  {dealData.dealProducts.map((product, index) => (
-                    <li key={index}>
-                      <strong>{product.name} </strong> 
-                       x {product.quantity}
-                    </li>
-                  ))}
-                </ul>
+{/* Description Tab Content */}
+{activeTab === 'description' && (
+  <div className="bg-gradient-to-br from-white to-gray-50  border border-gray-200 p-6 space-y-8">
+    {/* Description */}
+    <div className="flex gap-4">
+      
+      <div className="flex-1">
+        <h3 className="font-semibold text-xl text-gray-900 mb-2">Description</h3>
+        <p className="text-gray-700 leading-relaxed">{dealData.dealDescription}</p>
+      </div>
+    </div>
+    
+    {/* Products Included */}
+    {dealData.dealProducts && dealData.dealProducts.length > 0 && (
+      <div className="flex gap-4">
+        
+        <div className="flex-1">
+        <h3 className="font-semibold text-xl text-gray-900 mb-2">What's Included</h3>
+          <div className="space-y-2">
+            {dealData.dealProducts.map((product, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 hover:shadow-sm transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-1 bg-gray-900 rounded-full"></div>
+                  <span className="font-medium text-gray-900">{product.name}</span>
+                </div>
+                <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-semibold">
+                  ×{product.quantity}
+                </span>
               </div>
-            )}
+            ))}
           </div>
-        )}
-
-        {/* Reviews Tab Content - Made Responsive */}
+        </div>
+      </div>
+    )}
+  </div>
+)}
+        {/* Reviews Tab Content */}
         {activeTab === 'reviews' && (
           <div className="border p-4 sm:p-6">
             {/* Review Form */}
@@ -962,7 +1090,7 @@ const Deal = () => {
               )}
             </div>
 
-            {/* Display Existing Reviews - Made Responsive */}
+            {/* Display Existing Reviews */}
             <div className="mt-8">
               <h3 className="text-lg font-medium">Customer Reviews</h3>
               {loadingReviews ? (

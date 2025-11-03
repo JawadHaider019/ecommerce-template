@@ -1,18 +1,23 @@
 // controllers/userController.js
 import userModel from "../models/userModel.js";
+import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import validator from 'validator';
 import Setting from "../models/settingModel.js";
 import { sendPasswordResetEmail, sendPasswordResetSuccessEmail } from "../services/emailService.js";
 
-const createToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET);
-}
 
 // Generate 6-digit OTP
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
+}
+const createToken = (user) => {
+    return jwt.sign({ 
+        id: user._id,
+        name: user.name,
+        email: user.email
+    }, process.env.JWT_SECRET);
 }
 
 // Route for user login 
@@ -27,7 +32,7 @@ const loginUser = async (req, res) => {
         
         const isMatch = await bcrypt.compare(password, user.password);
         if (isMatch) {
-            const token = createToken(user._id);
+            const token = createToken(user);
             res.json({ success: true, token });
         } else {
             res.json({ success: false, message: "Invalid credentials" });
@@ -68,7 +73,7 @@ const registerUser = async (req, res) => {
         });
 
         const user = await newUser.save();
-        const token = createToken(user._id);
+        const token = createToken(user);
         res.json({ success: true, token });
 
     } catch (error) {
@@ -76,7 +81,6 @@ const registerUser = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
-
 // Route for admin login
 const adminLogin = async (req, res) => {
   try {
@@ -298,6 +302,86 @@ const resendOtp = async (req, res) => {
         });
     }
 }
+// Get user data
+const getUserData = async (req, res) => {
+    try {
+        const token = req.headers.token;
+        if (!token) {
+            return res.json({ success: false, message: "Token is required" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await userModel.findById(decoded.id).select('-password');
+        
+        if (!user) {
+            return res.json({ success: false, message: "User not found" });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email
+            }
+        });
+    } catch (error) {
+        console.log('Get user data error:', error);
+        res.json({ success: false, message: "Invalid token" });
+    }
+}
+// Get user by ID (for admin purposes)
+const getUserById = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const token = req.headers.token;
+
+        // Verify admin token
+        if (!token) {
+            return res.json({ success: false, message: "Token is required" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        // Check if user is admin (you might want to add admin check logic)
+        // For now, we'll allow any authenticated user to access this
+        // You can add admin verification later
+
+        if (!userId) {
+            return res.json({ success: false, message: "User ID is required" });
+        }
+
+        // Validate if userId is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.json({ success: false, message: "Invalid user ID format" });
+        }
+
+        const user = await userModel.findById(userId).select('-password');
+        
+        if (!user) {
+            return res.json({ success: false, message: "User not found" });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                // Add other fields you want to return
+            }
+        });
+    } catch (error) {
+        console.log('Get user by ID error:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.json({ success: false, message: "Invalid token" });
+        }
+        if (error.name === 'TokenExpiredError') {
+            return res.json({ success: false, message: "Token expired" });
+        }
+        res.json({ success: false, message: "Server error while fetching user data" });
+    }
+}
 
 export {
     loginUser,
@@ -305,5 +389,7 @@ export {
     adminLogin,
     forgotPassword,
     resetPassword,
-    resendOtp
+    resendOtp,
+    getUserData,
+    getUserById
 }

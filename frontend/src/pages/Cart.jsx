@@ -1,10 +1,11 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useCallback } from "react";
 import { ShopContext } from "../context/ShopContext";
 import Title from '../components/Title';
 import { assets } from "../assets/assets";
 import CartTotal from "../components/CartTotal";
 import { useNavigate } from "react-router-dom"; 
-import { FaInfoCircle, FaTrash, FaMinus, FaPlus, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { FaInfoCircle, FaTrash, FaMinus, FaPlus, FaChevronDown, FaChevronUp, FaExclamationTriangle } from "react-icons/fa";
+import { toast } from 'react-toastify';
 
 const Cart = () => {
   const { 
@@ -14,30 +15,112 @@ const Cart = () => {
     cartItems, 
     cartDeals,
     updateQuantity,
-    updateDealQuantity,
- 
+    updateDealQuantity
   } = useContext(ShopContext);
-  
+
+  const [productData, setProductData] = useState(null);
   const [productCartData, setProductCartData] = useState([]);
   const [dealCartData, setDealCartData] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [expandedDeals, setExpandedDeals] = useState({});
+  const [hasOutOfStockItems, setHasOutOfStockItems] = useState(false);
   const navigate = useNavigate();
+
+  // Stock checking - only check actual stock from backend
+  const getProductStockInfo = useCallback((productId, quantity) => {
+    const product = products.find(p => p._id === productId);
+    if (!product) {
+      return {
+        inStock: false,
+        available: 0,
+        requested: quantity,
+        isOutOfStock: true
+      };
+    }
+
+    const availableStock = product.quantity || 0;
+    const isOutOfStock = availableStock === 0;
+    
+    return {
+      inStock: !isOutOfStock,
+      available: availableStock,
+      requested: quantity,
+      isOutOfStock
+    };
+  }, [products]);
+
+  const getDealStockInfo = useCallback((dealId, quantity) => {
+    const deal = deals.find(d => d._id === dealId);
+    if (!deal) {
+      return {
+        inStock: false,
+        available: 0,
+        requested: quantity,
+        isOutOfStock: true
+      };
+    }
+
+    // For deals, check if any product in the deal is out of stock
+    const dealProducts = getDealProductsFromDeal(deal);
+    const hasOutOfStockProduct = dealProducts.some(product => 
+      product && (product.quantity === 0 || product.stock === 0)
+    );
+
+    const isOutOfStock = hasOutOfStockProduct;
+    
+    return {
+      inStock: !isOutOfStock,
+      available: 999, // Don't limit deal quantity in cart
+      requested: quantity,
+      isOutOfStock
+    };
+  }, [deals, products]);
+
+  // Helper function to get deal products
+  const getDealProductsFromDeal = (deal) => {
+    if (deal.dealProducts && deal.dealProducts.length > 0) {
+      return deal.dealProducts.map(product => {
+        const productData = products.find(p => p._id === product._id) || product;
+        return {
+          ...productData,
+          quantity: product.quantity || 1
+        };
+      });
+    } else if (deal.products && deal.products.length > 0) {
+      return deal.products.map(productId => {
+        const product = products.find(p => p._id === productId);
+        return {
+          ...product,
+          quantity: 1
+        };
+      });
+    }
+    return [];
+  };
 
   // Update cart data whenever cartItems or cartDeals change
   useEffect(() => {
     // Process products
     const tempProductData = [];
+    let outOfStockFound = false;
+
     for (const itemId in cartItems) {
       if (cartItems[itemId] > 0) {
         const product = products.find(p => p._id === itemId);
         if (product) {
+          const stockInfo = getProductStockInfo(itemId, cartItems[itemId]);
+          
+          if (stockInfo.isOutOfStock) {
+            outOfStockFound = true;
+          }
+
           tempProductData.push({
             id: itemId, 
             quantity: cartItems[itemId],
             type: 'product',
-            data: product
+            data: product,
+            stockInfo
           });
         }
       }
@@ -50,23 +133,37 @@ const Cart = () => {
       if (cartDeals[dealId] > 0) {
         const deal = deals.find(d => d._id === dealId);
         if (deal) {
+          const stockInfo = getDealStockInfo(dealId, cartDeals[dealId]);
+          
+          if (stockInfo.isOutOfStock) {
+            outOfStockFound = true;
+          }
+
           tempDealData.push({
             id: dealId, 
             quantity: cartDeals[dealId],
             type: 'deal',
-            data: deal
+            data: deal,
+            stockInfo
           });
         }
       }
     }
     setDealCartData(tempDealData);
-  }, [cartItems, cartDeals, products, deals]);
+    setHasOutOfStockItems(outOfStockFound);
+  }, [cartItems, cartDeals, products, deals, getProductStockInfo, getDealStockInfo]);
 
   const getItemDisplayData = (item) => {
     if (item.type === 'product') {
       const product = item.data;
       const unitPrice = product.discountprice > 0 ? product.discountprice : product.price;
       const itemTotalPrice = unitPrice * item.quantity;
+      
+      const stockInfo = item.stockInfo || getProductStockInfo(item.id, item.quantity);
+      const availableStock = stockInfo.available || 0;
+      
+      const isOutOfStock = availableStock === 0;
+      const canAddMore = availableStock > 0 && item.quantity < availableStock;
 
       return {
         name: product.name,
@@ -77,12 +174,20 @@ const Cart = () => {
         description: product.description,
         fullData: product,
         originalPrice: product.price,
-        hasDiscount: product.discountprice > 0
+        hasDiscount: product.discountprice > 0,
+        availableStock,
+        isOutOfStock,
+        canAddMore,
+        stockMessage: getStockMessage(availableStock, item.quantity, isOutOfStock)
       };
     } else {
       const deal = item.data;
       const unitPrice = deal.dealFinalPrice || deal.dealTotal;
       const itemTotalPrice = unitPrice * item.quantity;
+      
+      const stockInfo = item.stockInfo || getDealStockInfo(item.id, item.quantity);
+      const isOutOfStock = stockInfo.isOutOfStock;
+      const canAddMore = !isOutOfStock;
 
       return {
         name: deal.dealName,
@@ -93,12 +198,81 @@ const Cart = () => {
         description: deal.dealDescription,
         fullData: deal,
         originalTotalPrice: deal.dealTotal,
-        savings: deal.dealSavings
+        savings: deal.dealSavings,
+        availableStock: 999,
+        isOutOfStock,
+        canAddMore,
+        stockMessage: getStockMessage(999, item.quantity, isOutOfStock)
       };
     }
   };
 
+  // Stock message logic
+  const getStockMessage = (availableStock, currentQuantity, isOutOfStock) => {
+    if (isOutOfStock) {
+      return "Out of Stock";
+    } else if (currentQuantity > availableStock) {
+      return `Only ${availableStock} available`;
+    } else if (availableStock < 5) {
+      return `Only ${availableStock} item${availableStock !== 1 ? 's' : ''} left!`;
+    } else if (availableStock < 10) {
+      return `${availableStock} items left`;
+    } else if (availableStock < 20) {
+      return "Limited items left";
+    } else {
+      return "In Stock";
+    }
+  };
+
+  // Stock status rendering
+  const renderStockStatus = (availableStock, currentQuantity, isOutOfStock) => {
+    if (isOutOfStock) {
+      return (
+        <div>
+          <p className="text-red-500 font-medium">Out of Stock</p>
+        </div>
+      );
+    } else if (currentQuantity > availableStock) {
+      return (
+        <div>
+          <p className="text-red-500 font-medium">Only {availableStock} available</p>
+          <p className="text-red-400 text-sm mt-1">Quantity adjusted to available stock</p>
+        </div>
+      );
+    } else if (availableStock < 5) {
+      return (
+        <div>
+          <p className="text-red-500 font-medium">Only {availableStock} item{availableStock !== 1 ? 's' : ''} left!</p>
+          <p className="text-red-400 text-sm mt-1">Hurry, low stock</p>
+        </div>
+      );
+    } else if (availableStock < 10) {
+      return (
+        <div>
+          <p className="text-orange-500">{availableStock} items left</p>
+          <p className="text-orange-400 text-sm mt-1">Limited stock available</p>
+        </div>
+      );
+    } else if (availableStock < 20) {
+      return (
+        <div>
+          <p className="text-yellow-600">Limited items left</p>
+        </div>
+      );
+    } else {
+      return (
+        <div>
+          <p className="text-green-500 font-medium">In Stock</p>
+          <p className="text-green-600 text-sm mt-1">Available for immediate shipping</p>
+        </div>
+      );
+    }
+  };
+
+  // Fixed quantity update functions
   const handleQuantityUpdate = (itemId, quantity, itemType) => {
+    console.log(`Updating ${itemType} ${itemId} to quantity ${quantity}`);
+    
     if (itemType === 'deal') {
       updateDealQuantity(itemId, quantity);
     } else {
@@ -108,6 +282,7 @@ const Cart = () => {
 
   const handleRemoveItem = (itemId, itemType) => {
     handleQuantityUpdate(itemId, 0, itemType);
+    toast.success('Item removed from cart');
   };
 
   const handleViewDetails = (item) => {
@@ -127,11 +302,41 @@ const Cart = () => {
     }));
   };
 
-  // Improved quantity controls component
+  const handleProceedToCheckout = () => {
+    if (hasOutOfStockItems) {
+      toast.error("Please remove out-of-stock items before proceeding to checkout");
+      return;
+    }
+    
+    if (productCartData.length === 0 && dealCartData.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+    
+    navigate('/place-order');
+  };
+
+  // Fixed Quantity Controls component
   const QuantityControls = ({ item, itemType }) => {
+    const itemData = getItemDisplayData(item);
+    
+    if (itemData.isOutOfStock) {
+      return (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center border border-red-300 bg-red-50 text-red-700 px-3 py-2">
+            <span className="text-sm font-medium">Out of Stock</span>
+          </div>
+        </div>
+      );
+    }
+
+    const maxQuantity = Math.min(50, itemData.availableStock);
+    
     const handleIncrement = () => {
-      if (item.quantity < 10) {
+      if (item.quantity < maxQuantity) {
         handleQuantityUpdate(item.id, item.quantity + 1, itemType);
+      } else {
+        toast.info(`Maximum quantity reached (${maxQuantity})`);
       }
     };
 
@@ -141,55 +346,79 @@ const Cart = () => {
       }
     };
 
+    const handleDirectUpdate = (newQuantity) => {
+      const parsedQuantity = parseInt(newQuantity) || 1;
+      if (parsedQuantity >= 1 && parsedQuantity <= maxQuantity) {
+        handleQuantityUpdate(item.id, parsedQuantity, itemType);
+      } else if (parsedQuantity > maxQuantity) {
+        toast.info(`Maximum quantity is ${maxQuantity}`);
+        handleQuantityUpdate(item.id, maxQuantity, itemType);
+      }
+    };
+
+    const isIncrementDisabled = item.quantity >= maxQuantity;
+    const isDecrementDisabled = item.quantity <= 1;
+
     return (
-      <div className="flex items-center border border-gray-300 bg-white">
-        <button
-          onClick={handleDecrement}
-          disabled={item.quantity <= 1}
-          className={`px-3 py-1 ${
-            item.quantity <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-black hover:bg-gray-100'
-          }`}
-        >
-          <FaMinus className="w-3 h-3" />
-        </button>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center border border-gray-300 bg-white">
+          <button
+            onClick={handleDecrement}
+            disabled={isDecrementDisabled}
+            className={`px-3 py-1 ${
+              isDecrementDisabled ? 'text-gray-300 cursor-not-allowed' : 'text-black hover:bg-gray-100'
+            }`}
+          >
+            <FaMinus className="w-3 h-3" />
+          </button>
+          
+          <input
+            type="number"
+            value={item.quantity}
+            onChange={(e) => handleDirectUpdate(e.target.value)}
+            min={1}
+            max={maxQuantity}
+            disabled={itemData.isOutOfStock}
+            className={`w-16 rounded border-2 border-gray-300 px-2 py-1 text-center text-sm ${
+              itemData.isOutOfStock ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
+          />
+          
+          <button
+            onClick={handleIncrement}
+            disabled={isIncrementDisabled}
+            className={`px-3 py-1 ${
+              isIncrementDisabled ? 'text-gray-300 cursor-not-allowed' : 'text-black hover:bg-gray-100'
+            }`}
+          >
+            <FaPlus className="w-3 h-3" />
+          </button>
+        </div>
         
-        <span className="px-3 py-1 border-l border-r border-gray-300 min-w-12 text-center font-medium">
-          {item.quantity}
-        </span>
-        
-        <button
-          onClick={handleIncrement}
-          disabled={item.quantity >= 10}
-          className={`px-3 py-1 ${
-            item.quantity >= 10 ? 'text-gray-300 cursor-not-allowed' : 'text-black hover:bg-gray-100'
-          }`}
-        >
-          <FaPlus className="w-3 h-3" />
-        </button>
+        <div className="text-xs">
+          {renderStockStatus(itemData.availableStock, item.quantity, itemData.isOutOfStock)}
+        </div>
       </div>
     );
   };
 
   // Get deal products with proper data
   const getDealProducts = (deal) => {
-    if (deal.dealProducts && deal.dealProducts.length > 0) {
-      return deal.dealProducts.map(product => {
-        const productData = products.find(p => p._id === product._id) || product;
-        return {
-          ...productData,
-          quantity: product.quantity || 1
-        };
-      });
-    } else if (deal.products && deal.products.length > 0) {
-      return deal.products.map(productId => {
-        const product = products.find(p => p._id === productId);
-        return {
-          ...product,
-          quantity: 1
-        };
-      });
-    }
-    return [];
+    const dealProducts = getDealProductsFromDeal(deal);
+    return dealProducts.map(product => {
+      if (!product) return null;
+      
+      const availableStock = product.quantity || product.stock || 0;
+      const isOutOfStock = availableStock === 0;
+      
+      return {
+        ...product,
+        quantity: product.quantity || 1,
+        availableStock,
+        stockMessage: getStockMessage(availableStock, product.quantity || 1, isOutOfStock),
+        isOutOfStock
+      };
+    }).filter(Boolean);
   };
 
   // Render product details modal
@@ -211,6 +440,10 @@ const Cart = () => {
             <div>
               <h3 className="font-semibold text-lg mb-3 border-b pb-2">Product Details</h3>
               <p className="text-gray-700 leading-relaxed">{itemData.description || "No description available."}</p>
+            </div>
+
+            <div className="p-3 rounded border">
+              {renderStockStatus(itemData.availableStock, selectedItem.quantity, itemData.isOutOfStock)}
             </div>
 
             <div className="space-y-3 bg-gray-50 p-4 border border-gray-200">
@@ -283,6 +516,10 @@ const Cart = () => {
               <p className="text-gray-700 leading-relaxed">{itemData.description || "No description available."}</p>
             </div>
 
+            <div className="p-3 rounded border">
+              {renderStockStatus(itemData.availableStock, selectedItem.quantity, itemData.isOutOfStock)}
+            </div>
+
             <div className="space-y-3 bg-gray-50 p-4 border border-gray-200">
               <h4 className="font-semibold text-black">Deal Pricing</h4>
               <div className="space-y-2">
@@ -327,7 +564,6 @@ const Cart = () => {
           </div>
         </div>
 
-        {/* Deal Products List */}
         {(deal.dealProducts || deal.products) && (
           <div className="border-t border-gray-300 pt-6">
             <h3 className="font-semibold text-lg mb-4">
@@ -343,32 +579,46 @@ const Cart = () => {
                 const productTotal = sellingPrice * quantity;
                 
                 return (
-                  <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200">
+                  <div key={index} className={`flex items-center justify-between p-3 border border-gray-200 ${
+                    product.isOutOfStock ? 'bg-red-50' : 'bg-white'
+                  }`}>
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-black truncate">{product.name}</p>
+                        <p className={`font-medium text-sm truncate ${
+                          product.isOutOfStock ? 'text-gray-500' : 'text-black'
+                        }`}>
+                          {product.name}
+                        </p>
                         <div className="flex items-center gap-2 mt-1">
                           {hasDiscount ? (
                             <>
                               <span className="line-through text-gray-500 text-xs">
                                 {currency}{product.price}
                               </span>
-                              <span className="font-semibold text-black text-sm">
+                              <span className={`font-semibold text-sm ${
+                                product.isOutOfStock ? 'text-gray-500' : 'text-black'
+                              }`}>
                                 {currency}{sellingPrice}
                               </span>
                             </>
                           ) : (
-                            <span className="font-semibold text-black text-sm">{currency}{sellingPrice}</span>
+                            <span className={`font-semibold text-sm ${
+                              product.isOutOfStock ? 'text-gray-500' : 'text-black'
+                            }`}>
+                              {currency}{sellingPrice}
+                            </span>
                           )}
                         </div>
+
                       </div>
                     </div>
                     
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm text-gray-600">Qty: {quantity}</p>
                       <div className="mt-1">
-                        <span className="font-semibold text-black text-sm">
+                        <span className={`font-semibold text-sm ${
+                          product.isOutOfStock ? 'text-gray-500' : 'text-black'
+                        }`}>
                           {currency}{productTotal.toFixed(2)}
                         </span>
                       </div>
@@ -431,7 +681,9 @@ const Cart = () => {
             const productTotal = sellingPrice * quantity;
 
             return (
-              <div key={index} className="flex items-center justify-between p-3 border-b border-gray-200 last:border-b-0">
+              <div key={index} className={`flex items-center justify-between p-3 border-b border-gray-200 last:border-b-0 ${
+                product.isOutOfStock ? 'bg-red-50' : ''
+              }`}>
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <img
                     src={product.image?.[0] || assets.placeholder_image}
@@ -439,20 +691,33 @@ const Cart = () => {
                     className="w-10 h-10 object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-xs text-black truncate">{product.name}</p>
+                    <p className={`font-medium text-xs truncate ${
+                      product.isOutOfStock ? 'text-gray-500' : 'text-black'
+                    }`}>
+                      {product.name}
+                    </p>
                     <div className="flex items-center gap-2 mt-1">
                       {hasDiscount ? (
                         <>
                           <span className="line-through text-gray-500 text-xs">
                             {currency}{product.price}
                           </span>
-                          <span className="font-semibold text-black text-xs">
+                          <span className={`font-semibold text-xs ${
+                            product.isOutOfStock ? 'text-gray-500' : 'text-black'
+                          }`}>
                             {currency}{sellingPrice}
                           </span>
                         </>
                       ) : (
-                        <span className="font-semibold text-black text-xs">{currency}{sellingPrice}</span>
+                        <span className={`font-semibold text-xs ${
+                          product.isOutOfStock ? 'text-gray-500' : 'text-black'
+                        }`}>
+                          {currency}{sellingPrice}
+                        </span>
                       )}
+                    </div>
+                    <div className="mt-1 text-xs">
+                      {renderStockStatus(product.availableStock, product.quantity, product.isOutOfStock)}
                     </div>
                   </div>
                 </div>
@@ -460,7 +725,9 @@ const Cart = () => {
                 <div className="text-right flex-shrink-0">
                   <p className="text-xs text-gray-600">Qty: {quantity}</p>
                   <div className="mt-1">
-                    <span className="font-semibold text-black text-xs">
+                    <span className={`font-semibold text-xs ${
+                      product.isOutOfStock ? 'text-gray-500' : 'text-black'
+                    }`}>
                       {currency}{productTotal.toFixed(2)}
                     </span>
                   </div>
@@ -475,10 +742,10 @@ const Cart = () => {
 
   return (
     <div className="border-t border-gray-300 pt-8 md:pt-14 px-4 md:px-0">
-      <div className="mb-6 md:mb-8">
+      <div className="mb-6 md:mb-8 text-3xl text-center">
         <Title text1={'YOUR'} text2={'CART'} />
       </div>
-         
+
       <div>
         {productCartData.length === 0 && dealCartData.length === 0 ? (
           <div className="text-center py-12 md:py-16 border border-gray-300 bg-gray-50">
@@ -505,48 +772,63 @@ const Cart = () => {
                     return (
                       <div
                         key={`product-${item.id}-${index}`}
-                        className="bg-white border border-gray-300 p-4"
+                        className={`bg-white border ${
+                          itemData.isOutOfStock ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        } p-4`}
                       >
                         <div className="flex flex-col sm:flex-row gap-4">
-                          {/* Image */}
-                          <img
-                            className="w-20 h-20 object-cover flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
-                            src={itemData.image}
-                            alt={itemData.name}
-                            onClick={() => handleViewDetails(item)}
-                          />
+                          <div className="relative">
+                            <img
+                              className="w-20 h-20 object-cover flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+                              src={itemData.image}
+                              alt={itemData.name}
+                              onClick={() => handleViewDetails(item)}
+                            />
+                            {itemData.isOutOfStock && (
+                              <div className="absolute top-0 left-0 bg-red-600 text-white text-xs px-2 py-1 font-bold">
+                                OUT OF STOCK
+                              </div>
+                            )}
+                          </div>
                           
-                          {/* Product Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                               <div className="flex-1 min-w-0">
                                 <p 
-                                  className="font-semibold text-black text-base cursor-pointer hover:text-gray-700 transition-colors line-clamp-2 mb-2"
+                                  className={`font-semibold text-base cursor-pointer hover:text-gray-700 transition-colors line-clamp-2 mb-2 ${
+                                    itemData.isOutOfStock ? 'text-gray-500' : 'text-black'
+                                  }`}
                                   onClick={() => handleViewDetails(item)}
                                 >
                                   {itemData.name}
                                 </p>
                                 
-                                {/* Price */}
                                 <div className="flex items-center gap-3 mb-3">
                                   {itemData.hasDiscount ? (
                                     <div className="flex items-center gap-2">
                                       <span className="line-through text-gray-500 text-sm">
                                         {currency}{itemData.originalPrice}
                                       </span>
-                                      <span className="font-bold text-black text-lg">
+                                      <span className={`font-bold text-lg ${
+                                        itemData.isOutOfStock ? 'text-gray-500' : 'text-black'
+                                      }`}>
                                         {currency}{itemData.unitPrice}
                                       </span>
                                     </div>
                                   ) : (
-                                    <span className="font-bold text-black text-lg">{currency}{itemData.unitPrice}</span>
+                                    <span className={`font-bold text-lg ${
+                                      itemData.isOutOfStock ? 'text-gray-500' : 'text-black'
+                                    }`}>
+                                      {currency}{itemData.unitPrice}
+                                    </span>
                                   )}
                                 </div>
                               </div>
 
-                              {/* Total Price */}
                               <div className="text-right">
-                                <p className="font-bold text-black text-lg mb-2">
+                                <p className={`font-bold text-lg mb-2 ${
+                                  itemData.isOutOfStock ? 'text-gray-500' : 'text-black'
+                                }`}>
                                   {currency}{itemData.itemTotalPrice.toFixed(2)}
                                 </p>
                                 <button
@@ -559,7 +841,6 @@ const Cart = () => {
                               </div>
                             </div>
 
-                            {/* Controls */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-200">
                               <div className="flex items-center gap-3">
                                 <button 
@@ -572,7 +853,11 @@ const Cart = () => {
                               </div>
                               
                               <div className="flex items-center gap-4">
-                                <span className="text-sm text-gray-600 font-medium">Quantity:</span>
+                                <span className={`text-sm font-medium ${
+                                  itemData.isOutOfStock ? 'text-gray-500' : 'text-gray-600'
+                                }`}>
+                                  Quantity:
+                                </span>
                                 <QuantityControls item={item} itemType="product" />
                               </div>
                             </div>
@@ -601,62 +886,83 @@ const Cart = () => {
                     return (
                       <div
                         key={`deal-${item.id}-${index}`}
-                        className="bg-white border border-gray-300"
+                        className={`bg-white border ${
+                          itemData.isOutOfStock ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        }`}
                       >
                         <div className="p-4">
                           <div className="flex flex-col sm:flex-row gap-4">
-                            {/* Image */}
-                            <img
-                              className="w-20 h-20 object-cover flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
-                              src={itemData.image}
-                              alt={itemData.name}
-                              onClick={() => handleViewDetails(item)}
-                            />
+                            <div className="relative">
+                              <img
+                                className="w-20 h-20 object-cover flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+                                src={itemData.image}
+                                alt={itemData.name}
+                                onClick={() => handleViewDetails(item)}
+                              />
+                              {itemData.isOutOfStock && (
+                                <div className="absolute top-0 left-0 bg-red-600 text-white text-xs px-2 py-1 font-bold">
+                                  OUT OF STOCK
+                                </div>
+                              )}
+                            </div>
                             
-                            {/* Deal Info */}
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-2">
                                     <p 
-                                      className="font-semibold text-black text-base cursor-pointer hover:text-gray-700 transition-colors line-clamp-2"
+                                      className={`font-semibold text-base cursor-pointer hover:text-gray-700 transition-colors line-clamp-2 ${
+                                        itemData.isOutOfStock ? 'text-gray-500' : 'text-black'
+                                      }`}
                                       onClick={() => handleViewDetails(item)}
                                     >
                                       {itemData.name}
                                     </p>
-                                    <span className="bg-black text-white text-xs px-2 py-1 font-medium flex-shrink-0">
+                                    <span className={`text-xs px-2 py-1 font-medium flex-shrink-0 ${
+                                      itemData.isOutOfStock ? 'bg-gray-500 text-white' : 'bg-black text-white'
+                                    }`}>
                                       DEAL
                                     </span>
                                   </div>
                                   
                                   {itemData.description && (
-                                    <p className="text-gray-600 text-sm line-clamp-2 mb-2">
+                                    <p className={`text-sm line-clamp-2 mb-2 ${
+                                      itemData.isOutOfStock ? 'text-gray-500' : 'text-gray-600'
+                                    }`}>
                                       {itemData.description}
                                     </p>
                                   )}
                                   
-                                  {/* Price */}
                                   <div className="flex items-center gap-3 mb-3">
                                     {deal.dealTotal && deal.dealTotal > deal.dealFinalPrice ? (
                                       <div className="flex items-center gap-2">
                                         <span className="line-through text-gray-500 text-sm">
                                           {currency}{deal.dealTotal.toFixed(2)}
                                         </span>
-                                        <span className="font-bold text-black text-lg">
+                                        <span className={`font-bold text-lg ${
+                                          itemData.isOutOfStock ? 'text-gray-500' : 'text-black'
+                                        }`}>
                                           {currency}{itemData.unitPrice.toFixed(2)}
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="font-bold text-black text-lg">
+                                      <span className={`font-bold text-lg ${
+                                        itemData.isOutOfStock ? 'text-gray-500' : 'text-black'
+                                      }`}>
                                         {currency}{itemData.unitPrice.toFixed(2)}
                                       </span>
                                     )}
                                   </div>
+
+                                  <div className="mb-3">
+                                    {renderStockStatus(itemData.availableStock, item.quantity, itemData.isOutOfStock)}
+                                  </div>
                                 </div>
 
-                                {/* Total Price */}
                                 <div className="text-right">
-                                  <p className="font-bold text-black text-lg mb-2">
+                                  <p className={`font-bold text-lg mb-2 ${
+                                    itemData.isOutOfStock ? 'text-gray-500' : 'text-black'
+                                  }`}>
                                     {currency}{itemData.itemTotalPrice.toFixed(2)}
                                   </p>
                                   <button
@@ -669,7 +975,6 @@ const Cart = () => {
                                 </div>
                               </div>
 
-                              {/* Controls */}
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-200">
                                 <div className="flex items-center gap-3">
                                   <button 
@@ -682,7 +987,11 @@ const Cart = () => {
                                 </div>
                                 
                                 <div className="flex items-center gap-4">
-                                  <span className="text-sm text-gray-600 font-medium">Quantity:</span>
+                                  <span className={`text-sm font-medium ${
+                                    itemData.isOutOfStock ? 'text-gray-500' : 'text-gray-600'
+                                  }`}>
+                                    Quantity:
+                                  </span>
                                   <QuantityControls item={item} itemType="deal" />
                                 </div>
                               </div>
@@ -690,7 +999,6 @@ const Cart = () => {
                           </div>
                         </div>
 
-                        {/* Deal Products Toggle */}
                         {dealProducts.length > 0 && (
                           <div className="border-t border-gray-200">
                             <button
@@ -707,7 +1015,6 @@ const Cart = () => {
                               )}
                             </button>
                             
-                            {/* Deal Products List */}
                             {isExpanded && renderDealProducts(deal)}
                           </div>
                         )}
@@ -728,11 +1035,21 @@ const Cart = () => {
             <CartTotal />
             <div className="w-full text-center md:text-end mt-6 pt-4 border-t border-gray-300">
               <button
-                onClick={() => navigate('/place-order')}
-                className="bg-black text-white px-8 py-4 font-semibold hover:bg-gray-800 active:bg-gray-900 transition-colors w-full md:w-auto text-base"
+                onClick={handleProceedToCheckout}
+                disabled={hasOutOfStockItems}
+                className={`px-8 py-4 font-semibold transition-colors w-full md:w-auto text-base ${
+                  hasOutOfStockItems
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-black text-white hover:bg-gray-800 active:bg-gray-900'
+                }`}
               >
-                PROCEED TO CHECKOUT
+               PROCEED TO CHECKOUT
               </button>
+              {hasOutOfStockItems && (
+                <p className="text-red-600 text-sm mt-2">
+                  Please remove out-of-stock items before checkout
+                </p>
+              )}
             </div>
           </div>
         </div>

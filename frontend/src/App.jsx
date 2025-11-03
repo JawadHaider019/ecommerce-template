@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import Collection from './pages/Collection'
@@ -17,6 +18,18 @@ import { ToastContainer } from 'react-toastify'
 import Footer from './components/Footer'
 import 'react-toastify/dist/ReactToastify.css'
 import Favicon from './components/Favicon' 
+
+// ScrollToTop component that handles scrolling when route changes
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    // Scroll to top instantly when route changes
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
 
 const App = () => {
   return (
@@ -50,6 +63,7 @@ const App = () => {
           borderRadius: '8px',
         }}
       />
+      <ScrollToTop />
       <Navbar/>
       <SearchBar/>
       <Routes>

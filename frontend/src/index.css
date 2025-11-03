@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Prata&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -39,3 +41,27 @@ a.active hr{
     }
   }
   
+  .perspective-200 {
+  perspective: 200px;
+}
+
+.text-holo {
+  -webkit-text-stroke: 1px rgb(255, 255, 255);
+  color: transparent;
+}
+/* globals.css */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(45, 212, 191, 0.5); /* Teal (Tailwind: teal-400) */
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.text-oswald {
+  font-family: 'Oswald', Arial, sans-serif;
+}

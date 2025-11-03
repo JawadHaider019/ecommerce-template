@@ -10,7 +10,8 @@ import {
   getUserNotifications,
   getAdminNotifications,
   markNotificationAsRead,
-  markAllNotificationsAsRead
+  markAllNotificationsAsRead,
+  getOrderDetails // 🆕 Import the new function
 } from "../controllers/orderController.js"
 import { authUser } from "../middleware/auth.js"
 import  adminAuth  from "../middleware/adminAuth.js"
@@ -27,6 +28,7 @@ orderRoutes.post("/place", authUser, placeOrder)
 // User orders
 orderRoutes.post("/userorders", authUser, userOrders)
 orderRoutes.post("/cancel", authUser, cancelOrder)
+orderRoutes.get("/:orderId", authUser, getOrderDetails) // 🆕 Get specific order details
 
 // Cancellation reasons
 orderRoutes.get("/cancellation-reasons", getCancellationReasons)

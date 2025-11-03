@@ -135,9 +135,9 @@ const LatestCollection = () => {
   if (error) {
     return (
       <div className="my-24">
-        <div className="py-8 text-center text-3xl">
+        <div className="py-4 text-center text-3xl">
           <Title text1={'LATEST'} text2={'COLLECTIONS'} />
-          <p className="m-auto w-3/4 text-xs text-gray-600 sm:text-sm md:text-base">
+         <p className="text-[16px] text-gray-600 font-light">
             Experience the Beauty of Nature with Natura Bliss's Newest Organic Skincare Collection
           </p>
         </div>
@@ -152,6 +152,9 @@ const LatestCollection = () => {
     <div className="my-24">
       <div className="py-2 text-center text-3xl">
         <Title text1={'LATEST'} text2={'COLLECTIONS'} />
+     <p className="text-[16px] text-gray-600 font-light">
+            Experience the Beauty of Nature with Natura Bliss's Newest Organic Skincare Collection
+          </p>
       </div>
 
       {latestProducts.length === 0 ? (

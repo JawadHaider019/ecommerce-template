@@ -9,11 +9,18 @@ const orderSchema = new mongoose.Schema({
     paymentMethod: {type: String, required: true},
     payment: {type: Boolean, required: true, default: false},
     date: {type: Number, required: true},
-    deliveryCharges: {type: Number, required: true, default: 0}, // ✅ Add this line
+    deliveryCharges: {type: Number, required: true, default: 0},
+    
+    // 🆕 ORDER-SPECIFIC CUSTOMER DETAILS
+    customerDetails: {
+        name: {type: String, required: true},
+        email: {type: String, required: true},
+        phone: {type: String, default: ''}
+    },
 
     cancellationReason: {type: String, default: null},
     cancelledAt: {type: Date, default: null},
-    cancelledBy: {type: String, default: null}, // 'user' or 'admin'
+    cancelledBy: {type: String, default: null},
     
     createdAt: { type: Date, default: Date.now }, 
     updatedAt: { type: Date, default: Date.now }

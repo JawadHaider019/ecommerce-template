@@ -715,11 +715,12 @@ const Product = () => {
           </button>
           
           <hr className="mt-8 sm:w-4/5" />
-          <div className="mt-5 flex flex-col gap-1 text-sm text-gray-500">
-            <p>100% Original product.</p>
-            <p>Cash on delivery is available on this product.</p>
-            <p>Easy return and exchange policy within 7 days.</p>
-          </div>
+        <ul className="mt-5 flex flex-col gap-1 text-sm text-gray-700 leading-relaxed list-disc list-inside">
+   <li>Made with pure, natural, and organic ingredients.</li>
+    <li>Free from harsh chemicals, parabens, and artificial fragrances.</li>
+    <li>Handcrafted in Pakistan with care and love for your well-being.</li>
+</ul>
+
         </div>
       </div>
 

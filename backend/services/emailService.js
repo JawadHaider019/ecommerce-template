@@ -282,13 +282,13 @@ export const sendNewProductNotification = async (subscribers, product) => {
                   <p style="font-size: 16px;">Be the first to try it and experience the natural goodness!</p>
                   
                   <div style="text-align: center;">
-                      <a href="${process.env.FRONTEND_URL}/products/${product._id || product.id}" class="btn">
+                      <a href="${process.env.FRONTEND_URL}/collection/${product._id || product.id}" class="btn">
                           View Product
                       </a>
                   </div>
               </div>
               <div class="footer">
-                  <p><a href="${process.env.FRONTEND_URL}/unsubscribe" style="color: #666; text-decoration: none;">Unsubscribe from our newsletter</a></p>
+                  <p><a href="${process.env.FRONTEND_URL}/" style="color: #666; text-decoration: none;">Unsubscribe from our newsletter</a></p>
                   <p>&copy; ${new Date().getFullYear()} Natura Bliss. All rights reserved.</p>
               </div>
           </div>
@@ -371,13 +371,13 @@ export const sendNewDealNotification = async (subscribers, deal) => {
                   <p style="font-size: 16px;">This offer won't last long - shop now before it's gone!</p>
                   
                   <div style="text-align: center;">
-                      <a href="${process.env.FRONTEND_URL}/deals/${deal._id || deal.id}" class="btn">
+                      <a href="${process.env.FRONTEND_URL}/" class="btn">
                           Shop Now
                       </a>
                   </div>
               </div>
               <div class="footer">
-                  <p><a href="${process.env.FRONTEND_URL}/unsubscribe" style="color: #666; text-decoration: none;">Unsubscribe from our newsletter</a></p>
+                  <p><a href="${process.env.FRONTEND_URL}/" style="color: #666; text-decoration: none;">Unsubscribe from our newsletter</a></p>
                   <p>&copy; ${new Date().getFullYear()} Natura Bliss. All rights reserved.</p>
               </div>
           </div>
@@ -458,7 +458,7 @@ export const sendNewBlogNotification = async (subscribers, blog) => {
                   ${blog.readTime ? `<p style="color: #718096; margin-top: 10px; text-align: center;">⏱️ ${blog.readTime} min read</p>` : ''}
               </div>
               <div class="footer">
-                  <p><a href="${process.env.FRONTEND_URL}/unsubscribe" style="color: #666; text-decoration: none;">Unsubscribe from our newsletter</a></p>
+                  <p><a href="${process.env.FRONTEND_URL}/" style="color: #666; text-decoration: none;">Unsubscribe from our newsletter</a></p>
                   <p>&copy; ${new Date().getFullYear()} Natura Bliss. All rights reserved.</p>
               </div>
           </div>
@@ -735,7 +735,7 @@ export const sendWelcomeEmail = async (email, isResubscribe = false) => {
                     <strong>The Natura Bliss Team</strong></p>
                 </div>
                 <div class="footer">
-                    <p><a href="${process.env.FRONTEND_URL}/unsubscribe?email=${email}" style="color: #666; text-decoration: none;">Unsubscribe from our newsletter</a></p>
+                    <p><a href="${process.env.FRONTEND_URL}/" style="color: #666; text-decoration: none;">Unsubscribe from our newsletter</a></p>
                     <p>&copy; ${new Date().getFullYear()} Natura Bliss. All rights reserved.</p>
                 </div>
             </div>

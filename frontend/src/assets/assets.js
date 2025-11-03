@@ -38,6 +38,7 @@ import support_img from './support_img.png';
 import menu_icon from './menu_icon.png';
 import about_img from './about_img.png';
 import about_img2 from './about_img2.png';
+import about_img3 from './about_img3.jpeg';
 import contact_img from './contact_img.png';
 import cross_icon from './cross_icon.png';
 import fav from './fav.png'
@@ -58,6 +59,7 @@ export const assets = {
   menu_icon,
   about_img,
   about_img2,
+  about_img3,
   contact_img,
   cross_icon,
   whyus,

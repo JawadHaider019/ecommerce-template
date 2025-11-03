@@ -1,10 +1,11 @@
 // Banner.jsx
 import React, { useState, useEffect, useRef } from "react";
 import axios from 'axios';
+import { IoIosArrowForward } from "react-icons/io";
+import { Link } from 'react-router-dom';
 
 // API service configuration
-
-const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
+const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}`;
 
 // Create axios instance
 const api = axios.create({
@@ -819,54 +820,69 @@ const BannerCard = ({
             </div>
           </>
         ) : (
-          /* View Mode */
-          <div className="flex flex-col gap-2">
-            {/* Banner Preview */}
-            <div>
-              <div className="relative h-60 sm:h-80 overflow-hidden bg-gradient-to-r from-green-50 to-emerald-50 border">
-                {(banner.imagePreview || banner.imageUrl) ? (
-                  <img
-                    src={banner.imagePreview || banner.imageUrl}
-                    alt="Banner Preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center">
-                    <div className="text-center text-gray-400">
-                      <i className="fas fa-image text-xl sm:text-2xl mb-2"></i>
-                      <p className="text-sm">Banner Image</p>
-                    </div>
+          /* View Mode - Fixed text positioning */
+          <div className="flex flex-col gap-4">
+            {/* Banner Preview - Fixed styling */}
+            <div className="relative w-full h-[90vh] overflow-hidden bg-black border border-gray-300">
+              {(banner.imagePreview || banner.imageUrl) ? (
+                <img
+                  src={banner.imagePreview || banner.imageUrl}
+                  alt="Banner Preview"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+                  <div className="text-center text-gray-400">
+                    <i className="fas fa-image text-xl sm:text-2xl mb-2"></i>
+                    <p className="text-sm">Banner Image</p>
                   </div>
-                )}
-                
-                <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center">
-                  <div className="text-white p-3 sm:p-4 md:p-6 max-w-md">
-                    <div className="mb-2 sm:mb-3">
-                      <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold leading-tight">
-                        {banner.headingLine1 ? (
-                          <div>
-                            <div>{banner.headingLine1}</div>
-                            {banner.headingLine2 && (
-                              <div className="mt-1">{banner.headingLine2}</div>
-                            )}
-                          </div>
-                        ) : (
-                          "Your Banner Heading"
-                        )}
-                      </h2>
-                    </div>
-                    
-                    <p className="mt-1 sm:mt-2 text-xs sm:text-sm font-medium">
-                      {banner.subtext || "Banner description text will appear here"}
-                    </p>
-                    
-                    {banner.buttonText && (
-                      <button className="text-xs sm:text-sm font-medium transition hover:text-gray-300 flex items-center justify-center gap-2 mt-2 sm:mt-4">
-                        <p className="h-px w-6 sm:w-8 bg-white"></p>
-                        {banner.buttonText}
-                      </button>
+                </div>
+              )}
+              
+              {/* Dark Overlay */}
+              <div className="absolute inset-0 bg-black/50 z-10"></div>
+              
+              {/* Content overlay - Fixed positioning */}
+              <div className="absolute inset-0 z-20 flex flex-col justify-between p-6">
+                {/* Top heading section */}
+                <div className="flex-1 flex items-start pt-10 md:pt-25">
+                  <h1 className="text-oswald text-5xl sm:text-5xl md:text-6xl lg:text-8xl font-extrabold text-white uppercase leading-none tracking-tighter">
+                    {banner.headingLine1 || "Your Banner Heading"}
+                    {banner.headingLine2 && (
+                      <>
+                        <br />
+                        <span className="md:pl-10 pl-0 text-holo">{banner.headingLine2}</span>
+                      </>
                     )}
-                  </div>
+                  </h1>
+                </div>
+
+                {/* Bottom content section */}
+                <div className="flex justify-between items-end">
+                  {/* Subtext */}
+                  {banner.subtext && (
+                    <div className="flex-1">
+                      <p className="font-mono text-xs uppercase max-w-60 md:max-w-80 border-y border-white/70 py-2 text-white/90">
+                        {banner.subtext}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Button */}
+                  {banner.buttonText && banner.redirectUrl && (
+                    <div className="text-right">
+                      <Link
+                        to={banner.redirectUrl}
+                        className="inline-flex items-center gap-2 px-6 py-3 text-sm md:text-base font-semibold text-white lowercase transition-all duration-300 hover:text-gray-100 hover:scale-105"
+                        aria-label={`${banner.buttonText} - ${banner.headingLine1}`}
+                      >
+                        {banner.buttonText}
+                        <span className="inline-flex items-center justify-center w-4 h-4 bg-white text-black rounded-full">
+                          <IoIosArrowForward size={16} />
+                        </span>
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -928,11 +944,11 @@ const BannerCard = ({
   );
 };
 
-// Main Banner Display Component for Website
+// Main Banner Display Component for Website - Fixed text positioning
 export const BannerDisplay = ({ banners = [] }) => {
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [activeBanners, setActiveBanners] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
   // Load active banners from backend if not provided
   useEffect(() => {
@@ -962,134 +978,123 @@ export const BannerDisplay = ({ banners = [] }) => {
     loadActiveBanners();
   }, [banners]);
 
+  // Auto-rotate banners if multiple active
   useEffect(() => {
     if (activeBanners.length > 1) {
       const timer = setInterval(() => {
-        setCurrentSlide((prev) => (prev + 1) % activeBanners.length);
-      }, 5000);
+        setCurrentBannerIndex((prev) => (prev + 1) % activeBanners.length);
+      }, 5000); // 5 seconds rotation
       return () => clearInterval(timer);
     }
   }, [activeBanners.length]);
 
   if (loading) {
     return (
-      <div className="relative h-64 sm:h-80 md:h-96 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center justify-center">
-        <div className="text-center text-gray-500">
-          <i className="fas fa-spinner fa-spin text-2xl sm:text-3xl md:text-4xl mb-3 sm:mb-4"></i>
-          <p className="text-base sm:text-lg">Loading banners...</p>
-        </div>
-      </div>
+      <section className="relative w-full h-[90vh] overflow-hidden bg-black">
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse"></div>
+        <div className="absolute inset-0 bg-black/50"></div>
+      </section>
     );
   }
 
   if (activeBanners.length === 0) {
     return (
-      <div className="relative h-64 sm:h-80 md:h-96 bg-gradient-to-r from-green-50 to-emerald-50 flex items-center justify-center">
-        <div className="text-center text-gray-500">
-          <i className="fas fa-image text-2xl sm:text-3xl md:text-4xl mb-3 sm:mb-4"></i>
-          <p className="text-base sm:text-lg">No active banners available</p>
+      <section className="relative w-full h-[90vh] overflow-hidden bg-black">
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-100 to-gray-200"></div>
+        <div className="h-full flex items-center justify-center text-center text-gray-600 px-6">
+          <div>
+            <p className="text-xl font-medium mb-4">No active banners available</p>
+          </div>
         </div>
-      </div>
+      </section>
     );
   }
 
+  // Show only the current active banner
+  const currentBanner = activeBanners[currentBannerIndex];
+
   return (
-    <section className="relative h-[400px] sm:h-[500px] md:h-[600px] overflow-hidden">
-      {/* Slides */}
-      {activeBanners.map((banner, index) => (
-        <div
-          key={banner._id || index}
-          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-            index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
-          }`}
-        >
-          {/* Background Image */}
-          {banner.imageUrl ? (
-            <img
-              src={banner.imageUrl}
-              alt={banner.headingLine1 || `Banner ${index + 1}`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-r from-green-100 to-emerald-100"></div>
-          )}
-          
-          {/* Overlay Content */}
-          <div className="absolute inset-0 bg-black bg-opacity-25 flex items-center">
-            <div className="container mx-auto px-4 sm:px-6">
-              <div className="max-w-2xl text-white">
-                {/* Two-line Heading */}
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 md:mb-6 leading-tight">
-                  {banner.headingLine1 && (
-                    <div>
-                      <div className="mb-1 sm:mb-2">{banner.headingLine1}</div>
-                      {banner.headingLine2 && (
-                        <div>{banner.headingLine2}</div>
-                      )}
-                    </div>
-                  )}
-                </h1>
-                
-                {/* Subtext */}
-                <p className="text-sm sm:text-base md:text-xl mb-4 sm:mb-6 md:mb-8 opacity-95 max-w-lg leading-relaxed">
-                  {banner.subtext}
+    <div className="relative w-full overflow-hidden" aria-label="Featured banners">
+      {/* Single Banner Display */}
+      <section className="relative w-full h-[90vh] overflow-hidden bg-black">
+        {/* Background Image */}
+        <img
+          src={currentBanner.imageUrl}
+          alt={currentBanner.headingLine1 || "Banner"}
+          className="w-full h-full object-cover"
+          loading="eager"
+          decoding="async"
+          width="1920"
+          height="1080"
+        />
+
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 bg-black/50 z-10"></div>
+
+        {/* Content overlay - Fixed positioning */}
+        <div className="absolute inset-0 z-20 flex flex-col justify-between p-6">
+          {/* Top heading section */}
+          <div className="flex-1 flex items-start pt-10 md:pt-25">
+            <h1 className="text-oswald text-5xl sm:text-5xl md:text-6xl lg:text-8xl font-extrabold text-white uppercase leading-none tracking-tighter">
+              {currentBanner.headingLine1}
+              {currentBanner.headingLine2 && (
+                <>
+                  <br />
+                  <span className="md:pl-10 pl-0 text-holo">{currentBanner.headingLine2}</span>
+                </>
+              )}
+            </h1>
+          </div>
+
+          {/* Bottom content section */}
+          <div className="flex justify-between items-end">
+            {/* Subtext */}
+            {currentBanner.subtext && (
+              <div className="flex-1">
+                <p className="font-mono text-xs uppercase max-w-60 md:max-w-80 border-y border-white/70 py-2 text-white/90">
+                  {currentBanner.subtext}
                 </p>
-                
-                {/* Button */}
-                {banner.buttonText && (
-                  <a
-                    href={banner.redirectUrl || "#"}
-                    className="inline-block bg-white text-green-800 px-6 sm:px-8 md:px-10 py-2 sm:py-3 md:py-4 font-semibold text-sm sm:text-base md:text-lg hover:bg-green-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                  >
-                    {banner.buttonText}
-                  </a>
-                )}
               </div>
-            </div>
+            )}
+
+            {/* Button */}
+            {currentBanner.buttonText && currentBanner.redirectUrl && (
+              <div className="text-right">
+                <Link
+                  to={currentBanner.redirectUrl}
+                  className="inline-flex items-center gap-2 px-6 py-3 text-sm md:text-base font-semibold text-white lowercase transition-all duration-300 hover:text-gray-100 hover:scale-105"
+                  aria-label={`${currentBanner.buttonText} - ${currentBanner.headingLine1}`}
+                >
+                  {currentBanner.buttonText}
+                  <span className="inline-flex items-center justify-center w-4 h-4 bg-white text-black rounded-full">
+                    <IoIosArrowForward size={16} />
+                  </span>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-      ))}
+      </section>
 
-      {/* Navigation Dots */}
+      {/* Navigation Dots for multiple banners */}
       {activeBanners.length > 1 && (
-        <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-3 z-20">
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-30">
           {activeBanners.map((_, index) => (
             <button
               key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 transition-all duration-300 ${
-                index === currentSlide 
+              onClick={() => setCurrentBannerIndex(index)}
+              className={`w-2 h-2 transition-all duration-300 rounded-full ${
+                index === currentBannerIndex 
                   ? 'bg-white scale-110' 
                   : 'bg-white bg-opacity-50 hover:bg-opacity-75'
               }`}
+              aria-label={`Go to banner ${index + 1}`}
             />
           ))}
         </div>
       )}
-
-      {/* Navigation Arrows */}
-      {activeBanners.length > 1 && (
-        <>
-          <button
-            onClick={() => setCurrentSlide((prev) => 
-              (prev - 1 + activeBanners.length) % activeBanners.length
-            )}
-            className="absolute left-2 sm:left-4 md:left-6 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-2 sm:p-3 transition-all duration-300 z-20 hover:scale-110"
-          >
-            <i className="fas fa-chevron-left w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5"></i>
-          </button>
-          <button
-            onClick={() => setCurrentSlide((prev) => 
-              (prev + 1) % activeBanners.length
-            )}
-            className="absolute right-2 sm:right-4 md:right-6 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-2 sm:p-3 transition-all duration-300 z-20 hover:scale-110"
-          >
-            <i className="fas fa-chevron-right w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5"></i>
-          </button>
-        </>
-      )}
-    </section>
+    </div>
   );
 };
 
-export default BannerCard;  
+export default BannerCard;

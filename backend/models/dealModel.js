@@ -24,7 +24,7 @@ const dealSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['draft', 'published', 'archived', 'scheduled'],
+        enum: ['draft', 'published'],
         default: 'draft'
     },
     date: { type: Date, default: Date.now },

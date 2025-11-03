@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { assets } from "../assets/assets";
 import Title from '../components/Title';
@@ -12,153 +12,159 @@ const Collection = () => {
   const [selectedSubCategories, setSelectedSubCategories] = useState([]);
   const [sortType, setSortType] = useState('default');
   const [backendCategories, setBackendCategories] = useState([]);
+  const [categoryIdMap, setCategoryIdMap] = useState({});
+  const [subcategoryIdMap, setSubcategoryIdMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const backendURL = import.meta.env.VITE_BACKEND_URL;
+
+  // Fetch categories from backend
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-    
         const response = await fetch(`${backendURL}/api/categories`);
 
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          const text = await response.text();
-          throw new Error("Invalid JSON response from server");
+        const data = await response.json();
+        
+        let categories = data;
+        
+        if (data.data && Array.isArray(data.data)) {
+          categories = data.data;
+        }
+        
+        if (data.categories && Array.isArray(data.categories)) {
+          categories = data.categories;
+        }
+        
+        if (!Array.isArray(categories)) {
+          throw new Error('Categories data is not an array');
         }
 
-        const data = await response.json();
-        setBackendCategories(data);
+        // Create mapping from IDs to names
+        const idToNameMap = {};
+        const subcategoryIdToNameMap = {};
+
+        const transformedCategories = categories.map((cat) => {
+          const categoryId = cat._id || cat.id;
+          const categoryName = cat.name || cat.categoryName || cat.title || 'Category';
+          
+          if (categoryId) {
+            idToNameMap[categoryId] = categoryName;
+          }
+
+          const subcategories = (cat.subcategories || cat.subCategories || []).map((sub) => {
+            const subcategoryId = sub._id || sub.id;
+            const subcategoryName = sub.name || sub.subcategoryName || sub.title || sub || 'Subcategory';
+            
+            if (subcategoryId) {
+              subcategoryIdToNameMap[subcategoryId] = subcategoryName;
+            }
+            
+            return {
+              id: subcategoryId,
+              name: subcategoryName
+            };
+          });
+
+          return {
+            id: categoryId,
+            name: categoryName,
+            subcategories
+          };
+        });
+
+        setBackendCategories(transformedCategories);
+        setCategoryIdMap(idToNameMap);
+        setSubcategoryIdMap(subcategoryIdToNameMap);
+        setError(null);
         
       } catch (error) {
-      
-        const fallbackCategories = extractCategoriesFromProducts(products);
+        setError(error.message);
+        // Fallback: extract categories from products
+        const categoryMap = {};
+        products.forEach(product => {
+          if (product && product.category) {
+            const categoryName = product.category;
+            const subcategoryName = product.subcategory;
+            
+            if (!categoryMap[categoryName]) {
+              categoryMap[categoryName] = {
+                name: categoryName,
+                subcategories: new Set()
+              };
+            }
+            
+            if (subcategoryName) {
+              categoryMap[categoryName].subcategories.add(subcategoryName);
+            }
+          }
+        });
+
+        const fallbackCategories = Object.values(categoryMap).map(cat => ({
+          name: cat.name,
+          subcategories: Array.from(cat.subcategories).map(sub => ({
+            name: sub
+          }))
+        }));
+        
         setBackendCategories(fallbackCategories);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCategories();
-  }, [products]);
+    if (backendURL) {
+      fetchCategories();
+    } else {
+      setError('Backend URL configuration missing');
+      setLoading(false);
+    }
+  }, [backendURL]); // Removed products dependency to prevent infinite loops
 
-  // Helper function to extract categories from products as fallback
-  const extractCategoriesFromProducts = (products) => {
-    const categoryMap = {};
-    
-    products.forEach(product => {
-      if (product.category && product.subcategory) {
-        if (!categoryMap[product.category]) {
-          categoryMap[product.category] = {
-            name: product.category,
-            subcategories: new Set()
-          };
-        }
-        categoryMap[product.category].subcategories.add(product.subcategory);
-      }
-    });
+  // Helper functions
+  const getCategoryName = useCallback((categoryId) => {
+    return categoryIdMap[categoryId] || categoryId;
+  }, [categoryIdMap]);
 
-    return Object.values(categoryMap).map(cat => ({
-      name: cat.name,
-      subcategories: Array.from(cat.subcategories).map(sub => ({
-        name: sub
-      }))
-    }));
-  };
+  const getSubcategoryName = useCallback((subcategoryId) => {
+    return subcategoryIdMap[subcategoryId] || subcategoryId;
+  }, [subcategoryIdMap]);
 
-  const toggleCategory = (categoryName) => {
+  const getCategoryId = useCallback((categoryName) => {
+    return Object.keys(categoryIdMap).find(id => categoryIdMap[id] === categoryName) || categoryName;
+  }, [categoryIdMap]);
+
+  const getSubcategoryId = useCallback((subcategoryName) => {
+    return Object.keys(subcategoryIdMap).find(id => subcategoryIdMap[id] === subcategoryName) || subcategoryName;
+  }, [subcategoryIdMap]);
+
+  // Toggle functions
+  const toggleCategory = useCallback((categoryName) => {
     setSelectedCategories(prev => 
       prev.includes(categoryName) ? prev.filter(c => c !== categoryName) : [...prev, categoryName]
     );
     setSelectedSubCategories([]);
-  };
+  }, []);
 
-  const toggleSubCategory = (subcategoryName) => {
+  const toggleSubCategory = useCallback((subcategoryName) => {
     setSelectedSubCategories(prev => 
       prev.includes(subcategoryName) ? prev.filter(s => s !== subcategoryName) : [...prev, subcategoryName]
     );
-  };
+  }, []);
 
   // Reset all filters function
-  const resetAllFilters = () => {
+  const resetAllFilters = useCallback(() => {
     setSelectedCategories([]);
     setSelectedSubCategories([]);
     setSortType('default');
-  };
-
-  const applyFilter = () => {
-    let productsCopy = [...products];
-
-    // Search filter
-    if (showSearch && search) {
-      productsCopy = productsCopy.filter(item =>
-        item.name.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-
-    // Category filter - only compare by names
-    if (selectedCategories.length > 0) {
-      productsCopy = productsCopy.filter(item => {
-        return selectedCategories.includes(item.category);
-      });
-    }
-
-    // Sub-category filter - only compare by names
-    if (selectedSubCategories.length > 0) {
-      productsCopy = productsCopy.filter(item => {
-        return selectedSubCategories.includes(item.subcategory);
-      });
-    }
-
-    setFilterProducts(productsCopy);
-  };
-
-  const sortProduct = () => {
-    let productsCopy = [...filterProducts];
-    
-    switch (sortType) {
-      case 'low-high':
-        productsCopy.sort((a, b) => (a.discountprice || a.price) - (b.discountprice || b.price));
-        break;
-      case 'high-low':
-        productsCopy.sort((a, b) => (b.discountprice || b.price) - (a.discountprice || a.price));
-        break;
-      case 'bestseller':
-        productsCopy.sort((a, b) => {
-          const aBest = a.bestseller ? 1 : 0;
-          const bBest = b.bestseller ? 1 : 0;
-          return bBest - aBest;
-        });
-        break;
-      case 'rating':
-        productsCopy.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        break;
-      default:
-        // Default sorting - newest first
-        productsCopy.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-        break;
-    }
-    setFilterProducts(productsCopy);
-  };
-
-  // Get product counts for categories
-  const getCategoryProductCount = (categoryName) => {
-    return products.filter(product => product.category === categoryName).length;
-  };
-
-  const getSubcategoryProductCount = (subcategoryName) => {
-    return products.filter(product => {
-      const parentCategorySelected = selectedCategories.length === 0 || 
-        selectedCategories.includes(product.category);
-      return parentCategorySelected && product.subcategory === subcategoryName;
-    }).length;
-  };
+  }, []);
 
   // Get available subcategories based on selected categories
-  const getAvailableSubcategories = () => {
+  const getAvailableSubcategories = useCallback(() => {
     if (selectedCategories.length === 0) {
       const allSubcategories = new Set();
       backendCategories.forEach(cat => {
@@ -180,29 +186,133 @@ const Collection = () => {
       });
       return Array.from(availableSubcategories);
     }
-  };
+  }, [selectedCategories, backendCategories]);
 
-  // Initialize with all products
+  // Apply filters and sorting
   useEffect(() => {
-    if (products.length > 0) {
-      setFilterProducts(products);
+    let productsCopy = [...products];
+
+    // Search filter
+    if (showSearch && search) {
+      productsCopy = productsCopy.filter(item =>
+        item.name.toLowerCase().includes(search.toLowerCase())
+      );
     }
-  }, [products]);
 
-  // Apply filters when dependencies change
-  useEffect(() => {
-    applyFilter();
-  }, [selectedCategories, selectedSubCategories, search, showSearch, products]);
-
-  // Apply sorting when sort type changes
-  useEffect(() => {
-    if (filterProducts.length > 0) {
-      sortProduct();
+    // Category filter
+    if (selectedCategories.length > 0) {
+      productsCopy = productsCopy.filter(item => {
+        const itemCategoryId = item.category;
+        const itemCategoryName = getCategoryName(itemCategoryId);
+        
+        return selectedCategories.some(selectedCat => {
+          const selectedCategoryId = getCategoryId(selectedCat);
+          return itemCategoryId === selectedCategoryId || itemCategoryName === selectedCat;
+        });
+      });
     }
-  }, [sortType]);
+
+    // Sub-category filter
+    if (selectedSubCategories.length > 0) {
+      productsCopy = productsCopy.filter(item => {
+        const itemSubcategoryId = item.subcategory;
+        const itemSubcategoryName = getSubcategoryName(itemSubcategoryId);
+        
+        return selectedSubCategories.some(selectedSub => {
+          const selectedSubcategoryId = getSubcategoryId(selectedSub);
+          return itemSubcategoryId === selectedSubcategoryId || itemSubcategoryName === selectedSub;
+        });
+      });
+    }
+
+    // Apply sorting
+    switch (sortType) {
+      case 'low-high':
+        productsCopy.sort((a, b) => (a.discountprice || a.price) - (b.discountprice || b.price));
+        break;
+      case 'high-low':
+        productsCopy.sort((a, b) => (b.discountprice || b.price) - (a.discountprice || a.price));
+        break;
+      case 'bestseller':
+        productsCopy.sort((a, b) => {
+          const aBest = a.bestseller ? 1 : 0;
+          const bBest = b.bestseller ? 1 : 0;
+          return bBest - aBest;
+        });
+        break;
+      case 'rating':
+        productsCopy.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        break;
+      default:
+        productsCopy.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        break;
+    }
+
+    setFilterProducts(productsCopy);
+  }, [
+    products, 
+    search, 
+    showSearch, 
+    selectedCategories, 
+    selectedSubCategories, 
+    sortType,
+    getCategoryName,
+    getCategoryId,
+    getSubcategoryName,
+    getSubcategoryId
+  ]);
+
+  // Get product counts for categories
+  const getCategoryProductCount = useCallback((categoryName) => {
+    const categoryId = getCategoryId(categoryName);
+    return products.filter(product => {
+      const productCategoryId = product.category;
+      const productCategoryName = getCategoryName(productCategoryId);
+      return productCategoryId === categoryId || productCategoryName === categoryName;
+    }).length;
+  }, [products, getCategoryId, getCategoryName]);
+
+  // Get product counts for subcategories
+  const getSubcategoryProductCount = useCallback((subcategoryName) => {
+    const subcategoryId = getSubcategoryId(subcategoryName);
+    return products.filter(product => {
+      const parentCategorySelected = selectedCategories.length === 0 || 
+        selectedCategories.some(cat => {
+          const categoryId = getCategoryId(cat);
+          const productCategoryId = product.category;
+          const productCategoryName = getCategoryName(productCategoryId);
+          return productCategoryId === categoryId || productCategoryName === cat;
+        });
+      
+      const productSubcategoryId = product.subcategory;
+      const productSubcategoryName = getSubcategoryName(productSubcategoryId);
+      
+      return parentCategorySelected && 
+        (productSubcategoryId === subcategoryId || productSubcategoryName === subcategoryName);
+    }).length;
+  }, [products, selectedCategories, getSubcategoryId, getCategoryId, getCategoryName, getSubcategoryName]);
 
   // Check if any filters are active
   const hasActiveFilters = selectedCategories.length > 0 || selectedSubCategories.length > 0 || sortType !== 'default';
+
+  // Available subcategories
+  const availableSubcategories = getAvailableSubcategories();
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="text-red-500 text-lg">Error loading categories</div>
+        <div className="text-gray-500 text-sm">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-black text-white hover:bg-gray-900 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -229,34 +339,45 @@ const Collection = () => {
         </p>
 
         <div className={`mt-6 border border-gray-300 py-3 pl-5 ${showFilter ? '' : 'hidden'} sm:block`}>
+          {error && (
+            <div className="mb-4 p-2 bg-yellow-100 border border-yellow-400 rounded text-xs">
+              <strong>Note:</strong> Using fallback categories. {error}
+            </div>
+          )}
+
+        
           {/* Categories Section */}
           <p className="mb-3 text-sm font-medium">CATEGORIES</p>
           <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-            {backendCategories.map(cat => {
-              const productCount = getCategoryProductCount(cat.name);
-              return (
-                <label key={cat.name} className="flex gap-2 items-center cursor-pointer">
-                  <input 
-                    className="w-4 h-4 accent-black text-black" 
-                    type="checkbox" 
-                    checked={selectedCategories.includes(cat.name)}
-                    onChange={() => toggleCategory(cat.name)}
-                  />
-                  <span className="flex justify-between w-full">
-                    <span>{cat.name}</span>
-                    <span className="text-gray-400 text-xs pr-2">({productCount})</span>
-                  </span>
-                </label>
-              );
-            })}
+            {backendCategories.length > 0 ? (
+              backendCategories.map(cat => {
+                const productCount = getCategoryProductCount(cat.name);
+                return (
+                  <label key={cat.name} className="flex gap-2 items-center cursor-pointer">
+                    <input 
+                      className="w-4 h-4 accent-black text-black" 
+                      type="checkbox" 
+                      checked={selectedCategories.includes(cat.name)}
+                      onChange={() => toggleCategory(cat.name)}
+                    />
+                    <span className="flex justify-between w-full">
+                      <span>{cat.name}</span>
+                      <span className="text-gray-400 text-xs pr-2">({productCount})</span>
+                    </span>
+                  </label>
+                );
+              })
+            ) : (
+              <div className="text-gray-500 text-sm">No categories available</div>
+            )}
           </div>
 
           {/* Subcategories Section */}
-          {getAvailableSubcategories().length > 0 && (
+          {availableSubcategories.length > 0 && (
             <>
               <p className="mt-6 mb-3 text-sm font-medium">SUBCATEGORIES</p>
               <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-                {getAvailableSubcategories().map(sub => {
+                {availableSubcategories.map(sub => {
                   const productCount = getSubcategoryProductCount(sub);
                   return (
                     <label key={sub} className="flex gap-2 items-center cursor-pointer">
@@ -294,21 +415,15 @@ const Collection = () => {
 
       {/* Products Grid */}
       <div className="flex-1">
-        <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <Title text1={'ALL'} text2={'COLLECTIONS'} />
+        <div className="mb-4 text-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <Title  text1={'ALL'} text2={'COLLECTIONS'} />
           
           {/* Results count and active filters */}
           <div className="flex flex-col gap-2">
             <div className="text-sm text-gray-600">
               Showing {filterProducts.length} of {products.length} products
             </div>
-            {hasActiveFilters && (
-              <div className="text-xs text-gray-500">
-                {selectedCategories.length > 0 && `Categories: ${selectedCategories.join(', ')} `}
-                {selectedSubCategories.length > 0 && `Subcategories: ${selectedSubCategories.join(', ')} `}
-                {sortType !== 'default' && `Sorted by: ${sortType}`}
-              </div>
-            )}
+        
           </div>
           
           {/* Sort Dropdown */}
@@ -361,7 +476,7 @@ const Collection = () => {
 
         {/* Products Grid */}
         {filterProducts.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 gap-y-6 md:grid-cols-3 ">
             {filterProducts.map((item) => (
               <ProductItem
                 key={item._id}

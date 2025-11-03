@@ -58,8 +58,8 @@ const About = () => {
           alt="Natura Bliss - Pakistan's First All-Natural Personal Care Brand"
         />
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center text-white px-4">
-          <h1 className="text-5xl md:text-7xl font-serif font-bold mb-6 tracking-tight">
-            NATURA <span className="text-green-100">BLISS</span>
+          <h1 className="text-oswald  lg:text-8xl text-7xl font-serif font-bold mb-6 tracking-tight">
+            NATURA <span className="text-oswald text-holo">BLISS</span>
           </h1>
           <p className="text-xl md:text-2xl font-light max-w-3xl leading-relaxed">
             "Jahan Khusboo Hai Kudrat Ki" - Where Nature's Fragrance Lives
@@ -158,7 +158,7 @@ const About = () => {
             </div>
             <div className="relative">
               <img
-                src={assets.about_img2}
+                src={assets.about_img3}
                 alt="Natura Bliss Natural Ingredients"
                 className="w-full h-96 object-cover border border-gray-200"
               />
