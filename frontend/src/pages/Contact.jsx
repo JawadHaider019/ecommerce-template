@@ -27,19 +27,19 @@ const backendUrl = import.meta.env.VITE_BACKEND_URL;
 const Contact = () => {
   const [businessInfo, setBusinessInfo] = useState({
     company: {
-      name: "Natura Bliss",
+      name: "Natural Skincare",
       tagline: "Pure Natural Skincare",
       description: "Pure, handmade natural skincare products crafted with organic ingredients for your wellness."
     },
     contact: {
       customerSupport: {
-        email: "naturabliss@gmail.com",
-        phone: "+92-317 5546007",
+        email: "contact@naturalskincare.com",
+        phone: "+1-555-123-4567",
         hours: "24/7"
       }
     },
     location: {
-      displayAddress: "123 Natural Street, Green Valley, PK",
+      displayAddress: "123 Wellness Street, Green Valley",
       googleMapsLink: ""
     },
     socialMedia: {
@@ -147,9 +147,9 @@ const Contact = () => {
     return generateDefaultEmbedUrl();
   };
 
-  // Generate default embed URL for Talagang location
+  // Generate default embed URL
   const generateDefaultEmbedUrl = () => {
-    return 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d5970.447351128933!2d72.41338053887199!3d32.93395276948207!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3920958fc3ecf04d%3A0xaa7e232dc6b315f8!2sJamia%20Masjid%20Nizar%20Ali!5e0!3m2!1sen!2s!4v1761165761202!5m2!1sen!2s';
+    return 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d13398.257699999999!2d72.4054!3d32.9295!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDU1JzQ2LjIiTiA3MsKwMjQnNTUuNCJF!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s';
   };
 
   // Generate embed URL from address
@@ -159,7 +159,7 @@ const Contact = () => {
     const address = location.displayName || 
                    (location.address ? 
                     `${location.address.street}, ${location.address.city}, ${location.address.state}` : 
-                    'Talagang, Pakistan');
+                    'Wellness Center');
     
     return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d13398.257699999999!2d72.4054!3d32.9295!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDU1JzQ2LjIiTiA3MsKwMjQnNTUuNCJF!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s&q=${encodeURIComponent(address)}&z=17`;
   };
@@ -347,17 +347,17 @@ const Contact = () => {
         storeName: 'Main Store',
         storeType: 'retail',
         location: {
-          displayName: 'Near Nazar Ali Masjid, Talagang, Pakistan',
+          displayName: '123 Wellness Street, Green Valley',
           address: {
-            street: 'Near Nazar Ali Masjid',
-            city: 'Talagang',
-            state: 'Punjab',
-            zipCode: '48800'
+            street: '123 Wellness Street',
+            city: 'Green Valley',
+            state: 'Wellness State',
+            zipCode: '12345'
           },
-          googleMapsEmbed: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d5970.447351128933!2d72.41338053887199!3d32.93395276948207!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3920958fc3ecf04d%3A0xaa7e232dc6b315f8!2sJamia%20Masjid%20Nizar%20Ali!5e0!3m2!1sen!2s!4v1761165761202!5m2!1sen!2s'
+          googleMapsEmbed: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d13398.257699999999!2d72.4054!3d32.9295!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDU1JzQ2LjIiTiA3MsKwMjQnNTUuNCJF!5e0!3m2!1sen!2s!4v1742395541712!5m2!1sen!2s'
         },
         contact: {
-          phone: businessInfo.contact?.customerSupport?.phone || '+92-317 5546007',
+          phone: businessInfo.contact?.customerSupport?.phone || '+1-555-123-4567',
         },
         operatingHours: {
           monday: { open: "09:00", close: "18:00", closed: false },
@@ -510,7 +510,7 @@ const Contact = () => {
                   <div>
                     <h4 className="font-semibold text-gray-900 text-base">Phone</h4>
                     <p className="text-gray-600 text-base mt-1">
-                      {businessInfo.contact?.customerSupport?.phone || "+92-317 5546007"}
+                      {businessInfo.contact?.customerSupport?.phone || "+1-555-123-4567"}
                     </p>
                   </div>
                 </div>
@@ -522,7 +522,7 @@ const Contact = () => {
                   <div>
                     <h4 className="font-semibold text-gray-900 text-base">Email</h4>
                     <p className="text-gray-600 text-base mt-1">
-                      {businessInfo.contact?.customerSupport?.email || "naturabliss@gmail.com"}
+                      {businessInfo.contact?.customerSupport?.email || "contact@naturalskincare.com"}
                     </p>
                   </div>
                 </div>
@@ -534,7 +534,7 @@ const Contact = () => {
                   <div>
                     <h4 className="font-semibold text-gray-900 text-base">Address</h4>
                     <p className="text-gray-600 text-sm mt-1 leading-relaxed">
-                      {businessInfo.location?.displayAddress || "123 Natural Street, Green Valley, PK"}
+                      {businessInfo.location?.displayAddress || "123 Wellness Street, Green Valley"}
                     </p>
                   </div>
                 </div>

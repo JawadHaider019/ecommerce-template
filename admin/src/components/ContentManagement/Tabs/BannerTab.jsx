@@ -1,4 +1,3 @@
-// Banner.jsx
 import React, { useState, useEffect, useRef } from "react";
 import axios from 'axios';
 import { IoIosArrowForward } from "react-icons/io";
@@ -7,11 +6,83 @@ import { Link } from 'react-router-dom';
 // API service configuration
 const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}`;
 
-// Create axios instance
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-});
+// Enhanced axios instance with retry logic and longer timeout
+const createApiInstance = (baseURL) => {
+  const instance = axios.create({
+    baseURL,
+    timeout: 30000, // Increased to 30 seconds
+  });
+
+  // Add retry interceptor
+  instance.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const config = error.config;
+      
+      // If no retry count, initialize it
+      if (!config.retryCount) {
+        config.retryCount = 0;
+      }
+      
+      // Maximum retry attempts
+      const MAX_RETRY = 3;
+      
+      // Check if should retry (timeout errors and 5xx errors)
+      if (config.retryCount < MAX_RETRY && 
+          (error.code === 'ECONNABORTED' || !error.response || error.response.status >= 500)) {
+        
+        config.retryCount += 1;
+        
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.pow(2, config.retryCount) * 1000;
+        
+        console.log(`Retrying request (${config.retryCount}/${MAX_RETRY}) after ${delay}ms`);
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        return instance(config);
+      }
+      
+      return Promise.reject(error);
+    }
+  );
+  
+  return instance;
+};
+
+const api = createApiInstance(API_BASE_URL);
+
+// Image optimization helper
+const optimizeImageUpload = (file, maxSizeMB = 5) => {
+  return new Promise((resolve, reject) => {
+    // Check file size
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      reject(new Error(`Image size must be less than ${maxSizeMB}MB`));
+      return;
+    }
+
+    // Check file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      reject(new Error('Please upload a valid image (JPEG, PNG, or WebP)'));
+      return;
+    }
+
+    resolve(file);
+  });
+};
+
+// Connection health check
+const checkConnectionHealth = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/health`, { timeout: 5000 });
+    return response.status === 200;
+  } catch (error) {
+    console.warn('Connection health check failed:', error.message);
+    return false;
+  }
+};
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -38,12 +109,12 @@ const Toast = ({ message, type, onClose }) => {
   }[type];
 
   return (
-    <div className={`fixed top-4 right-4 ${bgColor} text-white px-4 py-3 sm:px-6 sm:py-4 shadow-lg z-50 flex items-center gap-3 max-w-xs sm:max-w-md sm:min-w-80 mx-2 sm:mx-0`}>
+    <div className={`fixed top-4 right-4 ${bgColor} text-white px-4 py-3 sm:px-6 sm:py-4 shadow-lg z-50 flex items-center gap-3 max-w-xs sm:max-w-md sm:min-w-80 mx-2 sm:mx-0 rounded-lg`}>
       <i className={`fas ${icon} text-base sm:text-lg`}></i>
       <span className="flex-1 text-sm sm:text-base">{message}</span>
       <button
         onClick={onClose}
-        className="text-white hover:text-gray-200 text-base sm:text-lg"
+        className="text-white hover:text-gray-200 text-base sm:text-lg transition-colors"
       >
         <i className="fas fa-times"></i>
       </button>
@@ -57,10 +128,10 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, banner }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
-      <div className="bg-white max-w-sm sm:max-w-md w-full mx-2 sm:mx-0">
+      <div className="bg-white max-w-sm sm:max-w-md w-full mx-2 sm:mx-0 rounded-lg shadow-xl">
         <div className="p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="bg-red-100 p-2 sm:p-3">
+            <div className="bg-red-100 p-2 sm:p-3 rounded-full">
               <i className="fas fa-exclamation-triangle text-red-600 text-lg sm:text-xl"></i>
             </div>
             <div>
@@ -70,7 +141,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, banner }) => {
           </div>
           
           {banner && (
-            <div className="bg-gray-50 p-3 sm:p-4 mb-4">
+            <div className="bg-gray-50 p-3 sm:p-4 mb-4 rounded-lg">
               <p className="font-medium text-gray-800 text-sm sm:text-base">Banner Details:</p>
               <p className="text-xs sm:text-sm text-gray-600 mt-1">
                 {banner.headingLine1 || 'Untitled Banner'} (Order: {banner.order})
@@ -80,7 +151,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, banner }) => {
                   <img 
                     src={banner.imageUrl} 
                     alt="Banner preview" 
-                    className="h-16 sm:h-20 w-24 sm:w-32 object-cover border"
+                    className="h-16 sm:h-20 w-24 sm:w-32 object-cover border rounded"
                   />
                 </div>
               )}
@@ -91,16 +162,16 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, banner }) => {
             Are you sure you want to delete this banner? This will permanently remove the banner and its associated image.
           </p>
 
-          <div className="flex gap-2 sm:gap-3 justify-end">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end">
             <button
               onClick={onClose}
-              className="px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors text-sm sm:text-base"
+              className="px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors text-sm sm:text-base rounded-md flex-1 sm:flex-none"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              className="px-3 sm:px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center gap-2 text-sm sm:text-base"
+              className="px-3 sm:px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center gap-2 text-sm sm:text-base rounded-md flex-1 sm:flex-none justify-center"
             >
               <i className="fas fa-trash-alt"></i>
               Delete Banner
@@ -112,7 +183,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, banner }) => {
   );
 };
 
-// Banner Management Component - Use this for admin management
+// Banner Management Component
 export const BannerManager = () => {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -133,16 +204,21 @@ export const BannerManager = () => {
       setLoading(true);
       setError(null);
       
+      // Check connection first
+      const isHealthy = await checkConnectionHealth();
+      if (!isHealthy) {
+        showToast('Connection is slow, please wait...', 'warning');
+      }
+      
       const response = await api.get('/api/banners');
       
       if (response.data.success) {
-        // Sort banners by order field
         const sortedBanners = response.data.data.sort((a, b) => a.order - b.order);
         const bannersWithPreview = sortedBanners.map(banner => ({
           ...banner,
           imagePreview: banner.imageUrl,
           imageFile: null,
-          isEditing: false // Add editing state
+          isEditing: false
         }));
         setBanners(bannersWithPreview);
         showToast('Banners loaded successfully', 'success');
@@ -158,12 +234,11 @@ export const BannerManager = () => {
     }
   };
 
-  // Save individual banner
-  const handleSaveBanner = async (bannerData) => {
+  // Save individual banner with progress tracking
+  const handleSaveBanner = async (bannerData, onProgress = null) => {
     try {
       const formData = new FormData();
       
-      // Append all fields to formData
       const fields = ['headingLine1', 'headingLine2', 'subtext', 'buttonText', 'redirectUrl', 'isActive', 'order'];
       fields.forEach(field => {
         if (bannerData[field] !== undefined && bannerData[field] !== null) {
@@ -171,20 +246,21 @@ export const BannerManager = () => {
         }
       });
 
-      // Append image file if exists
       if (bannerData.imageFile) {
         formData.append('image', bannerData.imageFile);
       }
 
+      const config = {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000, // 60 seconds for uploads
+        onUploadProgress: onProgress || (() => {}),
+      };
+
       let response;
       if (bannerData._id) {
-        response = await api.put(`/api/banners/${bannerData._id}`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        response = await api.put(`/api/banners/${bannerData._id}`, formData, config);
       } else {
-        response = await api.post('/api/banners', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        response = await api.post('/api/banners', formData, config);
       }
       
       return response.data;
@@ -222,7 +298,7 @@ export const BannerManager = () => {
       imagePreview: '',
       isActive: true,
       order: newOrder,
-      isEditing: true // New banners start in edit mode
+      isEditing: true
     }]);
     showToast('New banner added', 'info');
   };
@@ -233,13 +309,11 @@ export const BannerManager = () => {
       setSaving(true);
       setError(null);
       
-      // Save each banner
       for (let i = 0; i < banners.length; i++) {
         const banner = banners[i];
         await handleSaveBanner(banner);
       }
       
-      // Reload banners to get updated data
       await loadBanners();
       showToast('All banners saved successfully', 'success');
       
@@ -289,17 +363,15 @@ export const BannerManager = () => {
 
   // Move banner up in order
   const moveBannerUp = (index) => {
-    if (index === 0) return; // Can't move first item up
+    if (index === 0) return;
     
     const updated = [...banners];
     const currentOrder = updated[index].order;
     const prevOrder = updated[index - 1].order;
     
-    // Swap orders
     updated[index].order = prevOrder;
     updated[index - 1].order = currentOrder;
     
-    // Sort by order
     updated.sort((a, b) => a.order - b.order);
     setBanners(updated);
     showToast('Banner order updated', 'info');
@@ -307,17 +379,15 @@ export const BannerManager = () => {
 
   // Move banner down in order
   const moveBannerDown = (index) => {
-    if (index === banners.length - 1) return; // Can't move last item down
+    if (index === banners.length - 1) return;
     
     const updated = [...banners];
     const currentOrder = updated[index].order;
     const nextOrder = updated[index + 1].order;
     
-    // Swap orders
     updated[index].order = nextOrder;
     updated[index + 1].order = currentOrder;
     
-    // Sort by order
     updated.sort((a, b) => a.order - b.order);
     setBanners(updated);
     showToast('Banner order updated', 'info');
@@ -328,15 +398,12 @@ export const BannerManager = () => {
     const updated = [...banners];
     const oldOrder = updated[index].order;
     
-    // If another banner has this order, swap them
     const existingBannerIndex = updated.findIndex(b => b.order === newOrder && b !== updated[index]);
     if (existingBannerIndex !== -1) {
       updated[existingBannerIndex].order = oldOrder;
     }
     
     updated[index].order = newOrder;
-    
-    // Sort by order
     updated.sort((a, b) => a.order - b.order);
     setBanners(updated);
   };
@@ -395,15 +462,15 @@ export const BannerManager = () => {
             {banners.filter(b => b._id).length > 0 && ` (${banners.filter(b => b._id).length} saved)`}
           </p>
           {error && (
-            <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 text-sm">
+            <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 text-sm rounded">
               <strong>Error:</strong> {error}
             </div>
           )}
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
             onClick={handleAddBanner}
-            className="flex-1 sm:flex-none bg-black text-white px-3 sm:px-4 py-2 hover:bg-gray-800 transition-colors flex items-center gap-2 justify-center text-sm sm:text-base"
+            className="flex-1 sm:flex-none bg-black text-white px-3 sm:px-4 py-2 hover:bg-gray-800 transition-colors flex items-center gap-2 justify-center text-sm sm:text-base rounded-md"
           >
             <i className="fas fa-plus"></i>
             Add Banner
@@ -411,7 +478,7 @@ export const BannerManager = () => {
           <button
             onClick={handleSaveAll}
             disabled={saving}
-            className="flex-1 sm:flex-none bg-black text-white px-3 sm:px-4 py-2 hover:bg-gray-800 disabled:opacity-50 transition-colors flex items-center gap-2 justify-center text-sm sm:text-base"
+            className="flex-1 sm:flex-none bg-black text-white px-3 sm:px-4 py-2 hover:bg-gray-800 disabled:opacity-50 transition-colors flex items-center gap-2 justify-center text-sm sm:text-base rounded-md"
           >
             <i className={`fas ${saving ? 'fa-spinner fa-spin' : 'fa-save'}`}></i>
             {saving ? 'Saving...' : 'Save All'}
@@ -443,12 +510,12 @@ export const BannerManager = () => {
       </div>
 
       {banners.length === 0 && !loading && (
-        <div className="text-center py-8 sm:py-12 border-2 border-dashed border-gray-300">
+        <div className="text-center py-8 sm:py-12 border-2 border-dashed border-gray-300 rounded-lg">
           <i className="fas fa-image text-3xl sm:text-4xl text-gray-400 mb-3 sm:mb-4"></i>
           <p className="text-gray-500 text-base sm:text-lg">No banners created yet</p>
           <button
             onClick={handleAddBanner}
-            className="mt-3 sm:mt-4 bg-black text-white px-3 sm:px-4 py-2 hover:bg-gray-800 transition-colors text-sm sm:text-base"
+            className="mt-3 sm:mt-4 bg-black text-white px-3 sm:px-4 py-2 hover:bg-gray-800 transition-colors text-sm sm:text-base rounded-md"
           >
             Create Your First Banner
           </button>
@@ -462,11 +529,11 @@ export const BannerManager = () => {
             <img
               src={selectedImage}
               alt="Preview"
-              className="max-w-full max-h-full object-contain"
+              className="max-w-full max-h-full object-contain rounded-lg"
             />
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-white text-gray-800 p-1 sm:p-2 hover:bg-gray-200 transition-colors"
+              className="absolute top-2 sm:top-4 right-2 sm:right-4 bg-white text-gray-800 p-1 sm:p-2 hover:bg-gray-200 transition-colors rounded-full"
             >
               <i className="fas fa-times text-sm sm:text-base"></i>
             </button>
@@ -497,30 +564,40 @@ const BannerCard = ({
   const [isActive, setIsActive] = useState(banner.isActive !== false);
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleBannerImageChange = (index, file) => {
+  const handleBannerImageChange = async (index, file) => {
     if (!file) return;
 
-    const updated = [...banners];
+    try {
+      // Validate and optimize image
+      const optimizedFile = await optimizeImageUpload(file);
+      
+      const updated = [...banners];
 
-    // Remove old preview if exists
-    const old = updated[index]?.imagePreview;
-    if (old && old.startsWith('blob:')) {
-      URL.revokeObjectURL(old);
-      previewUrlsRef.current = previewUrlsRef.current.filter(u => u !== old);
+      // Remove old preview if exists
+      const old = updated[index]?.imagePreview;
+      if (old && old.startsWith('blob:')) {
+        URL.revokeObjectURL(old);
+        previewUrlsRef.current = previewUrlsRef.current.filter(u => u !== old);
+      }
+
+      // Create new preview
+      const preview = URL.createObjectURL(optimizedFile);
+      previewUrlsRef.current.push(preview);
+
+      updated[index] = {
+        ...updated[index],
+        imageFile: optimizedFile,
+        imagePreview: preview,
+      };
+
+      setBanners(updated);
+      
+    } catch (error) {
+      showToast(`Image error: ${error.message}`, 'error');
     }
-
-    // Create new preview
-    const preview = URL.createObjectURL(file);
-    previewUrlsRef.current.push(preview);
-
-    updated[index] = {
-      ...updated[index],
-      imageFile: file,
-      imagePreview: preview,
-    };
-
-    setBanners(updated);
   };
 
   const removeBannerImage = (index) => {
@@ -550,28 +627,33 @@ const BannerCard = ({
   const handleSaveSingle = async () => {
     try {
       setSaving(true);
+      setIsUploading(true);
+      setUploadProgress(0);
       
       if (typeof onSave !== 'function') {
         throw new Error('Save function is not available');
       }
       
-      const result = await onSave(banner);
+      const result = await onSave(banner, (progressEvent) => {
+        const progress = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total
+        );
+        setUploadProgress(progress);
+      });
       
       if (result && result.data) {
-        // Update local state with saved banner data
         const updated = [...banners];
         updated[index] = {
           ...result.data,
           imagePreview: result.data.imageUrl,
           imageFile: null,
-          isEditing: false // Exit edit mode after save
+          isEditing: false
         };
         setBanners(updated);
         
         setLastSaved(new Date());
         showToast('Banner saved successfully', 'success');
         
-        // Reload all banners to ensure consistency
         if (onReload) {
           setTimeout(onReload, 1000);
         }
@@ -582,6 +664,8 @@ const BannerCard = ({
       showToast('Error saving banner: ' + error.message, 'error');
     } finally {
       setSaving(false);
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -593,24 +677,24 @@ const BannerCard = ({
   };
 
   return (
-    <div className="border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+    <div className="border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow rounded-lg overflow-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 md:p-5 border-b border-gray-200 gap-3 sm:gap-0">
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm font-medium text-gray-500">Order: {banner.order}</span>
             <div className="flex flex-col gap-1">
               <button
                 onClick={onMoveUp}
                 disabled={index === 0}
-                className="bg-gray-200 text-gray-700 p-1 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs"
+                className="bg-gray-200 text-gray-700 p-1 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs rounded"
               >
                 <i className="fas fa-chevron-up"></i>
               </button>
               <button
                 onClick={onMoveDown}
                 disabled={index === banners.length - 1}
-                className="bg-gray-200 text-gray-700 p-1 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs"
+                className="bg-gray-200 text-gray-700 p-1 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs rounded"
               >
                 <i className="fas fa-chevron-down"></i>
               </button>
@@ -622,7 +706,7 @@ const BannerCard = ({
               type="checkbox"
               checked={isActive}
               onChange={(e) => handleActiveToggle(e.target.checked)}
-              className="border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              className="border-gray-300 text-indigo-600 focus:ring-indigo-500 rounded"
             />
             <span className="text-xs sm:text-sm text-gray-600">Active</span>
           </label>
@@ -630,19 +714,19 @@ const BannerCard = ({
           {/* Status Badges */}
           <div className="flex gap-1 sm:gap-2">
             {banner._id && (
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 flex items-center gap-1">
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 flex items-center gap-1 rounded-full">
                 <i className="fas fa-check"></i>
                 Saved
               </span>
             )}
             {hasUnsavedChanges() && banner.isEditing && (
-              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 flex items-center gap-1">
+              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 flex items-center gap-1 rounded-full">
                 <i className="fas fa-edit"></i>
                 Unsaved
               </span>
             )}
             {lastSaved && (
-              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 hidden sm:block">
+              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 hidden sm:block rounded-full">
                 Saved {lastSaved.toLocaleTimeString()}
               </span>
             )}
@@ -652,7 +736,7 @@ const BannerCard = ({
           <button
             onClick={banner.isEditing ? handleSaveSingle : onToggleEdit}
             disabled={saving}
-            className={`flex-1 sm:flex-none flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-3 py-2 transition-colors ${
+            className={`flex-1 sm:flex-none flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-3 py-2 transition-colors rounded-md ${
               banner.isEditing 
                 ? 'bg-black text-white hover:bg-gray-800 disabled:opacity-50' 
                 : 'bg-black text-white hover:bg-gray-800'
@@ -663,13 +747,29 @@ const BannerCard = ({
           </button>
           <button
             onClick={onRemove}
-            className="flex-1 sm:flex-none flex items-center gap-1 text-xs sm:text-sm bg-red-600 text-white px-2 sm:px-3 py-2 hover:bg-red-700 transition-colors"
+            className="flex-1 sm:flex-none flex items-center gap-1 text-xs sm:text-sm bg-red-600 text-white px-2 sm:px-3 py-2 hover:bg-red-700 transition-colors rounded-md"
           >
             <i className="fas fa-trash-alt"></i>
             Delete
           </button>
         </div>
       </div>
+
+      {/* Upload Progress */}
+      {isUploading && uploadProgress > 0 && (
+        <div className="px-4 pb-3">
+          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+            <span>Uploading...</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-green-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="p-3 sm:p-4 md:p-5">
@@ -683,15 +783,15 @@ const BannerCard = ({
               </label>
               <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
                 <div className="relative flex-1 w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed border-gray-300 cursor-pointer hover:border-indigo-400 transition-colors bg-gray-50">
+                  <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed border-gray-300 cursor-pointer hover:border-indigo-400 transition-colors bg-gray-50 rounded-lg">
                     <div className="flex flex-col items-center justify-center pt-4 pb-5 sm:pt-5 sm:pb-6">
                       <i className="fas fa-cloud-upload-alt text-xl sm:text-3xl text-gray-400 mb-1 sm:mb-2"></i>
                       <p className="text-xs sm:text-sm text-gray-500">Click to upload an image</p>
-                      <p className="text-xs text-gray-400 mt-1 hidden sm:block">Recommended: 1920x600px</p>
+                      <p className="text-xs text-gray-400 mt-1 hidden sm:block">Max 5MB, JPEG/PNG/WebP</p>
                     </div>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -706,17 +806,17 @@ const BannerCard = ({
                     <img
                       src={banner.imagePreview || banner.imageUrl}
                       alt={`Banner ${index + 1} Preview`}
-                      className="h-24 sm:h-32 w-32 sm:w-48 object-cover border-2 border-gray-200 cursor-pointer shadow-sm"
+                      className="h-24 sm:h-32 w-32 sm:w-48 object-cover border-2 border-gray-200 cursor-pointer shadow-sm rounded-lg"
                       onClick={() => setSelectedImage(banner.imagePreview || banner.imageUrl)}
                     />
                     <button
                       onClick={() => removeBannerImage(index)}
-                      className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-red-600 text-white p-1 text-xs hover:bg-red-700 transition-colors shadow-md"
+                      className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-red-600 text-white p-1 text-xs hover:bg-red-700 transition-colors shadow-md rounded-full"
                     >
                       <i className="fas fa-times w-2 h-2 sm:w-3 sm:h-3"></i>
                     </button>
                     {banner.imageUrl && !banner.imageFile && (
-                      <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 bg-black bg-opacity-50 text-white text-xs px-1 sm:px-2 py-1">
+                      <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 bg-black bg-opacity-50 text-white text-xs px-1 sm:px-2 py-1 rounded">
                         From DB
                       </div>
                     )}
@@ -780,7 +880,7 @@ const BannerCard = ({
                     {item.type === "textarea" ? (
                       <textarea
                         placeholder={item.placeholder}
-                        className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 resize-none text-sm sm:text-base"
+                        className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 resize-none text-sm sm:text-base rounded-md"
                         rows={2}
                         value={banner[item.field] || ""}
                         onChange={(e) => {
@@ -793,7 +893,7 @@ const BannerCard = ({
                       <input
                         type="number"
                         placeholder={item.placeholder}
-                        className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 text-sm sm:text-base"
+                        className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 text-sm sm:text-base rounded-md"
                         value={banner[item.field] || 0}
                         min="0"
                         onChange={(e) => {
@@ -805,7 +905,7 @@ const BannerCard = ({
                       <input
                         type="text"
                         placeholder={item.placeholder}
-                        className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 text-sm sm:text-base"
+                        className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 border border-gray-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 text-sm sm:text-base rounded-md"
                         value={banner[item.field] || ""}
                         onChange={(e) => {
                           const updated = [...banners];
@@ -820,10 +920,10 @@ const BannerCard = ({
             </div>
           </>
         ) : (
-          /* View Mode - Fixed text positioning */
+          /* View Mode */
           <div className="flex flex-col gap-4">
-            {/* Banner Preview - Fixed styling */}
-            <div className="relative w-full h-[90vh] overflow-hidden bg-black border border-gray-300">
+            {/* Banner Preview */}
+            <div className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] overflow-hidden bg-black border border-gray-300 rounded-lg">
               {(banner.imagePreview || banner.imageUrl) ? (
                 <img
                   src={banner.imagePreview || banner.imageUrl}
@@ -842,11 +942,11 @@ const BannerCard = ({
               {/* Dark Overlay */}
               <div className="absolute inset-0 bg-black/50 z-10"></div>
               
-              {/* Content overlay - Fixed positioning */}
-              <div className="absolute inset-0 z-20 flex flex-col justify-between p-6">
+              {/* Content overlay - Responsive positioning */}
+              <div className="absolute inset-0 z-20 flex flex-col justify-between p-4 sm:p-6">
                 {/* Top heading section */}
-                <div className="flex-1 flex items-start pt-10 md:pt-25">
-                  <h1 className="text-oswald text-5xl sm:text-5xl md:text-6xl lg:text-8xl font-extrabold text-white uppercase leading-none tracking-tighter">
+                <div className="flex-1 flex items-start pt-8 sm:pt-10 md:pt-25">
+                  <h1 className="text-oswald text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-8xl font-extrabold text-white uppercase leading-tight sm:leading-none tracking-tighter">
                     {banner.headingLine1 || "Your Banner Heading"}
                     {banner.headingLine2 && (
                       <>
@@ -858,11 +958,11 @@ const BannerCard = ({
                 </div>
 
                 {/* Bottom content section */}
-                <div className="flex justify-between items-end">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                   {/* Subtext */}
                   {banner.subtext && (
                     <div className="flex-1">
-                      <p className="font-mono text-xs uppercase max-w-60 md:max-w-80 border-y border-white/70 py-2 text-white/90">
+                      <p className="font-mono text-xs sm:text-sm uppercase max-w-full sm:max-w-60 md:max-w-80 border-y border-white/70 py-2 text-white/90">
                         {banner.subtext}
                       </p>
                     </div>
@@ -870,15 +970,15 @@ const BannerCard = ({
 
                   {/* Button */}
                   {banner.buttonText && banner.redirectUrl && (
-                    <div className="text-right">
+                    <div className="text-right w-full sm:w-auto">
                       <Link
                         to={banner.redirectUrl}
-                        className="inline-flex items-center gap-2 px-6 py-3 text-sm md:text-base font-semibold text-white lowercase transition-all duration-300 hover:text-gray-100 hover:scale-105"
+                        className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm md:text-base font-semibold text-white lowercase transition-all duration-300 hover:text-gray-100 hover:scale-105 bg-black bg-opacity-50 rounded-md"
                         aria-label={`${banner.buttonText} - ${banner.headingLine1}`}
                       >
                         {banner.buttonText}
                         <span className="inline-flex items-center justify-center w-4 h-4 bg-white text-black rounded-full">
-                          <IoIosArrowForward size={16} />
+                          <IoIosArrowForward size={12} className="sm:w-4 sm:h-4" />
                         </span>
                       </Link>
                     </div>
@@ -891,7 +991,7 @@ const BannerCard = ({
             <div className="space-y-3 sm:space-y-4">
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Banner Details</h4>
-                <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
                   <div>
                     <span className="font-medium">Order:</span>
                     <p className="text-gray-600">{banner.order}</p>
@@ -907,7 +1007,7 @@ const BannerCard = ({
                     </div>
                   )}
                   {banner.subtext && (
-                    <div>
+                    <div className="sm:col-span-2">
                       <span className="font-medium">Subtext:</span>
                       <p className="text-gray-600">{banner.subtext}</p>
                     </div>
@@ -932,9 +1032,9 @@ const BannerCard = ({
 
         {/* Preview Info */}
         <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
-          <div className="text-xs text-gray-500 flex items-center justify-between">
-            <span className="text-xs">{banner.isEditing ? "Edit mode - Make changes and click Save" : "View mode - Click Edit to modify this banner"}</span>
-            <span className={`px-2 py-1 text-xs ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+          <div className="text-xs text-gray-500 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <span>{banner.isEditing ? "Edit mode - Make changes and click Save" : "View mode - Click Edit to modify this banner"}</span>
+            <span className={`px-2 py-1 text-xs rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
               {isActive ? 'Active' : 'Inactive'}
             </span>
           </div>
@@ -944,7 +1044,7 @@ const BannerCard = ({
   );
 };
 
-// Main Banner Display Component for Website - Fixed text positioning
+// Main Banner Display Component for Website
 export const BannerDisplay = ({ banners = [] }) => {
   const [activeBanners, setActiveBanners] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -958,7 +1058,6 @@ export const BannerDisplay = ({ banners = [] }) => {
           setLoading(true);
           const response = await api.get('/api/banners/active');
           if (response.data.success) {
-            // Sort active banners by order
             const sortedBanners = response.data.data.sort((a, b) => a.order - b.order);
             setActiveBanners(sortedBanners);
           }
@@ -983,14 +1082,14 @@ export const BannerDisplay = ({ banners = [] }) => {
     if (activeBanners.length > 1) {
       const timer = setInterval(() => {
         setCurrentBannerIndex((prev) => (prev + 1) % activeBanners.length);
-      }, 5000); // 5 seconds rotation
+      }, 5000);
       return () => clearInterval(timer);
     }
   }, [activeBanners.length]);
 
   if (loading) {
     return (
-      <section className="relative w-full h-[90vh] overflow-hidden bg-black">
+      <section className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] overflow-hidden bg-black">
         <div className="absolute inset-0 bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse"></div>
         <div className="absolute inset-0 bg-black/50"></div>
       </section>
@@ -999,7 +1098,7 @@ export const BannerDisplay = ({ banners = [] }) => {
 
   if (activeBanners.length === 0) {
     return (
-      <section className="relative w-full h-[90vh] overflow-hidden bg-black">
+      <section className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] overflow-hidden bg-black">
         <div className="absolute inset-0 bg-gradient-to-r from-gray-100 to-gray-200"></div>
         <div className="h-full flex items-center justify-center text-center text-gray-600 px-6">
           <div>
@@ -1010,13 +1109,12 @@ export const BannerDisplay = ({ banners = [] }) => {
     );
   }
 
-  // Show only the current active banner
   const currentBanner = activeBanners[currentBannerIndex];
 
   return (
     <div className="relative w-full overflow-hidden" aria-label="Featured banners">
       {/* Single Banner Display */}
-      <section className="relative w-full h-[90vh] overflow-hidden bg-black">
+      <section className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] overflow-hidden bg-black">
         {/* Background Image */}
         <img
           src={currentBanner.imageUrl}
@@ -1031,11 +1129,11 @@ export const BannerDisplay = ({ banners = [] }) => {
         {/* Dark Overlay */}
         <div className="absolute inset-0 bg-black/50 z-10"></div>
 
-        {/* Content overlay - Fixed positioning */}
-        <div className="absolute inset-0 z-20 flex flex-col justify-between p-6">
+        {/* Content overlay - Responsive positioning */}
+        <div className="absolute inset-0 z-20 flex flex-col justify-between p-4 sm:p-6">
           {/* Top heading section */}
-          <div className="flex-1 flex items-start pt-10 md:pt-25">
-            <h1 className="text-oswald text-5xl sm:text-5xl md:text-6xl lg:text-8xl font-extrabold text-white uppercase leading-none tracking-tighter">
+          <div className="flex-1 flex items-start pt-8 sm:pt-10 md:pt-25">
+            <h1 className="text-oswald text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-8xl font-extrabold text-white uppercase leading-tight sm:leading-none tracking-tighter">
               {currentBanner.headingLine1}
               {currentBanner.headingLine2 && (
                 <>
@@ -1047,11 +1145,11 @@ export const BannerDisplay = ({ banners = [] }) => {
           </div>
 
           {/* Bottom content section */}
-          <div className="flex justify-between items-end">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
             {/* Subtext */}
             {currentBanner.subtext && (
               <div className="flex-1">
-                <p className="font-mono text-xs uppercase max-w-60 md:max-w-80 border-y border-white/70 py-2 text-white/90">
+                <p className="font-mono text-xs sm:text-sm uppercase max-w-full sm:max-w-60 md:max-w-80 border-y border-white/70 py-2 text-white/90">
                   {currentBanner.subtext}
                 </p>
               </div>
@@ -1059,15 +1157,15 @@ export const BannerDisplay = ({ banners = [] }) => {
 
             {/* Button */}
             {currentBanner.buttonText && currentBanner.redirectUrl && (
-              <div className="text-right">
+              <div className="text-right w-full sm:w-auto">
                 <Link
                   to={currentBanner.redirectUrl}
-                  className="inline-flex items-center gap-2 px-6 py-3 text-sm md:text-base font-semibold text-white lowercase transition-all duration-300 hover:text-gray-100 hover:scale-105"
+                  className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm md:text-base font-semibold text-white lowercase transition-all duration-300 hover:text-gray-100 hover:scale-105 bg-black bg-opacity-50 rounded-md"
                   aria-label={`${currentBanner.buttonText} - ${currentBanner.headingLine1}`}
                 >
                   {currentBanner.buttonText}
                   <span className="inline-flex items-center justify-center w-4 h-4 bg-white text-black rounded-full">
-                    <IoIosArrowForward size={16} />
+                    <IoIosArrowForward size={12} className="sm:w-4 sm:h-4" />
                   </span>
                 </Link>
               </div>

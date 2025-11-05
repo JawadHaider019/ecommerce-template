@@ -124,6 +124,7 @@ const RelatedDeals = ({ category, currentDealId }) => {
                     endDate={deal.dealEndDate}
                     onDealClick={handleDealClick}
                     currency={currency}
+                    
                   />
                 </div>
               </div>

@@ -53,6 +53,7 @@ const RelatedProduct = ({ category }) => {
               price={item.price}
               discount={item.discountprice}
               rating={item.rating || 0}
+                  status={item.status}
             />
           ))}
         </div>

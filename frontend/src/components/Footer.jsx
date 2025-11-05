@@ -20,19 +20,19 @@ const backendUrl = import.meta.env.VITE_BACKEND_URL;
 const Footer = () => {
     const [businessInfo, setBusinessInfo] = useState({
         company: {
-            name: "Natura Bliss",
+            name: "Natural Skincare",
             description: "Handmade organic skincare crafted from pure, natural ingredients — gentle on your skin and kind to the planet.",
             foundedYear: 2024
         },
         contact: {
             customerSupport: {
-                email: "naturabliss@gmail.com",
-                phone: "+92-333-3333",
+                email: "contact@naturalskincare.com",
+                phone: "+1-555-123-4567",
                 
             }
         },
         location: {
-            displayAddress: "123 Natural Street, Green Valley, PK",
+            displayAddress: "123 Wellness Street, Green Valley",
             googleMapsLink: ""
         },
         socialMedia: {
@@ -104,7 +104,7 @@ const Footer = () => {
 
     // Get current year for copyright
     const currentYear = new Date().getFullYear()
-    const copyrightText = `© ${currentYear} ${businessInfo.company?.name || 'Natura Bliss'}. All rights reserved.`
+    const copyrightText = `© ${currentYear} ${businessInfo.company?.name || 'Natural Skincare'}. All rights reserved.`
        
     // Logo display component
     const LogoDisplay = () => {
@@ -112,7 +112,7 @@ const Footer = () => {
             return (
                 <img 
                     src={businessInfo.logos.website.url} 
-                    alt={`${businessInfo.company?.name || 'Natura Bliss'} Logo`} 
+                    alt={`${businessInfo.company?.name || 'Natural Skincare'} Logo`} 
                     className="w-32 mb-4 object-contain"
                     onError={(e) => {
                         e.target.src = assets.logo
@@ -122,7 +122,7 @@ const Footer = () => {
         }
         
         return (
-            <img src={assets.logo} className="w-32 mb-4" alt="Natura Bliss Logo" />
+            <img src={assets.logo} className="w-32 mb-4" alt="Natural Skincare Logo" />
         )
     }
 
@@ -178,15 +178,15 @@ const Footer = () => {
                         <div className="space-y-3 text-gray-600 text-sm">
                             <div className="flex items-center space-x-2">
                                 <FontAwesomeIcon icon={faPhone} className="text-black w-4" />
-                                <span>{businessInfo.contact?.customerSupport?.phone || "+92-333-3333"}</span>
+                                <span>{businessInfo.contact?.customerSupport?.phone || "+1-555-123-4567"}</span>
                             </div>
                             <div className="flex items-center space-x-2">
                                 <FontAwesomeIcon icon={faEnvelope} className="text-black w-4" />
-                                <span>{businessInfo.contact?.customerSupport?.email || "naturabliss@gmail.com"}</span>
+                                <span>{businessInfo.contact?.customerSupport?.email || "contact@naturalskincare.com"}</span>
                             </div>
                             <div className="flex items-start space-x-2">
                                 <FontAwesomeIcon icon={faMapMarkerAlt} className="text-black w-4 mt-1" />
-                                <span>{businessInfo.location?.displayAddress || "123 Natural Street, Green Valley, PK"}</span>
+                                <span>{businessInfo.location?.displayAddress || "123 Wellness Street, Green Valley"}</span>
                             </div>
                           
                         </div>

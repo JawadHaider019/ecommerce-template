@@ -6,20 +6,19 @@ import { Link } from 'react-router-dom';
 const WhyChooseUs = () => {
   const keyPoints = [
     '100% natural and organic ingredients — safe, gentle, and effective',
-    'Free from parabens, sulfates, and artificial fragrances.',
-    'Perfect for all skin types, even sensitive skin.',
-    'Handcrafted with love and care for visible, lasting results',
+    'Free from parabens, sulfates, and artificial fragrances',
+    'Perfect for all skin types, even sensitive skin',
+    'Handcrafted with care for visible, lasting results',
   ];
 
   return (
-
     <div className="py-20 border-y border-gray-200">
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-16">
           <div className="text-center text-3xl">
-            <Title text1={'WHY CHOOSE'} text2={'NATURA BLISS?'} />
+            <Title text1={'WHY CHOOSE'} text2={'US?'} />
           </div>
-          <p className="text-gray-600 max-w-2xl mx-auto">Because Your Skin Deserves Pure, Natural, and Honest Care.</p>
+          <p className="text-gray-600 max-w-2xl mx-auto">Because Your Skin Deserves Pure, Natural, and Honest Care</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -38,7 +37,7 @@ const WhyChooseUs = () => {
           
           <div>
             <p className="text-gray-700 leading-relaxed mb-6 text-lg">
-              At Natura Bliss, we believe that real skincare comes from purity — not complex formulas. Every product is crafted to bring you closer to nature's healing power.
+              We believe that real skincare comes from purity — not complex formulas. Every product is crafted to bring you closer to nature's healing power.
             </p>
             
             <div className="space-y-4 mb-6">
