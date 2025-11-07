@@ -88,9 +88,9 @@ const Blog = () => {
       <div className="border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-3xl">
-            <Title text1={"SKINCARE"} text2={"JOURNAL"} />
+            <Title text1={"PURE CLAY"} text2={"JOURNAL"} />
             <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-              Expert tips, natural ingredient insights, and holistic beauty wisdom for radiant, healthy skin
+            Expert tips, natural ingredient insights, and wholesome wellness advice for a healthy, nourished life.
             </p>
           </div>
         </div>

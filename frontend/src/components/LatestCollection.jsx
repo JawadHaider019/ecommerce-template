@@ -228,8 +228,8 @@ const LatestCollection = () => {
       <div className="my-16 md:my-24">
         <div className="py-4 text-center text-2xl md:text-3xl">
           <Title text1={'LATEST'} text2={'COLLECTIONS'} />
-         <p className="text-[14px] md:text-[16px] text-gray-600 font-light px-4">
-            Experience the Beauty of Nature with Natura Bliss's Newest Organic Skincare Collection
+         <p className="text-[14px] md:text-[16px] text-gray-600 font-light px-2">
+Explore Pure Clay’s latest organic collection — fresh, natural, and proudly made in Pakistan.
           </p>
         </div>
         <div className="text-center text-red-500 py-8">
@@ -244,8 +244,8 @@ const LatestCollection = () => {
       <div className="py-2 text-center text-2xl md:text-3xl">
         <Title text1={'LATEST'} text2={'COLLECTIONS'} />
         <p className="text-[14px] md:text-[16px] text-gray-600 font-light px-4 max-w-2xl mx-auto">
-          Experience the Beauty of Nature with Natura Bliss's Newest Organic Skincare Collection
-        </p>
+    Explore Pure Clay’s latest organic collection — fresh, natural, and proudly made in Pakistan.
+  </p>
       </div>
 
       {latestProducts.length === 0 ? (

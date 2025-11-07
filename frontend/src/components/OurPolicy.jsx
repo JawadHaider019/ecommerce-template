@@ -20,12 +20,14 @@ const OurPolicy = () => {
       description: "All products made with pure, certified natural ingredients safe for sensitive skin types",
       color: "text-black"
     },
-    {
-      icon: faShippingFast,
-      title: "Fast Delivery",
-      description: "Quick and reliable shipping service for natural skincare products throughout Pakistan",
-      color: "text-black"
-    }
+{
+  icon: faShippingFast,
+  title: "Fast Delivery",
+  description: "Free delivery across Pakistan; minimal charges apply at checkout for order confirmation.",
+  color: "text-black"
+}
+
+
   ];
 
   return (
@@ -72,7 +74,7 @@ const OurPolicy = () => {
         <div className="mt-12 text-center">
           <div className="bg-white p-6 border border-gray-200 inline-block max-w-2xl">
             <p className="text-gray-700 leading-relaxed italic">
-              "At Natura Bliss, we believe in building trust through transparent policies and exceptional customer service. Your satisfaction is our ultimate priority."
+              "At Pure Clay, we build trust through clear policies and honest practices. Your satisfaction and well-being are our top priority."
             </p>
           </div>
         </div>

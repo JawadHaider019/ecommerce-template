@@ -266,7 +266,7 @@ const BestSeller = () => {
         <div className="py-4 text-center text-2xl md:text-3xl">
           <Title text1={"BEST"} text2={"SELLERS"} />
           <p className="text-[14px] md:text-[16px] text-gray-600 font-light px-4">
-            From Nature to Your Shelf — Discover the Organic Skincare Products Everyone's Talking About.
+        Pure Clay’s best-sellers — organic, natural, proudly made in Pakistan.
           </p>
         </div>
         <div className="text-center text-red-500 py-8">
@@ -281,7 +281,7 @@ const BestSeller = () => {
       <div className="py-4 text-center text-2xl md:text-3xl">
         <Title text1={"BEST"} text2={"SELLERS"} />
         <p className="text-[14px] md:text-[16px] text-gray-600 font-light px-4 max-w-2xl mx-auto">
-          From Nature to Your Shelf — Discover the Organic Skincare Products Everyone's Talking About.
+        Pure Clay’s best-sellers — organic, natural, proudly made in Pakistan.
         </p>
       </div>
 

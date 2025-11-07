@@ -580,7 +580,7 @@ const Contact = () => {
       </div>
 
       {/* Full Width Locations Section */}
-      <div className="w-full py-12 border-t border-gray-200">
+      {/* <div className="w-full py-12 border-t border-gray-200">
         <div className="w-full px-4">
           <div className="text-center mb-12">
             <div className="text-3xl">
@@ -685,7 +685,7 @@ const Contact = () => {
                     )}
                   </div>
 
-                  {/* Enhanced Map Card with External Zoom Controls */}
+                
                   {store.location?.googleMapsEmbed && (
                     <div className="mt-4">
                       <div className="border border-gray-200 rounded-lg overflow-hidden group/map">
@@ -712,7 +712,7 @@ const Contact = () => {
             })}
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

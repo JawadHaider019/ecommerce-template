@@ -5,10 +5,10 @@ import { Link } from 'react-router-dom';
 
 const WhyChooseUs = () => {
   const keyPoints = [
-    '100% natural and organic ingredients — safe, gentle, and effective',
-    'Free from parabens, sulfates, and artificial fragrances',
-    'Perfect for all skin types, even sensitive skin',
-    'Handcrafted with care for visible, lasting results',
+    '100% natural and organic ingredients — healthy, safe, and nourishing',
+    'Free from preservatives, chemicals, and artificial flavors',
+    'Perfect for daily use for all ages',
+    'Handpicked and carefully crafted for maximum quality and taste',
   ];
 
   return (
@@ -16,9 +16,9 @@ const WhyChooseUs = () => {
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-16">
           <div className="text-center text-3xl">
-            <Title text1={'WHY CHOOSE'} text2={'US?'} />
+            <Title text1={'WHY'} text2={'PURE CLAY'} />
           </div>
-          <p className="text-gray-600 max-w-2xl mx-auto">Because Your Skin Deserves Pure, Natural, and Honest Care</p>
+          <p className="text-gray-600 max-w-2xl mx-auto">Bringing you nature’s purity with love, care, and honesty — so your family can live healthier and happier.</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -26,7 +26,7 @@ const WhyChooseUs = () => {
             <img
               src={assets.whyus}
               alt="Natural Skincare Products"
-              className="w-full h-96 object-cover border border-gray-200"
+              className="w-full h-full object-cover border border-gray-200"
             />
             <div className="absolute -bottom-6 -left-6 bg-white p-6 border border-gray-200 max-w-xs">
               <p className="text-sm text-gray-600 italic">
@@ -37,7 +37,7 @@ const WhyChooseUs = () => {
           
           <div>
             <p className="text-gray-700 leading-relaxed mb-6 text-lg">
-              We believe that real skincare comes from purity — not complex formulas. Every product is crafted to bring you closer to nature's healing power.
+            We believe real wellness comes from nature — not artificial additives. Every product is crafted to bring you closer to pure, wholesome goodness.
             </p>
             
             <div className="space-y-4 mb-6">
@@ -50,7 +50,7 @@ const WhyChooseUs = () => {
             </div>
 
             <blockquote className="text-xl font-serif text-gray-800 italic leading-relaxed border-l-4 border-green-500 pl-6 py-4">
-              "Nature's wisdom in every drop, crafted for your well-being"
+              "Nature’s goodness in every bite, crafted for your well-being"
             </blockquote>
 
             <div className="mt-6">

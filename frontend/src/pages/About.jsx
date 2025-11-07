@@ -62,14 +62,14 @@ const About = () => {
             PURE <span className="text-oswald text-holo">NATURE</span>
           </h1>
           <p className="text-xl md:text-2xl font-light max-w-3xl leading-relaxed">
-            "Where Nature's Essence Meets Your Skin" - Embracing Natural Beauty
+Where Nature's Goodness Meets Your Life" — Embracing Wholesome, Organic Living
           </p>
-          <div className="w-24 h-1 bg-white mt-8"></div>
+        
         </div>
       </div>
 
-      {/* Editorial Introduction */}
-      <div className="max-w-4xl mx-auto px-6 py-16">
+
+      {/* <div className="max-w-4xl mx-auto px-6 py-16">
         <div className="text-center mb-12">
           <div className="inline-block border-b-2 border-green-700 pb-2 mb-8">
             <span className="text-sm font-semibold text-green-700 uppercase tracking-widest">Featured Story</span>
@@ -86,9 +86,9 @@ const About = () => {
           </div>
         </div>
 
-        {/* Main Editorial Content */}
+      
         <div className="prose prose-lg max-w-none">
-          {/* Opening Paragraph with Drop Cap */}
+        
           <div className="flex mb-8">
             <div className="text-6xl md:text-7xl font-serif font-bold text-green-700 float-left mr-4 mt-2 leading-none">F</div>
             <p className="text-gray-700 text-lg leading-relaxed">
@@ -96,7 +96,7 @@ const About = () => {
             </p>
           </div>
 
-          {/* Pull Quote */}
+    
           <div className="my-12 p-8 bg-gray-100 border-l-4 border-green-500">
             <FaQuoteLeft className="text-green-400 text-2xl mb-4" />
             <p className="text-gray-700 italic text-xl leading-relaxed font-light">
@@ -128,7 +128,7 @@ const About = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Our Philosophy - Magazine Feature */}
       <div className="bg-gray-50 py-20 border-y border-gray-200">
@@ -137,22 +137,22 @@ const About = () => {
             <div className="text-center text-3xl">
               <Title text1={'OUR'} text2={'PHILOSOPHY'} />
             </div>
-            <p className="text-gray-600 max-w-2xl mx-auto">True beauty comes from purity — not perfection</p>
+            <p className="text-gray-600 max-w-2xl mx-auto">True wellness comes from nature — not artificial additives</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <p className="text-gray-700 leading-relaxed mb-6 text-lg">
-                We believe that true beauty comes from purity — not perfection. Every formulation, every cream, and every oil is made with care, using 100% natural, plant-derived ingredients.
+We believe that true wellness comes from purity — not complexity. Every product, from oils to nuts, dates, and herbal teas, is crafted with care using 100% natural, plant-based ingredients.
               </p>
               <p className="text-gray-700 leading-relaxed mb-6">
-                Each product carries nature's strength — <strong>botanical extracts, essential oils, and natural compounds</strong> — chosen for their healing properties and timeless effectiveness in skincare.
+              Each item carries nature’s goodness — cold-pressed oils, handpicked nuts, organic dates, and herbal infusions — selected for their <strong >nutritional value, flavor, and health benefits.</strong>
               </p>
               <blockquote className="text-xl font-serif text-gray-800 italic leading-relaxed border-l-4 border-green-500 pl-6 py-4">
-                "What nature provides is what truly nurtures and heals."
+              "What nature provides is what truly nourishes and heals."
               </blockquote>
               <p className="text-gray-700 leading-relaxed mt-6">
-                Our skincare isn't about luxury — it's about returning to what's real. A gentle reminder that nature's wisdom will always be what's best for your skin.
+Our products aren’t about luxury — they’re about returning to what’s real, wholesome, and good for your body. A gentle reminder that nature’s wisdom is always the best choice for your health.
               </p>
             </div>
             <div className="relative">
@@ -163,7 +163,7 @@ const About = () => {
               />
               <div className="absolute -bottom-6 -left-6 bg-white p-6 border border-gray-200 max-w-xs">
                 <p className="text-sm text-gray-600 italic">
-                  "Crafted with care, powered by nature's purest botanical ingredients"
+                "Crafted with care, powered by nature’s finest ingredients"
                 </p>
               </div>
             </div>
@@ -180,7 +180,7 @@ const About = () => {
           
           <div className="bg-white p-8 text-center">
             <p className="text-gray-700 text-xl leading-relaxed font-light italic">
-              To create pure, carefully crafted, and sustainable skincare products that protect your skin, respect our planet, and bring you closer to the essence of natural wellness.
+            To create pure, carefully crafted, and sustainable organic products that nourish your body, respect our planet, and bring you closer to the wholesome goodness of nature.
             </p>
           </div>
         </div>
@@ -193,7 +193,7 @@ const About = () => {
             <div className="text-center text-3xl">
               <Title text1={'OUR'} text2={'PROMISE'} />
             </div>
-            <p className="text-gray-600 max-w-2xl mx-auto">Our commitment to purity, transparency, and your skin's wellbeing</p>
+            <p className="text-gray-600 max-w-2xl mx-auto">Our commitment to purity, transparency, and your family’s well-being</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -201,9 +201,9 @@ const About = () => {
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-green-200 transition-colors">
                 <FaShieldAlt className="text-green-700 text-2xl" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Chemical-Free Formulas</h3>
+              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">100% Natural</h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                No parabens, sulfates, silicones, or artificial colors in any of our products.
+              No preservatives, artificial flavors, or additives in any of our products.
               </p>
             </div>
 
@@ -211,9 +211,9 @@ const About = () => {
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-green-200 transition-colors">
                 <FaSeedling className="text-green-700 text-2xl" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Plant-Based Ingredients</h3>
+              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Plant-Based</h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                Made from natural, plant-derived, and eco-friendly ingredients.
+               Made from wholesome, natural, and eco-friendly ingredients.
               </p>
             </div>
 
@@ -221,9 +221,9 @@ const About = () => {
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-green-200 transition-colors">
                 <FaRecycle className="text-green-700 text-2xl" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Sustainable & Ethical</h3>
+              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Sustainable </h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                Eco-conscious packaging and responsibly sourced ingredients.
+             Eco-conscious packaging and responsibly sourced ingredients.
               </p>
             </div>
 
@@ -231,9 +231,9 @@ const About = () => {
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-green-200 transition-colors">
                 <FaEye className="text-green-700 text-2xl" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Complete Transparency</h3>
+              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Transparency</h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                You deserve to know exactly what touches your skin every day.
+        You deserve to know exactly what goes into your food and wellness products every day.
               </p>
             </div>
           </div>
@@ -241,7 +241,7 @@ const About = () => {
       </div>
 
       {/* Movement Section - Full Width Banner */}
-      <div className="bg-green-900 text-white py-20">
+      {/* <div className="bg-green-900 text-white py-20">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-4xl font-serif font-bold mb-8">A Movement Toward Clean Skincare</h2>
           <p className="text-xl leading-relaxed mb-8 opacity-90 max-w-3xl mx-auto">
@@ -252,61 +252,65 @@ const About = () => {
             Welcome to a world where nature nurtures your skin. 🌿✨
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* Why Choose Us - Magazine Feature */}
-      <div className="py-20 border-y border-gray-200">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <div className="text-center text-3xl">
-              <Title text1={'WHY CHOOSE'} text2={'NATURAL SKINCARE'} />
-            </div>
-            <p className="text-gray-600 max-w-2xl mx-auto">Experience the difference of truly natural skincare</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-white p-8 border border-gray-200 text-center group hover:border-green-300 transition-colors">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-green-200 transition-colors">
-                <FaLeaf className="text-green-700 text-2xl" />
-              </div>
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">100% Natural Ingredients</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Pure, natural ingredients free from harsh chemicals and artificial additives.
-              </p>
-            </div>
-
-            <div className="bg-white p-8 border border-gray-200 text-center group hover:border-green-300 transition-colors">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-orange-200 transition-colors">
-                <FaHands className="text-orange-500 text-2xl" />
-              </div>
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Carefully Crafted</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Each product thoughtfully formulated with attention to detail and efficacy.
-              </p>
-            </div>
-
-            <div className="bg-white p-8 border border-gray-200 text-center group hover:border-green-300 transition-colors">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-blue-200 transition-colors">
-                <FaShieldAlt className="text-blue-500 text-2xl" />
-              </div>
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Safe for All Skin</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Gentle formulations suitable for all skin types, including sensitive skin.
-              </p>
-            </div>
-
-            <div className="bg-white p-8 border border-gray-200 text-center group hover:border-green-300 transition-colors">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-purple-200 transition-colors">
-                <FaHeart className="text-purple-500 text-2xl" />
-              </div>
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Visible Results</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Experience the transformative power of nature with noticeable skin benefits.
-              </p>
-            </div>
-          </div>
-        </div>
+  {/* Why Choose Us - Magazine Feature */}
+<div className="py-20 border-y border-gray-200">
+  <div className="max-w-6xl mx-auto px-6">
+    <div className="text-center mb-16">
+      <div className="text-center text-3xl">
+        <Title text1={'WHY CHOOSE'} text2={'PURE CLAY'} />
       </div>
+      <p className="text-gray-600 max-w-2xl mx-auto">
+        Experience the difference of truly natural and wholesome products
+      </p>
+    </div>
+
+    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="bg-white p-8 border border-gray-200 text-center group hover:border-green-300 transition-colors">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-green-200 transition-colors">
+          <FaLeaf className="text-green-700 text-2xl" />
+        </div>
+        <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Natural Ingredients</h3>
+        <p className="text-gray-600 text-sm leading-relaxed">
+          Pure, natural ingredients free from preservatives, chemicals, and artificial additives.
+        </p>
+      </div>
+
+      <div className="bg-white p-8 border border-gray-200 text-center group hover:border-green-300 transition-colors">
+        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-orange-200 transition-colors">
+          <FaHands className="text-orange-500 text-2xl" />
+        </div>
+        <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Carefully Crafted</h3>
+        <p className="text-gray-600 text-sm leading-relaxed">
+          Each product is thoughtfully prepared to preserve natural goodness and nutritional value.
+        </p>
+      </div>
+
+      <div className="bg-white p-8 border border-gray-200 text-center group hover:border-green-300 transition-colors">
+        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-blue-200 transition-colors">
+          <FaShieldAlt className="text-blue-500 text-2xl" />
+        </div>
+        <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Safe & Healthy</h3>
+        <p className="text-gray-600 text-sm leading-relaxed">
+          Wholesome products suitable for daily consumption by the whole family.
+        </p>
+      </div>
+
+      <div className="bg-white p-8 border border-gray-200 text-center group hover:border-green-300 transition-colors">
+        <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-purple-200 transition-colors">
+          <FaHeart className="text-purple-500 text-2xl" />
+        </div>
+        <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">Trusted Quality</h3>
+        <p className="text-gray-600 text-sm leading-relaxed">
+          Experience the wholesome goodness of nature with products you can trust every day.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
 
       {/* Meet the Team - Magazine Style */}
       <div className="py-20 bg-white">
@@ -318,7 +322,7 @@ const About = () => {
             <div className="text-center text-3xl">
               <Title text1={'MEET'} text2={'OUR TEAM'} />
             </div>
-            <p className="text-gray-600 max-w-2xl mx-auto">The passionate individuals dedicated to bringing you nature's purest skincare offerings</p>
+            <p className="text-gray-600 max-w-2xl mx-auto">The passionate team dedicated to bringing you nature’s purest and healthiest products.</p>
           </div>
 
           {error && (
@@ -385,13 +389,17 @@ const About = () => {
       </div>
 
       {/* Closing Signature */}
-      <div className="max-w-2xl mx-auto px-6 py-16 text-center border-t border-gray-200">
-        <p className="text-gray-600 text-lg mb-8">Thank you for trusting in natural skincare. Here's to skin that feels great, looks radiant, and lives in harmony with nature.</p>
-        <div className="border-t border-gray-200 pt-8">
-          <p className="text-gray-900 font-serif text-xl font-bold">With gratitude,</p>
-          <p className="text-gray-600">Our Skincare Team</p>
-        </div>
-      </div>
+<div className="max-w-2xl mx-auto px-6 py-16 text-center border-t border-gray-200">
+  <p className="text-gray-600 text-lg mb-8">
+    Thank you for choosing Pure Clay. We make natural products that are good for your body and bring the best of nature to your home.
+  </p>
+  <div className="border-t border-gray-200 pt-8">
+    <p className="text-gray-900 font-serif text-xl font-bold">With thanks,</p>
+    <p className="text-gray-600">The Pure Clay Team</p>
+  </div>
+</div>
+
+
 
       <Testimonial />
       <NewsletterBox />

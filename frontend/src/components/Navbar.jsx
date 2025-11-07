@@ -67,7 +67,7 @@ const Navbar = () => {
         <img 
           src={websiteLogo} 
           alt="Website Logo" 
-          className='w-28 object-contain'
+          className='w-20 object-contain'
           onError={(e) => {
             // Show asset logo if website logo fails
             e.target.src = assets.logo;
@@ -83,7 +83,7 @@ const Navbar = () => {
 
   return (
     <div className="sticky top-0 z-50 bg-white">
-      <div className="flex items-center justify-between py-5 font-medium">
+      <div className="flex items-center justify-between py-2 font-medium">
         <Link to='/'><LogoDisplay /></Link>
 
         <ul className='hidden gap-5 text-sm text-gray-700 sm:flex'>

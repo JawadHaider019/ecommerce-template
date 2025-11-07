@@ -113,7 +113,7 @@ const Footer = () => {
                 <img 
                     src={businessInfo.logos.website.url} 
                     alt={`${businessInfo.company?.name || 'Natural Skincare'} Logo`} 
-                    className="w-32 mb-4 object-contain"
+                    className="w-20 mb-4 object-contain"
                     onError={(e) => {
                         e.target.src = assets.logo
                     }}
