@@ -9,6 +9,8 @@ import { toast } from 'react-toastify';
 import { assets } from "../assets/assets";
 
 const PlaceOrder = () => {
+  console.log('🎯 PlaceOrder component mounted');
+
   const [loading, setLoading] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
@@ -23,6 +25,12 @@ const PlaceOrder = () => {
   const [cityZipData, setCityZipData] = useState({});
   const [knownCitiesWithZips, setKnownCitiesWithZips] = useState({});
   
+  // Payment States
+  const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [isUploadingPayment, setIsUploadingPayment] = useState(false);
+  
   const {
     backendUrl,
     token,
@@ -32,12 +40,26 @@ const PlaceOrder = () => {
     setCartItems,
     setCartDeals,
     getDeliveryCharge,
+    getCartAmount,
     products,
     deals,
-    getCart
+    currency
   } = useContext(ShopContext);
   
   const navigate = useNavigate();
+
+  // Enhanced debugging
+  useEffect(() => {
+    console.log('🔍 PlaceOrder Debug Info:', {
+      token: !!token,
+      user: !!user,
+      cartItems: cartItems ? Object.keys(cartItems).length : 0,
+      cartDeals: cartDeals ? Object.keys(cartDeals).length : 0,
+      products: products ? products.length : 0,
+      deals: deals ? deals.length : 0,
+      isDataReady
+    });
+  }, [token, user, cartItems, cartDeals, products, deals, isDataReady]);
 
   // Form data state
   const [formData, setFormData] = useState(() => {
@@ -53,13 +75,50 @@ const PlaceOrder = () => {
     };
   });
 
-  // 🆕 LOAD USER DATA AS DEFAULTS
+  // Get total amount using the same logic as CartTotal
+  const calculateTotalAmount = () => {
+    try {
+      const subtotal = getCartAmount?.() || 0;
+      const deliveryCharge = getDeliveryCharge?.(subtotal) || 0;
+      return subtotal + deliveryCharge;
+    } catch (error) {
+      console.error('Error calculating total amount:', error);
+      return 0;
+    }
+  };
+
+  const totalAmount = calculateTotalAmount();
+
+  // Enhanced authentication and cart check
+  useEffect(() => {
+    console.log('🔐 Running authentication check...');
+    
+    if (!token || !user) {
+      console.log('❌ No token or user, redirecting to login');
+      sessionStorage.setItem('redirectAfterLogin', '/place-order');
+      navigate('/login');
+      return;
+    }
+
+    const cartItemCount = (cartItems ? Object.keys(cartItems).length : 0) + 
+                         (cartDeals ? Object.keys(cartDeals).length : 0);
+    
+    console.log('🛒 Cart item count:', cartItemCount);
+    
+    if (cartItemCount === 0) {
+      console.log('🛒 Cart is empty, showing empty state');
+    }
+  }, [token, user, cartItems, cartDeals, navigate]);
+
+  // Load user data as defaults
   useEffect(() => {
     if (user?.name && user?.email && !hasUserDataLoaded) {
+      console.log('👤 Loading user data into form');
       setFormData(prev => ({
         ...prev,
-        fullName: user.name,
-        email: user.email
+        fullName: user.name || '',
+        email: user.email || '',
+        phone: user.phone || prev.phone
       }));
       setHasUserDataLoaded(true);
     }
@@ -69,15 +128,21 @@ const PlaceOrder = () => {
   useEffect(() => {
     const loadPakistanStates = async () => {
       try {
+        console.log('🌍 Loading Pakistan states...');
         const response = await axios.get(`${backendUrl}/api/locations/pakistan/states`);
         if (response.data.success) {
           setPakistanStates(response.data.data.states.map(state => state.name));
+          console.log('✅ Pakistan states loaded:', response.data.data.states.length);
         }
       } catch (error) {
+        console.error('❌ Error loading Pakistan states, using defaults:', error);
         setPakistanStates(['Punjab', 'Sindh', 'Khyber Pakhtunkhwa', 'Balochistan']);
       }
     };
-    loadPakistanStates();
+    
+    if (backendUrl) {
+      loadPakistanStates();
+    }
   }, [backendUrl]);
 
   // Fetch cities with ZIP codes
@@ -91,12 +156,15 @@ const PlaceOrder = () => {
 
     setIsLoadingCities(true);
     try {
+      console.log('🏙️ Fetching cities for state:', stateName);
       const response = await axios.get(`${backendUrl}/api/locations/cities`, {
         params: { state: stateName }
       });
 
       if (response.data.success) {
         const citiesData = response.data.data.cities;
+        console.log('✅ Cities loaded:', citiesData.length);
+        
         if (citiesData.length > 0) {
           const cityNames = citiesData.map(city => city.name).sort();
           setCities(cityNames);
@@ -120,7 +188,7 @@ const PlaceOrder = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching cities:', error);
+      console.error('❌ Error fetching cities:', error);
     } finally {
       setIsLoadingCities(false);
     }
@@ -140,7 +208,7 @@ const PlaceOrder = () => {
     }
   }, [cityZipData, formData.zipcode, validationErrors.zipcode]);
 
-  // Validate address - UPDATED to be more flexible
+  // Validate address
   const validateAddress = useCallback(async (city, state, zipcode) => {
     if (!city || !state) return { isValid: false, message: 'City and state are required' };
 
@@ -152,7 +220,6 @@ const PlaceOrder = () => {
       if (response.data.success) {
         return response.data.data;
       } else {
-        // If validation fails but we have basic info, allow manual entry with warning
         if (city && state && zipcode && /^\d{5}$/.test(zipcode)) {
           return { 
             isValid: true, 
@@ -166,7 +233,7 @@ const PlaceOrder = () => {
         };
       }
     } catch (error) {
-      // If API fails, allow basic validation to pass
+      console.error('❌ Address validation error:', error);
       if (city && state && zipcode && /^\d{5}$/.test(zipcode)) {
         return { 
           isValid: true, 
@@ -199,22 +266,19 @@ const PlaceOrder = () => {
     }
   }, [formData.city, formData.zipcode, cityZipData, autoFillZipCode]);
 
-  // ZIP code validation - UPDATED to be more flexible with known cities
+  // ZIP code validation
   const validateZipCode = useCallback(async (zipcode, state, city) => {
     if (!zipcode) return 'ZIP code is required';
     if (!/^\d{5}$/.test(zipcode)) return 'ZIP code must be 5 digits';
 
-    // Check if this is a known city with a specific ZIP code
     const isKnownCity = city && knownCitiesWithZips[city] && knownCitiesWithZips[city].zipCode === zipcode;
     
     if (isKnownCity) {
-      // Allow known city ZIP codes even if outside typical range
       return true;
     }
 
-    // Basic state-based ZIP code validation for unknown cities
     const stateZipRanges = {
-      'Punjab': { min: 30000, max: 49999 },
+      'Punjab': { min: 30000, max:  64381 },
       'Sindh': { min: 65000, max: 79999 },
       'Khyber Pakhtunkhwa': { min: 12000, max: 29000 },
       'Balochistan': { min: 82000, max: 92000 }
@@ -235,27 +299,24 @@ const PlaceOrder = () => {
     localStorage.setItem('orderFormData', JSON.stringify(formData));
   }, [formData]);
 
-  // Check authentication
+  // Enhanced data readiness check
   useEffect(() => {
-    if (!token || !user) {
-      sessionStorage.setItem('redirectAfterLogin', '/place-order');
-      navigate('/login');
-    }
-  }, [token, user, navigate]);
-
-  // FIXED: Check if cart data is ready - simplified logic
-  useEffect(() => {
-    // Check if we have any cart items OR if products/deals are loaded
+    console.log('📦 Checking cart data readiness...');
+    
     const hasCartItems = (cartItems && Object.keys(cartItems).length > 0) || 
                         (cartDeals && Object.keys(cartDeals).length > 0);
     
-    // Products and deals might be empty arrays, that's fine
-    const hasProductsData = products !== undefined;
-    const hasDealsData = deals !== undefined;
+    const hasProductsData = products !== undefined && products !== null;
+    const hasDealsData = deals !== undefined && deals !== null;
     
-    // Data is ready if we have the necessary data structures, even if cart is empty
     const ready = hasProductsData && hasDealsData;
-    
+
+    console.log('Data ready status:', {
+      hasCartItems,
+      hasProductsData,
+      hasDealsData,
+      ready
+    });
 
     setIsDataReady(ready);
   }, [cartItems, cartDeals, products, deals]);
@@ -295,13 +356,14 @@ const PlaceOrder = () => {
 
       setAddressSuggestions(suggestions);
     } catch (error) {
+      console.error('❌ Address suggestion error:', error);
       setAddressSuggestions([]);
     } finally {
       setIsSearchingAddress(false);
     }
   }, []);
 
-  // Field validation - UPDATED to remove city restriction
+  // Field validation
   const validateField = async (name, value) => {
     const errors = {};
     
@@ -324,7 +386,6 @@ const PlaceOrder = () => {
         
       case 'city':
         if (!value.trim()) errors.city = 'City is required';
-        // Removed city validation against predefined list - users can type any city
         break;
         
       case 'state':
@@ -359,8 +420,52 @@ const PlaceOrder = () => {
       Object.assign(errors, fieldErrors);
     }
     
+    // Validate payment screenshot
+    if (!paymentScreenshot) {
+      errors.payment = 'Please upload payment screenshot to place order';
+    }
+    
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  // Handle payment screenshot upload
+  const handlePaymentScreenshot = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast.error('Please upload a valid image file (JPG, PNG, WebP)');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size should be less than 5MB');
+        return;
+      }
+      
+      setPaymentScreenshot(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewImage(e.target.result);
+      };
+      reader.readAsDataURL(file);
+      
+      // Clear any previous payment errors
+      if (validationErrors.payment) {
+        setValidationErrors(prev => ({ ...prev, payment: '' }));
+      }
+    }
+  };
+
+  // Remove payment screenshot
+  const removePaymentScreenshot = () => {
+    setPaymentScreenshot(null);
+    setPreviewImage(null);
   };
 
   const onChangeHandler = async (e) => {
@@ -500,7 +605,8 @@ const PlaceOrder = () => {
                   category: dealProduct.category,
                   isFromDeal: true,
                   dealName: dealInfo.dealName,
-                  dealImage: dealInfo.dealImages?.[0] || assets.placeholder_image
+                  dealImage: dealInfo.dealImages?.[0] || assets.placeholder_image,
+                  dealDescription: dealInfo.dealDescription || null
                 });
                 
                 calculatedAmount += itemTotal;
@@ -562,47 +668,104 @@ const PlaceOrder = () => {
         return;
       }
 
-      // 🆕 SIMPLIFIED: Always use the form data for customer details
+      // Prepare order data according to backend schema
       const orderData = {
-        address: formData,
         items: orderItems,
         amount: finalAmount,
+        address: formData,
         deliveryCharges: deliveryCharge,
-        method: 'COD',
-        addressVerified: !addressValidation.requiresManualVerification,
-        // 🆕 Always send customerDetails using the form data
         customerDetails: {
           name: formData.fullName.trim(),
           email: formData.email.trim(),
           phone: formData.phone
-        }
+        },
+        paymentMethod: paymentMethod,
+        paymentStatus: 'pending',
+        paymentAmount: paymentMethod === 'COD' ? 350 : finalAmount
       };
 
-      console.log("📦 ORDER DATA BEING SENT:", {
-        customerDetails: orderData.customerDetails
+      // Log order details to console
+      console.log('🛒 ORDER BEING PLACED:', {
+        orderId: `ORDER_${Date.now()}`,
+        customer: {
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone
+        },
+        address: {
+          street: formData.street,
+          city: formData.city,
+          state: formData.state,
+          zipcode: formData.zipcode
+        },
+        payment: {
+          method: paymentMethod,
+          amount: paymentMethod === 'COD' ? 350 : finalAmount,
+          status: 'pending'
+        },
+        items: orderItems.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.price * item.quantity,
+          type: item.isFromDeal ? 'deal' : 'product'
+        })),
+        summary: {
+          subtotal: calculatedAmount,
+          delivery: deliveryCharge,
+          total: finalAmount,
+          itemCount: orderItems.length
+        },
+        timestamp: new Date().toISOString()
       });
 
-      const response = await axios.post(backendUrl + '/api/order/place', orderData, {
-        headers: { token, 'Content-Type': 'application/json' }
-      });
-      
-      if (response.data.success) {
-        setCartItems({});
-        setCartDeals({});
-        localStorage.removeItem('orderFormData');
-        toast.success(response.data.message);
-        navigate('/orders');
-      } else {
-        toast.error(response.data.message || 'Failed to place order');
+      // Upload payment screenshot with order data
+      if (paymentScreenshot) {
+        setIsUploadingPayment(true);
+        const paymentFormData = new FormData();
+        paymentFormData.append('payment_screenshot', paymentScreenshot);
+        paymentFormData.append('orderData', JSON.stringify(orderData));
+        
+        console.log('📤 Uploading order with payment screenshot...');
+        
+        const paymentResponse = await axios.post(
+          `${backendUrl}/api/order/place-with-payment`, 
+          paymentFormData, 
+          {
+            headers: { 
+              token, 
+              'Content-Type': 'multipart/form-data' 
+            }
+          }
+        );
+        
+        if (paymentResponse.data.success) {
+          console.log('✅ Order placed successfully:', paymentResponse.data);
+          // Clear cart and local storage
+          setCartItems({});
+          setCartDeals({});
+          localStorage.removeItem('orderFormData');
+          
+          toast.success(paymentResponse.data.message || 'Order placed successfully! Waiting for payment verification.');
+          navigate('/orders');
+        } else {
+          console.error('❌ Order placement failed:', paymentResponse.data);
+          toast.error(paymentResponse.data.message || 'Failed to place order with payment');
+        }
+        setIsUploadingPayment(false);
+        setLoading(false);
+        return;
       }
 
     } catch (error) {
-      console.error('Order placement error:', error);
+      console.error('❌ Order placement error:', error);
       if (error.response?.status === 401) {
         sessionStorage.setItem('redirectAfterLogin', '/place-order');
         navigate('/login');
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
       } else {
-        toast.error(error.response?.data?.message || 'Failed to place order');
+        toast.error('Failed to place order. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -610,54 +773,83 @@ const PlaceOrder = () => {
     }
   };
 
+  // Check if cart is empty
+  const cartItemCount = (cartItems ? Object.keys(cartItems).length : 0) + 
+                       (cartDeals ? Object.keys(cartDeals).length : 0);
+
   if (!token || !user) {
     return (
-      <div className="flex min-h-[80vh] items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="text-lg">Redirecting to login...</div>
+          <div className="text-gray-600">Redirecting to login...</div>
         </div>
       </div>
     );
   }
 
-  // Render methods with proper labels
+  if (cartItemCount === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center max-w-md w-full">
+          <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span className="text-2xl text-gray-600">🛒</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
+          <p className="text-gray-600 mb-8">Add some products to your cart before placing an order.</p>
+          <button 
+            onClick={() => navigate('/')}
+            className="bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors w-full"
+          >
+            Continue Shopping
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Render methods with professional e-commerce styling
   const renderInputField = (name, type = 'text', placeholder, label, required = true) => (
     <div className="w-full">
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && '*'}
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input 
         onChange={onChangeHandler}
         onBlur={onBlurHandler}
         name={name} 
         value={formData[name]} 
-        className={`w-full border px-3.5 py-3 ${
-          validationErrors[name] ? 'border-red-500 bg-red-50' : 'border-gray-300'
-        } rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-colors`} 
+        className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+          validationErrors[name] 
+            ? 'border-red-500 bg-red-50' 
+            : 'border-gray-300 bg-white hover:border-gray-400'
+        }`} 
         type={type}
         placeholder={placeholder}
         required={required}
       />
       {validationErrors[name] && (
-        <p className="text-red-500 text-xs mt-1 font-medium">{validationErrors[name]}</p>
+        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
+          <span>⚠</span> {validationErrors[name]}
+        </p>
       )}
-
     </div>
   );
 
   const renderSelectField = (name, options, placeholder, label, required = true) => (
     <div className="w-full">
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && '*'}
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       <select
         onChange={onChangeHandler}
         onBlur={onBlurHandler}
         name={name}
         value={formData[name]}
-        className={`w-full border px-3.5 py-3 ${
-          validationErrors[name] ? 'border-red-500 bg-red-50' : 'border-gray-300'
-        } rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-colors`}
+        className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+          validationErrors[name] 
+            ? 'border-red-500 bg-red-50' 
+            : 'border-gray-300 bg-white hover:border-gray-400'
+        }`}
         required={required}
       >
         <option value="">{placeholder}</option>
@@ -666,7 +858,9 @@ const PlaceOrder = () => {
         ))}
       </select>
       {validationErrors[name] && (
-        <p className="text-red-500 text-xs mt-1 font-medium">{validationErrors[name]}</p>
+        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
+          <span>⚠</span> {validationErrors[name]}
+        </p>
       )}
     </div>
   );
@@ -674,7 +868,7 @@ const PlaceOrder = () => {
   const renderCityInput = () => (
     <div className="w-full">
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        City *
+        City <span className="text-red-500">*</span>
       </label>
       <div className="relative">
         <input
@@ -683,9 +877,11 @@ const PlaceOrder = () => {
           name="city"
           value={formData.city}
           list="city-suggestions"
-          className={`w-full border px-3.5 py-3 ${
-            validationErrors.city ? 'border-red-500 bg-red-50' : 'border-gray-300'
-          } rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-colors`}
+          className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+            validationErrors.city 
+              ? 'border-red-500 bg-red-50' 
+              : 'border-gray-300 bg-white hover:border-gray-400'
+          } ${!formData.state ? 'opacity-50 cursor-not-allowed' : ''}`}
           type="text"
           placeholder={formData.state ? "Select from list or type your city" : "Select province first"}
           required
@@ -693,8 +889,8 @@ const PlaceOrder = () => {
         />
         
         {isLoadingCities && (
-          <div className="absolute right-3 top-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
           </div>
         )}
       </div>
@@ -706,16 +902,8 @@ const PlaceOrder = () => {
       </datalist>
       
       {validationErrors.city && (
-        <p className="text-red-500 text-xs mt-1 font-medium">{validationErrors.city}</p>
-      )}
-      {formData.state && cities.length > 0 && !isLoadingCities && (
-        <p className="text-gray-500 text-xs mt-1">
-          Select from list or type any city name in {formData.state}
-        </p>
-      )}
-      {formData.state && cities.length === 0 && !isLoadingCities && (
-        <p className="text-gray-500 text-xs mt-1">
-          Type your city name
+        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
+          <span>⚠</span> {validationErrors.city}
         </p>
       )}
     </div>
@@ -724,7 +912,7 @@ const PlaceOrder = () => {
   const renderZipCodeInput = () => (
     <div className="w-full">
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        ZIP Code *
+        ZIP Code <span className="text-red-500">*</span>
       </label>
       <div className="relative">
         <input 
@@ -732,15 +920,17 @@ const PlaceOrder = () => {
           onBlur={onBlurHandler}
           name="zipcode" 
           value={formData.zipcode} 
-          className={`w-full border px-3.5 py-3 ${
-            validationErrors.zipcode ? 'border-red-500 bg-red-50' : 'border-gray-300'
-          } rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-colors`} 
+          className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+            validationErrors.zipcode 
+              ? 'border-red-500 bg-red-50' 
+              : 'border-gray-300 bg-white hover:border-gray-400'
+          }`} 
           type="number"
           placeholder="5-digit ZIP code"
           required
         />
         {formData.zipcode && cityZipData[formData.city] === formData.zipcode && (
-          <div className="absolute right-3 top-3" title="Auto-filled based on city selection">
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
             <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
               <span className="text-white text-xs">✓</span>
             </div>
@@ -748,14 +938,8 @@ const PlaceOrder = () => {
         )}
       </div>
       {validationErrors.zipcode && (
-        <p className="text-red-500 text-xs mt-1 font-medium">{validationErrors.zipcode}</p>
-      )}
-      {formData.zipcode && cityZipData[formData.city] === formData.zipcode && (
-        <p className="text-green-600 text-xs mt-1">
-          Auto-filled for {formData.city}
-          {knownCitiesWithZips[formData.city] && (
-            <span className="text-gray-500 ml-1">(Known city ZIP code)</span>
-          )}
+        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
+          <span>⚠</span> {validationErrors.zipcode}
         </p>
       )}
     </div>
@@ -764,7 +948,7 @@ const PlaceOrder = () => {
   const renderAddressInput = () => (
     <div className="w-full">
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        Street Address *
+        Street Address <span className="text-red-500">*</span>
       </label>
       <div className="relative">
         <input 
@@ -773,22 +957,24 @@ const PlaceOrder = () => {
           onFocus={() => formData.street.length >= 3 && setShowSuggestions(true)}
           name="street" 
           value={formData.street} 
-          className={`w-full border px-3.5 py-3 ${
-            validationErrors.street ? 'border-red-500 bg-red-50' : 'border-gray-300'
-          } rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-colors`} 
+          className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+            validationErrors.street 
+              ? 'border-red-500 bg-red-50' 
+              : 'border-gray-300 bg-white hover:border-gray-400'
+          }`} 
           type="text"
           placeholder="House number, street, area"
           required
         />
         
         {isSearchingAddress && (
-          <div className="absolute right-3 top-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
           </div>
         )}
         
         {showSuggestions && addressSuggestions.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
             {addressSuggestions.map((suggestion, index) => (
               <div
                 key={index}
@@ -804,70 +990,283 @@ const PlaceOrder = () => {
         )}
       </div>
       {validationErrors.street && (
-        <p className="text-red-500 text-xs mt-1 font-medium">{validationErrors.street}</p>
+        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
+          <span>⚠</span> {validationErrors.street}
+        </p>
       )}
-      <p className="text-gray-500 text-xs mt-1">
-        Start typing for address suggestions
-      </p>
     </div>
   );
 
-  return (
-    <form onSubmit={onSubmitHandler} className="flex min-h-[80vh] flex-col justify-between gap-8 border-t border-gray-300 pt-8 sm:flex-row sm:pt-14">
-      <div className="flex w-full flex-col gap-6 sm:max-w-[480px]">
-        <div className="my-3 text-xl sm:text-2xl">
-          <Title text1={'DELIVERY'} text2={'INFORMATION'}/>
-        </div> 
-        
-      
-        {/* 🆕 SIMPLIFIED: Just use the same input fields */}
-        {renderInputField('fullName', 'text', 'Enter customer name for this order', 'Customer Name', true, true)}
-        {renderInputField('email', 'email', 'customer@example.com', 'Customer Email', true, true)}
-        
-        {renderAddressInput()}
-        
-        <div className='flex gap-4'>
-          {renderSelectField('state', pakistanStates, 'Select your province', 'Province')}
-          {renderCityInput()}
-        </div>
-        
-        <div className='flex gap-4'>
-          {renderZipCodeInput()}
-          {renderInputField('phone', 'tel', '03XX-XXXXXXX', 'Phone Number')}
-        </div>
-
-      </div>
-
-      <div className='mt-8'>
-        <div className='mt-8 min-w-80'>
-          <CartTotal/>
-        </div>
-    
-        <div className='mt-12'>
-          <Title text1={'PAYMENT'} text2={'METHOD'}/>
-          <div className='flex flex-col gap-3 lg:flex-row'>
-            <div className='flex cursor-pointer items-center gap-3 border border-gray-300 p-3 px-4 bg-gray-50'>
-              <p className='text-sm font-medium text-gray-700'>CASH ON DELIVERY</p>
+  // Render Payment Method Selection
+  const renderPaymentMethod = () => (
+    <div className="mt-8">
+      <h2 className="text-xl font-bold text-gray-900 mb-6">Payment Method</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* COD Option */}
+        <div 
+          className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+            paymentMethod === 'COD' 
+              ? 'border-black bg-gray-50' 
+              : 'border-gray-300 hover:border-gray-400'
+          }`}
+          onClick={() => setPaymentMethod('COD')}
+        >
+          <div className="flex items-center gap-3">
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+              paymentMethod === 'COD' ? 'border-black bg-black' : 'border-gray-400'
+            }`}>
+              {paymentMethod === 'COD' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Cash on Delivery</p>
+              <p className="text-sm text-gray-600 mt-1">Pay Rs 350 now, rest on delivery</p>
             </div>
           </div>
-          <div className='mt-8 w-full text-end'>
-            <button 
-              type='submit' 
-              className={`bg-black text-white px-8 py-4 font-semibold hover:bg-gray-800 active:bg-gray-900 transition-colors w-full md:w-auto text-base   ${
-                loading || !isDataReady || Object.keys(validationErrors).length > 0 || isValidatingAddress
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : 'hover:shadow-lg transform hover:-translate-y-0.5'
-              }`}
-              disabled={loading || !isDataReady || Object.keys(validationErrors).length > 0 || isValidatingAddress}
-            >
-              {isValidatingAddress ? 'VALIDATING ADDRESS...' : 
-               loading ? 'PLACING ORDER...' : 
-               !isDataReady ? 'LOADING...' : 'PLACE ORDER'}
-            </button>
+        </div>
+        
+        {/* Online Payment Option */}
+        <div 
+          className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+            paymentMethod === 'online' 
+              ? 'border-black bg-gray-50' 
+              : 'border-gray-300 hover:border-gray-400'
+          }`}
+          onClick={() => setPaymentMethod('online')}
+        >
+          <div className="flex items-center gap-3">
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+              paymentMethod === 'online' ? 'border-black bg-black' : 'border-gray-400'
+            }`}>
+              {paymentMethod === 'online' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Online Payment</p>
+              <p className="text-sm text-gray-600 mt-1">Pay full amount now via EasyPaisa</p>
+            </div>
           </div>
         </div>
       </div>
-    </form>
+    </div>
+  );
+// Render EasyPaisa Payment Section
+const renderEasyPaisaPayment = () => (
+  <div className="mt-6 sm:mt-8">
+    <div className="bg-white p-4 sm:p-6 border border-gray-200 rounded-lg">
+      <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Payment</h3>
+      
+      <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
+          <span className="text-gray-700 font-medium text-sm sm:text-base">
+            {paymentMethod === 'COD' ? 'Pre-payment Amount:' : 'Total Amount:'}
+          </span>
+          <span className="font-bold text-gray-900 text-base sm:text-lg">
+            {paymentMethod === 'COD' ? 'Rs 350' : `${currency} ${totalAmount.toFixed(2)}`}
+          </span>
+        </div>
+        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
+          <span className="text-gray-700 font-medium text-sm sm:text-base">EasyPaisa Number:</span>
+          <span className="font-semibold text-gray-900 text-sm sm:text-base">0348 3450302</span>
+        </div>
+        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
+          <span className="text-gray-700 font-medium text-sm sm:text-base">Account:</span>
+          <span className="font-semibold text-gray-900 text-sm sm:text-base">Muhammad Ahmad</span>
+        </div>
+      </div>
+
+      <div className="mb-4 sm:mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-3">
+          Upload Payment Screenshot <span className="text-red-500">*</span>
+        </label>
+        
+        {!previewImage ? (
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePaymentScreenshot}
+              className="hidden"
+              id="payment-screenshot"
+            />
+            <label 
+              htmlFor="payment-screenshot" 
+              className="cursor-pointer block"
+            >
+              <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2 sm:mb-3">
+                <span className="text-lg sm:text-xl text-gray-600">📁</span>
+              </div>
+              <p className="text-sm font-semibold text-gray-800 mb-1">
+                Upload Payment Screenshot
+              </p>
+              <p className="text-xs text-gray-500 mb-2 sm:mb-3">
+                JPG, PNG, WebP files (Max 5MB)
+              </p>
+              <button 
+                type="button"
+                className="bg-black text-white px-3 sm:px-4 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
+              >
+                Choose File
+              </button>
+            </label>
+          </div>
+        ) : (
+          <div className="border border-gray-300 rounded-lg p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-3">
+              <p className="text-sm font-medium text-gray-800">Payment Screenshot</p>
+              <button
+                type="button"
+                onClick={removePaymentScreenshot}
+                className="text-red-500 hover:text-red-700 text-sm font-medium self-start sm:self-auto"
+              >
+                Remove
+              </button>
+            </div>
+            <div className="flex justify-center">
+              <img 
+                src={previewImage} 
+                alt="Payment screenshot" 
+                className="max-w-full h-auto max-h-32 sm:max-h-40 rounded border border-gray-200"
+              />
+            </div>
+          </div>
+        )}
+        
+        {validationErrors.payment && (
+          <p className="text-red-600 text-sm mt-3 flex items-center gap-2 bg-red-50 p-3 rounded">
+            <span>⚠</span> {validationErrors.payment}
+          </p>
+        )}
+      </div>
+
+      <div className="text-sm text-gray-600 space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
+        <p className="flex items-start gap-2">
+          <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
+          <span>
+            Send <span className="font-semibold text-gray-900">
+              {paymentMethod === 'COD' ? 'Rs 350 pre-payment' : `${currency} ${totalAmount.toFixed(2)} full payment`}
+            </span> to our EasyPaisa account
+          </span>
+        </p>
+        <p className="flex items-start gap-2">
+          <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
+          <span>Take a clear screenshot of the payment confirmation</span>
+        </p>
+        <p className="flex items-start gap-2">
+          <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
+          <span>Upload the screenshot above to verify your payment</span>
+        </p>
+        {paymentMethod === 'COD' && (
+          <p className="flex items-start gap-2">
+            <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
+            <span>Pay remaining balance when your order is delivered</span>
+          </p>
+        )}
+      </div>
+    </div>
+  </div>
+);
+  return (
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-8">
+        {/* Header */}
+        <div className="mb-6 sm:mb-8 px-2 sm:px-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Complete your order with delivery information</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+          {/* Left Column - Delivery Information */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Delivery Information</h2>
+            
+            <form onSubmit={onSubmitHandler} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderInputField('fullName', 'text', 'Enter full name', 'Full Name')}
+                {renderInputField('email', 'email', 'your@email.com', 'Email Address')}
+              </div>
+              
+              {renderAddressInput()}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderSelectField('state', pakistanStates, 'Select province', 'Province')}
+                {renderCityInput()}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderZipCodeInput()}
+                {renderInputField('phone', 'tel', '03XX-XXXXXXX', 'Phone Number')}
+              </div>
+
+              {renderPaymentMethod()}
+              {renderEasyPaisaPayment()}
+            </form>
+          </div>
+
+          {/* Right Column - Order Summary - Fixed on desktop only */}
+          <div className="lg:sticky lg:top-4 lg:h-fit space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
+              <CartTotal/>
+            </div>
+            
+            {/* Place Order Button */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+              <button 
+                type='submit' 
+                onClick={onSubmitHandler}
+                className={`w-full bg-black text-white px-6 py-4 font-semibold rounded-lg hover:bg-gray-800 transition-colors ${
+                  loading || !isDataReady || Object.keys(validationErrors).length > 0 || isValidatingAddress || isUploadingPayment || !paymentScreenshot
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : 'hover:shadow-lg'
+                }`}
+                disabled={loading || !isDataReady || Object.keys(validationErrors).length > 0 || isValidatingAddress || isUploadingPayment || !paymentScreenshot}
+              >
+                {isUploadingPayment ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Uploading Payment...
+                  </span>
+                ) : isValidatingAddress ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Validating Address...
+                  </span>
+                ) : loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Placing Order...
+                  </span>
+                ) : !isDataReady ? (
+                  'Loading...'
+                ) : !paymentScreenshot ? (
+                  'Upload Payment to Place Order'
+                ) : paymentMethod === 'COD' ? (
+                  `Place Order - Rs 350`
+                ) : (
+                  `Place Order - ${currency} ${totalAmount.toFixed(2)}`
+                )}
+              </button>
+              
+              {/* Validation Summary */}
+              {Object.keys(validationErrors).length > 0 && (
+                <div className="mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-700 text-sm font-medium flex items-center gap-2">
+                    <span>⚠</span>
+                    Please fix the following errors before placing your order:
+                  </p>
+                  <ul className="text-red-600 text-sm mt-2 space-y-1">
+                    {Object.entries(validationErrors).map(([field, error]) => (
+                      <li key={field} className="flex items-center gap-2">
+                        <span>•</span> {error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

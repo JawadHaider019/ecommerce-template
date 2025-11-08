@@ -1,6 +1,6 @@
 import {useContext, useState, useEffect} from 'react'
 import { assets } from '../assets/assets'
-import {Link, NavLink } from 'react-router-dom'
+import {Link, NavLink, useLocation } from 'react-router-dom'
 import {ShopContext} from '../context/ShopContext'
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -11,19 +11,32 @@ const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 const Navbar = () => {
   const [visible, setVisible] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const [websiteLogo, setWebsiteLogo] = useState("")
-  const [loading, setLoading] = useState(false) // Start with false to avoid blocking render
+  const [loading, setLoading] = useState(false)
   const {getCartCount,token,setToken,setCartItems} = useContext(ShopContext)
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Fetch website logo from backend - with better error handling
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      const isScrolled = window.scrollY > 10;
+      setScrolled(isScrolled);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Fetch website logo from backend
   useEffect(() => {
     const fetchWebsiteLogo = async () => {
       try {
         setLoading(true);
         
         const response = await axios.get(`${backendUrl}/api/business-details`, {
-          timeout: 5000 // 5 second timeout
+          timeout: 5000
         });
         
         if (response.data.success && response.data.data?.logos?.website?.url) {
@@ -38,7 +51,6 @@ const Navbar = () => {
       }
     };
 
-    // Only fetch if backendUrl is available
     if (backendUrl) {
       fetchWebsiteLogo();
     } else {
@@ -52,6 +64,7 @@ const Navbar = () => {
     setCartItems({})
     toast.success("Logged out successfully")
     navigate('/login')
+    setVisible(false)
   }
 
   // Close mobile menu when navigating
@@ -59,17 +72,15 @@ const Navbar = () => {
     setVisible(false);
   };
 
-  // Simple logo display - always show something
+  // Logo display component
   const LogoDisplay = () => {
-    // If we have a website logo and not loading, use it
     if (!loading && websiteLogo) {
       return (
         <img 
           src={websiteLogo} 
           alt="Website Logo" 
-          className='w-20 object-contain'
+          className='w-20 object-contain transition-all duration-300'
           onError={(e) => {
-            // Show asset logo if website logo fails
             e.target.src = assets.logo;
           }}
         />
@@ -77,139 +88,172 @@ const Navbar = () => {
     }
 
     return (
-      <img src={assets.logo} className='w-28 object-contain' alt="Logo" />
+      <img src={assets.logo} className='w-20object-contain transition-all duration-300' alt="Logo" />
     );
   };
 
-  return (
-    <div className="sticky top-0 z-50 bg-white">
-      <div className="flex items-center justify-between py-2 font-medium">
-        <Link to='/'><LogoDisplay /></Link>
+  // Desktop navigation items
+  const navItems = [
+    { path: '/', label: 'HOME' },
+    { path: '/collection', label: 'COLLECTION' },
+    { path: '/about', label: 'ABOUT' },
+    { path: '/blog', label: 'BLOG' },
+    { path: '/contact', label: 'CONTACT' }
+  ];
 
-        <ul className='hidden gap-5 text-sm text-gray-700 sm:flex'>
-          <NavLink 
-            to='/' 
-            className={({ isActive }) => 
-              `flex flex-col items-center gap-1 ${isActive ? 'text-black' : ''}`
-            }
-          >
-            <p>HOME</p>
-            <hr className='hidden h-[1.5px] w-2/4 border-none bg-gray-700' />
-          </NavLink>
-          <NavLink 
-            to='/collection' 
-            className={({ isActive }) => 
-              `flex flex-col items-center gap-1 ${isActive ? 'text-black' : ''}`
-            }
-          >
-            <p>COLLECTION</p>
-            <hr className='hidden h-[1.5px] w-2/4 border-none bg-gray-700' />
-          </NavLink>
-          <NavLink 
-            to='/about' 
-            className={({ isActive }) => 
-              `flex flex-col items-center gap-1 ${isActive ? 'text-black' : ''}`
-            }
-          >
-            <p>ABOUT</p>
-            <hr className='hidden h-[1.5px] w-2/4 border-none bg-gray-700' />
-          </NavLink>
-          <NavLink 
-            to='/blog' 
-            className={({ isActive }) => 
-              `flex flex-col items-center gap-1 ${isActive ? 'text-black' : ''}`
-            }
-          >
-            <p>BLOG</p>
-            <hr className='hidden h-[1.5px] w-2/4 border-none bg-gray-700' />
-          </NavLink>
-          <NavLink 
-            to='/contact' 
-            className={({ isActive }) => 
-              `flex flex-col items-center gap-1 ${isActive ? 'text-black' : ''}`
-            }
-          >
-            <p>CONTACT</p>
-            <hr className='hidden h-[1.5px] w-2/4 border-none bg-gray-700' />
-          </NavLink>
-        </ul>
-        
-        <div className='flex items-center gap-6'>
-          {/* Search icon removed */}
-          <div className='group relative'>
-            <img onClick={()=> token ? null: navigate('/login') } src={assets.profile_icon} className='w-5 cursor-pointer' alt="Profile Icon" />
-            {token && (
-              <div className='absolute right-0 z-10 hidden pt-4 group-hover:block'>
-                <div className='flex w-36 flex-col gap-2 rounded bg-slate-100 px-5 py-3 text-gray-500'>
-                
-                  <p onClick={()=>navigate('/orders')} className="cursor-pointer hover:text-black">Orders</p>
-                  <p onClick={logout} className="cursor-pointer hover:text-black">Logout</p>
-                </div>
-              </div>
-            )}   
-          </div>
-          <Link to='/cart' className='relative'>
-            <img src={assets.cart_icon} className='w-5 min-w-5 cursor-pointer' alt="Cart"/>
-            <p className='absolute bottom-[-5px] right-[-5px] aspect-square w-4 rounded-full bg-black text-center text-[8px] leading-4 text-white'>{getCartCount()}</p>
+  return (
+    <div className={`sticky top-0 z-50 transition-all duration-300 ${
+      scrolled ? 'bg-white backdrop-blur-md shadow-sm' : 'bg-white'
+    }`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between py-1">
+          {/* Logo */}
+          <Link to='/' className="flex-shrink-0">
+            <LogoDisplay />
           </Link>
-          <img onClick={()=>setVisible(true)} src={assets.menu_icon} className='w-5 cursor-pointer sm:hidden' alt="" />
-        </div>
-        
-        {/* Mobile menu - Fixed */}
-        <div className={`fixed inset-0 z-50 bg-white transition-transform duration-300 ease-in-out ${visible ? "translate-x-0" : "translate-x-full"}`}>
-          <div className='flex h-full flex-col'>
-            <div onClick={()=>setVisible(false)} className='flex items-center gap-4 border-b p-4 cursor-pointer'>
-              <img className="h-5 rotate-180" src={assets.dropdown_icon} alt="Close menu" />
-              <p>Close</p>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center space-x-8">
+            {navItems.map((item) => (
+              <NavLink 
+                key={item.path}
+                to={item.path} 
+                className={({ isActive }) => 
+                  `relative text-sm font-medium tracking-wide transition-colors duration-200 ${
+                    isActive 
+                      ? 'text-black' 
+                      : 'text-gray-600 hover:text-black'
+                  }`
+                }
+              >
+                {item.label}
+                <span className={`absolute -bottom-1 left-0 h-0.5 bg-black transition-all duration-300 ${
+                  location.pathname === item.path ? 'w-full' : 'w-0'
+                }`} />
+              </NavLink>
+            ))}
+          </nav>
+          
+          {/* Right side icons */}
+          <div className='flex items-center gap-6'>
+            {/* Profile dropdown */}
+            <div className='group relative'>
+              <div className={`p-2 rounded-full transition-all duration-200 cursor-pointer ${
+                token ? 'hover:bg-gray-100' : ''
+              }`}>
+                <img 
+                  onClick={() => token ? null : navigate('/login')} 
+                  src={assets.profile_icon} 
+                  className='w-5 h-5 cursor-pointer' 
+                  alt="Profile" 
+                />
+              </div>
+              
+              {token && (
+                <div className='absolute right-0 z-10 hidden pt-2 group-hover:block'>
+                  <div className='w-48 rounded-lg bg-white shadow-lg border border-gray-100 py-2'>
+                    <div 
+                      onClick={() => { navigate('/orders'); setVisible(false); }}
+                      className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      My Orders
+                    </div>
+                    <div 
+                      onClick={logout}
+                      className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors border-t border-gray-100"
+                    >
+                      Sign Out
+                    </div>
+                  </div>
+                </div>
+              )}   
             </div>
-            <div className="flex-1 overflow-y-auto">
-              <NavLink 
-                to='/' 
-                onClick={handleMobileNavClick}
-                className={({ isActive }) => 
-                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
-                }
-              >
-                HOME
-              </NavLink>
-              <NavLink 
-                to='/collection' 
-                onClick={handleMobileNavClick}
-                className={({ isActive }) => 
-                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
-                }
-              >
-                COLLECTION
-              </NavLink>
-              <NavLink 
-                to='/about' 
-                onClick={handleMobileNavClick}
-                className={({ isActive }) => 
-                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
-                }
-              >
-                ABOUT
-              </NavLink>
-              <NavLink 
-                to='/blog' 
-                onClick={handleMobileNavClick}
-                className={({ isActive }) => 
-                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
-                }
-              >
-                BLOG
-              </NavLink>
-              <NavLink 
-                to='/contact' 
-                onClick={handleMobileNavClick}
-                className={({ isActive }) => 
-                  `block border-b py-4 pl-6 ${isActive ? 'text-black bg-gray-50' : 'text-gray-600'}`
-                }
-              >
-                CONTACT
-              </NavLink>
-            </div>
+
+            {/* Cart */}
+            <Link 
+              to='/cart' 
+              className='relative p-2 rounded-full hover:bg-gray-100 transition-all duration-200'
+            >
+              <img src={assets.cart_icon} className='w-5 h-5' alt="Cart"/>
+              {getCartCount() > 0 && (
+                <span className='absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-black text-white text-xs flex items-center justify-center font-medium'>
+                  {getCartCount()}
+                </span>
+              )}
+            </Link>
+
+            {/* Mobile menu button */}
+            <button 
+              onClick={() => setVisible(true)}
+              className='lg:hidden p-2 rounded-full hover:bg-gray-100 transition-all duration-200'
+              aria-label="Open menu"
+            >
+              <img src={assets.menu_icon} className='w-5 h-5' alt="Menu" />
+            </button>
           </div>
+        </div>
+      </div>
+        
+      {/* Mobile menu - Modern slide-in */}
+      <div className={`lg:hidden fixed inset-0 z-50 bg-white transition-transform duration-300 ease-out ${
+        visible ? "translate-x-0" : "translate-x-full"
+      }`}>
+        <div className='flex h-full flex-col'>
+          {/* Header */}
+          <div className='flex items-center justify-between border-b border-gray-200 p-6'>
+            <Link to='/' onClick={handleMobileNavClick}>
+              <LogoDisplay />
+            </Link>
+            <button 
+              onClick={() => setVisible(false)}
+              className='p-2 rounded-full hover:bg-gray-100 transition-colors'
+              aria-label="Close menu"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Navigation items */}
+          <nav className="flex-1 overflow-y-auto py-6">
+            {navItems.map((item) => (
+              <NavLink 
+                key={item.path}
+                to={item.path} 
+                onClick={handleMobileNavClick}
+                className={({ isActive }) => 
+                  `block px-6 py-4 text-lg font-medium transition-colors border-l-4 ${
+                    isActive 
+                      ? 'text-black bg-gray-50 border-black' 
+                      : 'text-gray-600 border-transparent hover:bg-gray-50 hover:text-black'
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* Mobile footer */}
+          {token && (
+            <div className='border-t border-gray-200 p-6'>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => { navigate('/orders'); handleMobileNavClick(); }}
+                  className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  My Orders
+                </button>
+                <button 
+                  onClick={logout}
+                  className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

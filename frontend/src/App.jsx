@@ -33,7 +33,7 @@ const ScrollToTop = () => {
 
 const App = () => {
   return (
-    <div className="px-4 sm:px-[5vw] md:px-[7vw] lg:px-[9vw]">
+    <div className="px-4 sm:px-[5vw] md:px-[5vw] ">
       <Favicon />
       <ToastContainer
         position="top-right"
@@ -63,7 +63,7 @@ const App = () => {
           borderRadius: '8px',
         }}
       />
-      <ScrollToTop />
+
       <Navbar/>
       <SearchBar/>
       <Routes>

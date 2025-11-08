@@ -23,7 +23,7 @@ import banner2 from './banner2.jpeg';
 import banner3 from './banner3.jpeg';
 import whyus from './whyus.png';
 import Newsletter from './Newsletter.png';
-import logo from './logo.png';
+import logo from './logo.jpeg';
 import hero_img from './hero_img.png';
 import cart_icon from './cart_icon.png';
 import bin_icon from './bin_icon.png';

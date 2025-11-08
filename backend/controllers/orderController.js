@@ -2,7 +2,8 @@ import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
 import notificationModel from "../models/notifcationModel.js";
-import Comment from "../models/commentModel.js"; // Your existing comment model
+import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
 
 // 🆕 Notification Types
 const NOTIFICATION_TYPES = {
@@ -12,7 +13,9 @@ const NOTIFICATION_TYPES = {
   LOW_STOCK: 'low_stock',
   OUT_OF_STOCK: 'out_of_stock',
   NEW_COMMENT: 'new_comment',
-  COMMENT_REPLY: 'comment_reply'
+  COMMENT_REPLY: 'comment_reply',
+  PAYMENT_VERIFIED: 'payment_verified',
+  PAYMENT_REJECTED: 'payment_rejected'
 };
 
 // 🆕 Create Notification Function
@@ -25,6 +28,55 @@ const createNotification = async (notificationData) => {
   } catch (error) {
     console.error('❌ Error creating notification:', error);
   }
+};
+
+// 🆕 Send Payment Verified Notification
+const sendPaymentVerifiedNotification = async (order) => {
+  const shortOrderId = order._id.toString().slice(-6);
+  const customerName = order.customerDetails?.name || 'Customer';
+
+  // User notification
+  await createNotification({
+    userId: order.userId,
+    type: NOTIFICATION_TYPES.PAYMENT_VERIFIED,
+    title: '✅ Payment Verified!',
+    message: `Your payment for order #${shortOrderId} has been verified. Order is now confirmed.`,
+    relatedId: order._id.toString(),
+    relatedType: 'order',
+    actionUrl: `/orders/${order._id}`,
+    metadata: {
+      orderId: order._id.toString(),
+      amount: order.paymentAmount,
+      customerName: customerName
+    }
+  });
+
+  console.log(`🔔 Payment verified notification sent for order ${order._id}`);
+};
+
+// 🆕 Send Payment Rejected Notification
+const sendPaymentRejectedNotification = async (order, reason) => {
+  const shortOrderId = order._id.toString().slice(-6);
+  const customerName = order.customerDetails?.name || 'Customer';
+
+  // User notification
+  await createNotification({
+    userId: order.userId,
+    type: NOTIFICATION_TYPES.PAYMENT_REJECTED,
+    title: '❌ Payment Rejected',
+    message: `Your payment for order #${shortOrderId} was rejected.${reason ? ` Reason: ${reason}` : ''}`,
+    relatedId: order._id.toString(),
+    relatedType: 'order',
+    actionUrl: `/orders/${order._id}`,
+    metadata: {
+      orderId: order._id.toString(),
+      amount: order.paymentAmount,
+      reason: reason,
+      customerName: customerName
+    }
+  });
+
+  console.log(`🔔 Payment rejected notification sent for order ${order._id}`);
 };
 
 // 🆕 UPDATED: Send Order Placed Notification with Customer Details
@@ -40,8 +92,10 @@ const sendOrderPlacedNotification = async (order) => {
   await createNotification({
     userId: order.userId,
     type: NOTIFICATION_TYPES.ORDER_PLACED,
-    title: '🎉 Order Placed Successfully!',
-    message: `Your order #${shortOrderId} has been placed. Total: $${order.amount}`,
+    title: order.paymentStatus === 'pending' ? '⏳ Order Placed - Payment Pending' : '🎉 Order Placed Successfully!',
+    message: order.paymentStatus === 'pending' 
+      ? `Your order #${shortOrderId} has been placed. Waiting for payment verification.` 
+      : `Your order #${shortOrderId} has been placed. Total: $${order.amount}`,
     relatedId: order._id.toString(),
     relatedType: 'order',
     actionUrl: `/orders/${order._id}`,
@@ -50,7 +104,8 @@ const sendOrderPlacedNotification = async (order) => {
       amount: order.amount,
       itemsCount: order.items.length,
       customerName: customerName,
-      customerEmail: customerEmail
+      customerEmail: customerEmail,
+      paymentStatus: order.paymentStatus
     }
   });
 
@@ -58,19 +113,22 @@ const sendOrderPlacedNotification = async (order) => {
   await createNotification({
     userId: 'admin',
     type: NOTIFICATION_TYPES.ORDER_PLACED,
-    title: '🛒 New Order Received',
-    message: `New order #${shortOrderId} from ${customerName}. Amount: $${order.amount}`,
+    title: order.paymentStatus === 'pending' ? '⏳ New Order - Payment Pending' : '🛒 New Order Received',
+    message: order.paymentStatus === 'pending'
+      ? `New order #${shortOrderId} from ${customerName}. Payment verification required.`
+      : `New order #${shortOrderId} from ${customerName}. Amount: $${order.amount}`,
     relatedId: order._id.toString(),
     relatedType: 'order',
     isAdmin: true,
     actionUrl: `/admin/orders/${order._id}`,
-    priority: 'high',
+    priority: order.paymentStatus === 'pending' ? 'high' : 'medium',
     metadata: {
       orderId: order._id.toString(),
       customerName: customerName,
       customerEmail: customerEmail,
       amount: order.amount,
-      itemsCount: order.items.length
+      itemsCount: order.items.length,
+      paymentStatus: order.paymentStatus
     }
   });
 
@@ -159,97 +217,12 @@ const sendOrderStatusUpdateNotification = async (order, oldStatus, newStatus) =>
   console.log(`🔔 Order status update notification sent for order ${order._id}`);
 };
 
-// 🆕 Send New Comment Notification
-const sendNewCommentNotification = async (comment) => {
-  let targetName = '';
-  let targetType = '';
-  let actionUrl = '';
-
-  if (comment.targetType === 'product') {
-    targetName = comment.productName || 'Product';
-    targetType = 'product';
-    actionUrl = `/product/${comment.productId}`;
-  } else if (comment.targetType === 'deal') {
-    targetName = comment.dealName || 'Deal';
-    targetType = 'deal';
-    actionUrl = `/deal/${comment.dealId}`;
-  }
-
-  // Admin notification for new comment
-  await createNotification({
-    userId: 'admin',
-    type: NOTIFICATION_TYPES.NEW_COMMENT,
-    title: '💬 New Comment Received',
-    message: `New comment on ${targetType} "${targetName}" by ${comment.author}`,
-    relatedId: comment._id.toString(),
-    relatedType: 'comment',
-    isAdmin: true,
-    actionUrl: `/admin/comments`,
-    priority: 'medium',
-    metadata: {
-      commentId: comment._id.toString(),
-      author: comment.author,
-      targetType: comment.targetType,
-      targetName: targetName,
-      content: comment.content.substring(0, 100) + '...'
-    }
-  });
-
-  console.log(`🔔 New comment notification sent for ${targetType}`);
-};
-
-// 🆕 Send Comment Reply Notification
-const sendCommentReplyNotification = async (comment, replyAuthor) => {
-  if (comment.userId) {
-    await createNotification({
-      userId: comment.userId.toString(),
-      type: NOTIFICATION_TYPES.COMMENT_REPLY,
-      title: '↩️ Reply to Your Comment',
-      message: `${replyAuthor} replied to your comment on ${comment.targetType}`,
-      relatedId: comment._id.toString(),
-      relatedType: 'comment',
-      actionUrl: comment.targetType === 'product' ? `/product/${comment.productId}` : `/deal/${comment.dealId}`,
-      metadata: {
-        commentId: comment._id.toString(),
-        replyAuthor: replyAuthor,
-        targetType: comment.targetType,
-        originalComment: comment.content.substring(0, 50) + '...'
-      }
-    });
-
-    console.log(`🔔 Comment reply notification sent to user ${comment.userId}`);
-  }
-};
-
-// 🆕 Send Low Stock Notification
-const sendLowStockNotification = async (product) => {
-  await createNotification({
-    userId: 'admin',
-    type: NOTIFICATION_TYPES.LOW_STOCK,
-    title: '⚠️ Low Stock Alert',
-    message: `Product "${product.name}" is running low. Current stock: ${product.quantity}`,
-    relatedId: product._id.toString(),
-    relatedType: 'product',
-    isAdmin: true,
-    actionUrl: `/admin/products`,
-    priority: 'high',
-    metadata: {
-      productId: product._id.toString(),
-      productName: product.name,
-      currentStock: product.quantity,
-      idealStock: product.idealStock || 20
-    }
-  });
-
-  console.log(`🔔 Low stock notification sent for product ${product.name}`);
-};
-
-// 🆕 UPDATED: placeOrder function with CUSTOMER DETAILS SUPPORT
+// 🆕 UPDATED: placeOrder function with PAYMENT VERIFICATION SUPPORT
 const placeOrder = async (req, res) => {
   try {
     console.log("🛒 ========== BACKEND ORDER PLACEMENT ==========");
     
-    const { items, amount, address, deliveryCharges, customerDetails } = req.body;
+    const { items, amount, address, deliveryCharges, customerDetails, paymentMethod, paymentStatus, paymentAmount, paymentScreenshot } = req.body;
     const userId = req.userId;
 
     // Validate required fields
@@ -263,6 +236,11 @@ const placeOrder = async (req, res) => {
 
     if (!address) {
       return res.json({ success: false, message: "Address is required" });
+    }
+
+    // 🆕 Validate payment method
+    if (!paymentMethod || !['COD', 'online'].includes(paymentMethod)) {
+      return res.json({ success: false, message: "Invalid payment method" });
     }
 
     // 🆕 GET USER PROFILE DATA FOR DEFAULTS
@@ -393,56 +371,76 @@ const placeOrder = async (req, res) => {
 
     console.log(`📦 Validated ${validatedItems.length} items for order`);
 
-    // Reduce inventory quantity
-    console.log("📦 Reducing inventory quantity...");
-    for (const validatedItem of validatedItems) {
-      // Skip inventory reduction for items that weren't found in database (deal items)
-      if (!validatedItem.actualProduct) {
-        console.log(`⚠️ Skipping inventory reduction for: ${validatedItem.name} (no product found in DB)`);
-        continue;
-      }
+    // 🆕 Only reduce inventory if payment is verified or it's online payment
+    if (paymentStatus === 'verified' || paymentMethod === 'online') {
+      console.log("📦 Reducing inventory quantity...");
+      for (const validatedItem of validatedItems) {
+        // Skip inventory reduction for items that weren't found in database (deal items)
+        if (!validatedItem.actualProduct) {
+          console.log(`⚠️ Skipping inventory reduction for: ${validatedItem.name} (no product found in DB)`);
+          continue;
+        }
 
-      const updateResult = await productModel.findByIdAndUpdate(
-        validatedItem.id,
-        { 
-          $inc: { 
-            quantity: -validatedItem.quantity,
-            totalSales: validatedItem.quantity
-          } 
-        },
-        { new: true }
-      );
-      
-      if (updateResult) {
-        console.log(`✅ Reduced stock for ${updateResult.name} by ${validatedItem.quantity}. New stock: ${updateResult.quantity}`);
+        const updateResult = await productModel.findByIdAndUpdate(
+          validatedItem.id,
+          { 
+            $inc: { 
+              quantity: -validatedItem.quantity,
+              totalSales: validatedItem.quantity
+            } 
+          },
+          { new: true }
+        );
         
-        // Check for low stock and send notification
-        if (updateResult.quantity <= 10 && updateResult.quantity > 0) {
-          await sendLowStockNotification(updateResult);
-        }
-        
-        // Check for out of stock
-        if (updateResult.quantity === 0) {
-          await createNotification({
-            userId: 'admin',
-            type: NOTIFICATION_TYPES.OUT_OF_STOCK,
-            title: '🛑 Out of Stock Alert',
-            message: `Product "${updateResult.name}" is now out of stock.`,
-            relatedId: updateResult._id.toString(),
-            relatedType: 'product',
-            isAdmin: true,
-            actionUrl: `/admin/products`,
-            priority: 'urgent',
-            metadata: {
-              productId: updateResult._id.toString(),
-              productName: updateResult.name
-            }
-          });
+        if (updateResult) {
+          console.log(`✅ Reduced stock for ${updateResult.name} by ${validatedItem.quantity}. New stock: ${updateResult.quantity}`);
+          
+          // Check for low stock and send notification
+          if (updateResult.quantity <= 10 && updateResult.quantity > 0) {
+            await createNotification({
+              userId: 'admin',
+              type: NOTIFICATION_TYPES.LOW_STOCK,
+              title: '⚠️ Low Stock Alert',
+              message: `Product "${updateResult.name}" is running low. Current stock: ${updateResult.quantity}`,
+              relatedId: updateResult._id.toString(),
+              relatedType: 'product',
+              isAdmin: true,
+              actionUrl: `/admin/products`,
+              priority: 'high',
+              metadata: {
+                productId: updateResult._id.toString(),
+                productName: updateResult.name,
+                currentStock: updateResult.quantity,
+                idealStock: updateResult.idealStock || 20
+              }
+            });
+          }
+          
+          // Check for out of stock
+          if (updateResult.quantity === 0) {
+            await createNotification({
+              userId: 'admin',
+              type: NOTIFICATION_TYPES.OUT_OF_STOCK,
+              title: '🛑 Out of Stock Alert',
+              message: `Product "${updateResult.name}" is now out of stock.`,
+              relatedId: updateResult._id.toString(),
+              relatedType: 'product',
+              isAdmin: true,
+              actionUrl: `/admin/products`,
+              priority: 'urgent',
+              metadata: {
+                productId: updateResult._id.toString(),
+                productName: updateResult.name
+              }
+            });
+          }
         }
       }
+    } else {
+      console.log("⚠️ Skipping inventory reduction - payment pending verification");
     }
 
-    // ✅ ENHANCED: Create order with CUSTOMER DETAILS & DEAL DATA SUPPORT
+    // 🆕 ENHANCED: Create order with PAYMENT VERIFICATION SUPPORT
     const orderData = {
       userId,
       items: validatedItems.map(item => ({
@@ -454,48 +452,60 @@ const placeOrder = async (req, res) => {
         category: item.category || item.actualProduct?.category,
         isFromDeal: item.isFromDeal || false,
         dealName: item.dealName || null,
-        dealImage: item.dealImage || null, // ✅ DEAL IMAGE INCLUDED
-        dealDescription: item.dealDescription || null // ✅ DEAL DESCRIPTION INCLUDED
+        dealImage: item.dealImage || null,
+        dealDescription: item.dealDescription || null
       })),
       amount: Number(amount),
       address,
       deliveryCharges: deliveryCharges || 0,
-      paymentMethod: "COD",
-      payment: false,
-      status: "Order Placed",
+      paymentMethod: paymentMethod,
+      payment: paymentStatus === 'verified', // Only true if payment is verified
+      status: paymentStatus === 'verified' ? "Order Placed" : "Pending Verification",
       date: Date.now(),
-      customerDetails: finalCustomerDetails // 🆕 INCLUDING CUSTOMER DETAILS
+      customerDetails: finalCustomerDetails,
+      
+      // 🆕 PAYMENT VERIFICATION FIELDS
+      paymentStatus: paymentStatus || 'pending',
+      paymentAmount: paymentAmount || (paymentMethod === 'COD' ? 350 : Number(amount)),
+      paymentScreenshot: paymentScreenshot || null,
+      paymentMethodDetail: paymentMethod === 'COD' ? 'easypaisa' : 'online',
+      orderPlacedAt: new Date()
     };
 
     console.log("📝 FINAL ORDER DATA SAVED:", {
       totalItems: orderData.items.length,
       customerDetails: orderData.customerDetails,
-      dealItems: orderData.items.filter(item => item.isFromDeal).length,
-      regularItems: orderData.items.filter(item => !item.isFromDeal).length
+      paymentMethod: orderData.paymentMethod,
+      paymentStatus: orderData.paymentStatus,
+      paymentAmount: orderData.paymentAmount,
+      orderStatus: orderData.status
     });
 
     const newOrder = new orderModel(orderData);
     await newOrder.save();
 
-    console.log(`✅ Order created: ${newOrder._id} with customer: ${newOrder.customerDetails.name}`);
+    console.log(`✅ Order created: ${newOrder._id} with status: ${newOrder.status}`);
 
-    // Clear user cart
-    await userModel.findByIdAndUpdate(userId, { 
-      cartData: {},
-      cartDeals: {} 
-    });
+    // Clear user cart only if payment is verified
+    if (paymentStatus === 'verified') {
+      await userModel.findByIdAndUpdate(userId, { 
+        cartData: {},
+        cartDeals: {} 
+      });
+      console.log(`✅ Cleared cart for user: ${userId}`);
+    }
 
-    console.log(`✅ Cleared cart for user: ${userId}`);
-
-    // 🆕 SEND ORDER PLACED NOTIFICATION (UPDATED TO USE CUSTOMER DETAILS)
+    // 🆕 SEND ORDER PLACED NOTIFICATION
     await sendOrderPlacedNotification(newOrder);
 
     res.json({ 
       success: true, 
-      message: "Order Placed Successfully", 
+      message: paymentStatus === 'verified' ? "Order Placed Successfully" : "Order Placed - Payment Verification Pending",
       orderId: newOrder._id,
       deliveryCharges: newOrder.deliveryCharges,
-      customerDetails: newOrder.customerDetails // 🆕 Return customer details
+      customerDetails: newOrder.customerDetails,
+      paymentStatus: newOrder.paymentStatus,
+      orderStatus: newOrder.status
     });
 
   } catch (error) {
@@ -504,7 +514,186 @@ const placeOrder = async (req, res) => {
   }
 };
 
-// 📋 Get All Orders (Admin Panel)
+// 🆕 UPDATED: Place Order with Payment (Cloudinary)
+const placeOrderWithPayment = async (req, res) => {
+  try {
+    console.log("💰 ========== PLACE ORDER WITH PAYMENT ==========");
+    
+    const { orderData } = req.body;
+    let paymentScreenshot = null;
+
+    // Upload to Cloudinary if file exists
+    if (req.file) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: "payments",
+          transformation: [
+            { width: 800, height: 800, crop: "limit", quality: "auto" }
+          ],
+        });
+        
+        paymentScreenshot = result.secure_url;
+        
+        // Remove temporary file
+        fs.unlinkSync(req.file.path);
+        
+        console.log(`✅ Payment screenshot uploaded to Cloudinary: ${paymentScreenshot}`);
+      } catch (uploadError) {
+        console.error("❌ Cloudinary upload error:", uploadError);
+        return res.json({ 
+          success: false, 
+          message: "Failed to upload payment screenshot" 
+        });
+      }
+    } else {
+      return res.json({ 
+        success: false, 
+        message: "Payment screenshot is required" 
+      });
+    }
+
+    const parsedOrderData = JSON.parse(orderData);
+    
+    // Call the main placeOrder function with payment data
+    req.body = {
+      ...parsedOrderData,
+      paymentScreenshot: paymentScreenshot,
+      paymentStatus: 'pending' // Set to pending for admin verification
+    };
+    
+    return await placeOrder(req, res);
+    
+  } catch (error) {
+    console.error("❌ Error in placeOrderWithPayment:", error);
+    
+    // Clean up temporary file if it exists
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error("❌ Error cleaning up temp file:", cleanupError);
+      }
+    }
+    
+    res.json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
+// 🆕 NEW: Verify Payment (Admin Function)
+const verifyPayment = async (req, res) => {
+  try {
+    const { orderId, action, reason } = req.body;
+    const adminId = req.userId;
+
+    if (!orderId || !action) {
+      return res.json({ success: false, message: "Order ID and action are required" });
+    }
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.json({ success: false, message: "Invalid action" });
+    }
+
+    const order = await orderModel.findById(orderId);
+    if (!order) {
+      return res.json({ success: false, message: "Order not found" });
+    }
+
+    if (order.paymentStatus !== 'pending') {
+      return res.json({ success: false, message: `Payment is already ${order.paymentStatus}` });
+    }
+
+    let updateData = {};
+    let notificationFunction = null;
+
+    if (action === 'approve') {
+      updateData = {
+        paymentStatus: 'verified',
+        status: 'Order Placed',
+        payment: true,
+        verifiedBy: adminId,
+        verifiedAt: new Date(),
+        paymentVerifiedAt: new Date(),
+        orderConfirmedAt: new Date()
+      };
+
+      // Reduce inventory for approved payments
+      console.log("📦 Reducing inventory quantity for verified payment...");
+      for (const item of order.items) {
+        if (item.id) {
+          await productModel.findByIdAndUpdate(
+            item.id,
+            { 
+              $inc: { 
+                quantity: -item.quantity,
+                totalSales: item.quantity
+              } 
+            }
+          );
+          console.log(`✅ Reduced stock for: ${item.name}, Qty: ${item.quantity}`);
+        }
+      }
+
+      // Clear user cart
+      await userModel.findByIdAndUpdate(order.userId, { 
+        cartData: {},
+        cartDeals: {} 
+      });
+
+      notificationFunction = sendPaymentVerifiedNotification;
+
+    } else if (action === 'reject') {
+      updateData = {
+        paymentStatus: 'rejected',
+        status: 'Payment Rejected',
+        payment: false,
+        verifiedBy: adminId,
+        verifiedAt: new Date(),
+        rejectionReason: reason || 'Payment verification failed'
+      };
+      notificationFunction = () => sendPaymentRejectedNotification(order, reason);
+    }
+
+    const updatedOrder = await orderModel.findByIdAndUpdate(
+      orderId,
+      updateData,
+      { new: true }
+    );
+
+    // Send appropriate notification
+    if (notificationFunction) {
+      await notificationFunction(updatedOrder);
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Payment ${action}ed successfully`,
+      order: updatedOrder 
+    });
+
+  } catch (error) {
+    console.error("❌ Error in verifyPayment:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// 🆕 NEW: Get Pending Payment Orders
+const getPendingPaymentOrders = async (req, res) => {
+  try {
+    const orders = await orderModel.find({ 
+      paymentStatus: 'pending' 
+    }).sort({ orderPlacedAt: -1 });
+    
+    res.json({ success: true, orders });
+  } catch (error) {
+    console.error("❌ Error in getPendingPaymentOrders:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// 📋 Get All Orders (Admin Panel) - UPDATED
 const allOrders = async (req, res) => {
   try {
     const orders = await orderModel.find({}).sort({ date: -1 });
@@ -515,19 +704,20 @@ const allOrders = async (req, res) => {
   }
 };
 
-// 👤 Get Logged-in User Orders
+// 👤 Get Logged-in User Orders - UPDATED
 const userOrders = async (req, res) => {
   try {
     const userId = req.userId;
     const orders = await orderModel.find({ userId }).sort({ date: -1 });
     
-    // Enhanced logging for debugging deal images and customer details
     console.log("📦 USER ORDERS RETRIEVED - DEBUG:", {
       totalOrders: orders.length,
       orders: orders.map(order => ({
         id: order._id,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
         totalItems: order.items.length,
-        customerDetails: order.customerDetails, // 🆕 Log customer details
+        customerDetails: order.customerDetails,
         dealItems: order.items.filter(item => item.isFromDeal).map(item => ({
           name: item.name,
           isFromDeal: item.isFromDeal,
@@ -548,7 +738,7 @@ const userOrders = async (req, res) => {
   }
 };
 
-// 🆕 Get Order Details with Customer Information
+// 🆕 Get Order Details with Customer Information - UPDATED
 const getOrderDetails = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -567,7 +757,6 @@ const getOrderDetails = async (req, res) => {
     res.json({ 
       success: true, 
       order,
-      // Include customer details prominently
       customerDetails: order.customerDetails
     });
 
@@ -577,7 +766,7 @@ const getOrderDetails = async (req, res) => {
   }
 };
 
-// 🔄 Update Order Status (Admin Panel) with notifications
+// 🔄 Update Order Status (Admin Panel) with notifications - UPDATED
 const updateStatus = async (req, res) => {
   try {
     const { orderId, status, cancellationReason } = req.body;
@@ -592,6 +781,11 @@ const updateStatus = async (req, res) => {
       return res.json({ success: false, message: "Order not found" });
     }
 
+    // 🆕 Don't allow status update if payment is pending
+    if (currentOrder.paymentStatus === 'pending' && status !== 'Cancelled') {
+      return res.json({ success: false, message: "Cannot update status while payment verification is pending" });
+    }
+
     const oldStatus = currentOrder.status;
     const updateData = { 
       status, 
@@ -604,25 +798,25 @@ const updateStatus = async (req, res) => {
       updateData.cancelledAt = new Date();
       updateData.cancelledBy = "admin";
 
-      // Restore inventory for items that have actual products
-      console.log("📦 Restoring inventory quantity for cancelled order...");
-      for (const item of currentOrder.items) {
-        // Only restore inventory for items that were actually reduced
-        if (item.id) {
-          await productModel.findByIdAndUpdate(
-            item.id,
-            { 
-              $inc: { 
-                quantity: item.quantity,
-                totalSales: -item.quantity
-              } 
-            }
-          );
-          console.log(`✅ Restored stock for item: ${item.name}, Qty: ${item.quantity}`);
+      // Restore inventory for items that have actual products (only if payment was verified)
+      if (currentOrder.paymentStatus === 'verified') {
+        console.log("📦 Restoring inventory quantity for cancelled order...");
+        for (const item of currentOrder.items) {
+          if (item.id) {
+            await productModel.findByIdAndUpdate(
+              item.id,
+              { 
+                $inc: { 
+                  quantity: item.quantity,
+                  totalSales: -item.quantity
+                } 
+              }
+            );
+            console.log(`✅ Restored stock for item: ${item.name}, Qty: ${item.quantity}`);
+          }
         }
       }
 
-      // 🆕 SEND ORDER CANCELLED NOTIFICATION (UPDATED)
       await sendOrderCancelledNotification(currentOrder, 'admin', cancellationReason);
     }
 
@@ -653,7 +847,7 @@ const updateStatus = async (req, res) => {
   }
 };
 
-// ❌ Cancel Order (User) with notifications
+// ❌ Cancel Order (User) with notifications - UPDATED
 const cancelOrder = async (req, res) => {
   try {
     const { orderId, cancellationReason } = req.body;
@@ -688,11 +882,10 @@ const cancelOrder = async (req, res) => {
       });
     }
 
-    // Restore inventory if order was placed
-    if (order.status === "Order Placed" || order.status === "Processing") {
+    // Restore inventory if payment was verified
+    if (order.paymentStatus === 'verified') {
       console.log("📦 Restoring inventory quantity...");
       for (const item of order.items) {
-        // Only restore inventory for items that have valid product IDs
         if (item.id) {
           await productModel.findByIdAndUpdate(
             item.id,
@@ -721,7 +914,6 @@ const cancelOrder = async (req, res) => {
       { new: true }
     );
 
-    // 🆕 SEND ORDER CANCELLED NOTIFICATION (UPDATED)
     await sendOrderCancelledNotification(updatedOrder, 'user', cancellationReason);
 
     res.json({ 
@@ -903,9 +1095,12 @@ const checkStock = async (req, res) => {
 
 export { 
   placeOrder, 
+  placeOrderWithPayment, // 🆕 NEW
+  verifyPayment, // 🆕 NEW
+  getPendingPaymentOrders, // 🆕 NEW
   allOrders, 
   userOrders, 
-  getOrderDetails, // 🆕 Export the new function
+  getOrderDetails,
   updateStatus, 
   cancelOrder,
   getCancellationReasons,
