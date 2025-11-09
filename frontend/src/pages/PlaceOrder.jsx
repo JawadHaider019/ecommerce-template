@@ -9,8 +9,6 @@ import { toast } from 'react-toastify';
 import { assets } from "../assets/assets";
 
 const PlaceOrder = () => {
-  console.log('🎯 PlaceOrder component mounted');
-
   const [loading, setLoading] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
@@ -43,23 +41,11 @@ const PlaceOrder = () => {
     getCartAmount,
     products,
     deals,
-    currency
+    currency,
+    clearCart
   } = useContext(ShopContext);
   
   const navigate = useNavigate();
-
-  // Enhanced debugging
-  useEffect(() => {
-    console.log('🔍 PlaceOrder Debug Info:', {
-      token: !!token,
-      user: !!user,
-      cartItems: cartItems ? Object.keys(cartItems).length : 0,
-      cartDeals: cartDeals ? Object.keys(cartDeals).length : 0,
-      products: products ? products.length : 0,
-      deals: deals ? deals.length : 0,
-      isDataReady
-    });
-  }, [token, user, cartItems, cartDeals, products, deals, isDataReady]);
 
   // Form data state
   const [formData, setFormData] = useState(() => {
@@ -82,7 +68,6 @@ const PlaceOrder = () => {
       const deliveryCharge = getDeliveryCharge?.(subtotal) || 0;
       return subtotal + deliveryCharge;
     } catch (error) {
-      console.error('Error calculating total amount:', error);
       return 0;
     }
   };
@@ -91,10 +76,7 @@ const PlaceOrder = () => {
 
   // Enhanced authentication and cart check
   useEffect(() => {
-    console.log('🔐 Running authentication check...');
-    
     if (!token || !user) {
-      console.log('❌ No token or user, redirecting to login');
       sessionStorage.setItem('redirectAfterLogin', '/place-order');
       navigate('/login');
       return;
@@ -103,17 +85,14 @@ const PlaceOrder = () => {
     const cartItemCount = (cartItems ? Object.keys(cartItems).length : 0) + 
                          (cartDeals ? Object.keys(cartDeals).length : 0);
     
-    console.log('🛒 Cart item count:', cartItemCount);
-    
     if (cartItemCount === 0) {
-      console.log('🛒 Cart is empty, showing empty state');
+      // Cart is empty, will show empty state
     }
   }, [token, user, cartItems, cartDeals, navigate]);
 
   // Load user data as defaults
   useEffect(() => {
     if (user?.name && user?.email && !hasUserDataLoaded) {
-      console.log('👤 Loading user data into form');
       setFormData(prev => ({
         ...prev,
         fullName: user.name || '',
@@ -128,14 +107,11 @@ const PlaceOrder = () => {
   useEffect(() => {
     const loadPakistanStates = async () => {
       try {
-        console.log('🌍 Loading Pakistan states...');
         const response = await axios.get(`${backendUrl}/api/locations/pakistan/states`);
         if (response.data.success) {
           setPakistanStates(response.data.data.states.map(state => state.name));
-          console.log('✅ Pakistan states loaded:', response.data.data.states.length);
         }
       } catch (error) {
-        console.error('❌ Error loading Pakistan states, using defaults:', error);
         setPakistanStates(['Punjab', 'Sindh', 'Khyber Pakhtunkhwa', 'Balochistan']);
       }
     };
@@ -156,14 +132,12 @@ const PlaceOrder = () => {
 
     setIsLoadingCities(true);
     try {
-      console.log('🏙️ Fetching cities for state:', stateName);
       const response = await axios.get(`${backendUrl}/api/locations/cities`, {
         params: { state: stateName }
       });
 
       if (response.data.success) {
         const citiesData = response.data.data.cities;
-        console.log('✅ Cities loaded:', citiesData.length);
         
         if (citiesData.length > 0) {
           const cityNames = citiesData.map(city => city.name).sort();
@@ -188,7 +162,7 @@ const PlaceOrder = () => {
         }
       }
     } catch (error) {
-      console.error('❌ Error fetching cities:', error);
+      // Error handled silently
     } finally {
       setIsLoadingCities(false);
     }
@@ -233,7 +207,6 @@ const PlaceOrder = () => {
         };
       }
     } catch (error) {
-      console.error('❌ Address validation error:', error);
       if (city && state && zipcode && /^\d{5}$/.test(zipcode)) {
         return { 
           isValid: true, 
@@ -301,8 +274,6 @@ const PlaceOrder = () => {
 
   // Enhanced data readiness check
   useEffect(() => {
-    console.log('📦 Checking cart data readiness...');
-    
     const hasCartItems = (cartItems && Object.keys(cartItems).length > 0) || 
                         (cartDeals && Object.keys(cartDeals).length > 0);
     
@@ -310,13 +281,6 @@ const PlaceOrder = () => {
     const hasDealsData = deals !== undefined && deals !== null;
     
     const ready = hasProductsData && hasDealsData;
-
-    console.log('Data ready status:', {
-      hasCartItems,
-      hasProductsData,
-      hasDealsData,
-      ready
-    });
 
     setIsDataReady(ready);
   }, [cartItems, cartDeals, products, deals]);
@@ -356,7 +320,6 @@ const PlaceOrder = () => {
 
       setAddressSuggestions(suggestions);
     } catch (error) {
-      console.error('❌ Address suggestion error:', error);
       setAddressSuggestions([]);
     } finally {
       setIsSearchingAddress(false);
@@ -553,6 +516,7 @@ const PlaceOrder = () => {
     return [];
   };
 
+  // Process cart items for order
   const processCartItems = () => {
     let orderItems = [];
     let calculatedAmount = 0;
@@ -573,7 +537,10 @@ const PlaceOrder = () => {
               quantity: quantity,
               image: productInfo.image?.[0],
               category: productInfo.category,
-              isFromDeal: false
+              isFromDeal: false,
+              description: productInfo.description,
+              originalPrice: productInfo.price,
+              hasDiscount: productInfo.discountprice > 0
             });
             
             calculatedAmount += itemTotal;
@@ -582,36 +549,33 @@ const PlaceOrder = () => {
       });
     }
 
-    // Process deals
+    // Process deals using the same structure as cart
     if (cartDeals && deals) {
       Object.entries(cartDeals).forEach(([dealId, dealQuantity]) => {
         if (dealQuantity > 0) {
           const dealInfo = deals.find(deal => deal._id === dealId);
           if (dealInfo?.dealName) {
-            const dealProducts = getDealProducts(dealInfo);
+            const unitPrice = dealInfo.dealFinalPrice || dealInfo.price;
+            const itemTotalPrice = unitPrice * dealQuantity;
+            const originalTotalPrice = dealInfo.dealTotal;
+            const savings = originalTotalPrice ? (originalTotalPrice - unitPrice) : 0;
             
-            dealProducts.forEach(dealProduct => {
-              if (dealProduct?._id) {
-                const productQuantity = (dealProduct.quantity || 1) * dealQuantity;
-                const unitPrice = dealProduct.discountprice > 0 ? dealProduct.discountprice : dealProduct.price;
-                const itemTotal = unitPrice * productQuantity;
-                
-                orderItems.push({
-                  id: dealProduct._id,
-                  name: dealProduct.name || `Product from ${dealInfo.dealName}`,
-                  price: unitPrice,
-                  quantity: productQuantity,
-                  image: dealProduct.image?.[0] || assets.placeholder_image,
-                  category: dealProduct.category,
-                  isFromDeal: true,
-                  dealName: dealInfo.dealName,
-                  dealImage: dealInfo.dealImages?.[0] || assets.placeholder_image,
-                  dealDescription: dealInfo.dealDescription || null
-                });
-                
-                calculatedAmount += itemTotal;
-              }
+            orderItems.push({
+              id: dealInfo._id,
+              name: dealInfo.dealName,
+              price: unitPrice,
+              quantity: dealQuantity,
+              image: dealInfo.dealImages?.[0] || assets.placeholder_image,
+              category: 'Deal',
+              isFromDeal: true,
+              description: dealInfo.dealDescription,
+              originalTotalPrice: dealInfo.dealTotal,
+              savings: savings,
+              dealProducts: getDealProducts(dealInfo),
+              type: 'deal'
             });
+            
+            calculatedAmount += itemTotalPrice;
           }
         }
       });
@@ -684,49 +648,12 @@ const PlaceOrder = () => {
         paymentAmount: paymentMethod === 'COD' ? 350 : finalAmount
       };
 
-      // Log order details to console
-      console.log('🛒 ORDER BEING PLACED:', {
-        orderId: `ORDER_${Date.now()}`,
-        customer: {
-          name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone
-        },
-        address: {
-          street: formData.street,
-          city: formData.city,
-          state: formData.state,
-          zipcode: formData.zipcode
-        },
-        payment: {
-          method: paymentMethod,
-          amount: paymentMethod === 'COD' ? 350 : finalAmount,
-          status: 'pending'
-        },
-        items: orderItems.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          total: item.price * item.quantity,
-          type: item.isFromDeal ? 'deal' : 'product'
-        })),
-        summary: {
-          subtotal: calculatedAmount,
-          delivery: deliveryCharge,
-          total: finalAmount,
-          itemCount: orderItems.length
-        },
-        timestamp: new Date().toISOString()
-      });
-
       // Upload payment screenshot with order data
       if (paymentScreenshot) {
         setIsUploadingPayment(true);
         const paymentFormData = new FormData();
         paymentFormData.append('payment_screenshot', paymentScreenshot);
         paymentFormData.append('orderData', JSON.stringify(orderData));
-        
-        console.log('📤 Uploading order with payment screenshot...');
         
         const paymentResponse = await axios.post(
           `${backendUrl}/api/order/place-with-payment`, 
@@ -740,16 +667,12 @@ const PlaceOrder = () => {
         );
         
         if (paymentResponse.data.success) {
-          console.log('✅ Order placed successfully:', paymentResponse.data);
-          // Clear cart and local storage
-          setCartItems({});
-          setCartDeals({});
-          localStorage.removeItem('orderFormData');
+          // Clear cart using ShopContext function
+          clearCart();
           
-          toast.success(paymentResponse.data.message || 'Order placed successfully! Waiting for payment verification.');
+          toast.success(paymentResponse.data.message || 'Order placed successfully!');
           navigate('/orders');
         } else {
-          console.error('❌ Order placement failed:', paymentResponse.data);
           toast.error(paymentResponse.data.message || 'Failed to place order with payment');
         }
         setIsUploadingPayment(false);
@@ -758,7 +681,6 @@ const PlaceOrder = () => {
       }
 
     } catch (error) {
-      console.error('❌ Order placement error:', error);
       if (error.response?.status === 401) {
         sessionStorage.setItem('redirectAfterLogin', '/place-order');
         navigate('/login');
@@ -1048,122 +970,124 @@ const PlaceOrder = () => {
       </div>
     </div>
   );
-// Render EasyPaisa Payment Section
-const renderEasyPaisaPayment = () => (
-  <div className="mt-6 sm:mt-8">
-    <div className="bg-white p-4 sm:p-6 border border-gray-200 rounded-lg">
-      <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Payment</h3>
-      
-      <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
-          <span className="text-gray-700 font-medium text-sm sm:text-base">
-            {paymentMethod === 'COD' ? 'Pre-payment Amount:' : 'Total Amount:'}
-          </span>
-          <span className="font-bold text-gray-900 text-base sm:text-lg">
-            {paymentMethod === 'COD' ? 'Rs 350' : `${currency} ${totalAmount.toFixed(2)}`}
-          </span>
-        </div>
-        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
-          <span className="text-gray-700 font-medium text-sm sm:text-base">EasyPaisa Number:</span>
-          <span className="font-semibold text-gray-900 text-sm sm:text-base">0348 3450302</span>
-        </div>
-        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
-          <span className="text-gray-700 font-medium text-sm sm:text-base">Account:</span>
-          <span className="font-semibold text-gray-900 text-sm sm:text-base">Muhammad Ahmad</span>
-        </div>
-      </div>
 
-      <div className="mb-4 sm:mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          Upload Payment Screenshot <span className="text-red-500">*</span>
-        </label>
+  // Render EasyPaisa Payment Section
+  const renderEasyPaisaPayment = () => (
+    <div className="mt-6 sm:mt-8">
+      <div className="bg-white p-4 sm:p-6 border border-gray-200 rounded-lg">
+        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Payment</h3>
         
-        {!previewImage ? (
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handlePaymentScreenshot}
-              className="hidden"
-              id="payment-screenshot"
-            />
-            <label 
-              htmlFor="payment-screenshot" 
-              className="cursor-pointer block"
-            >
-              <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2 sm:mb-3">
-                <span className="text-lg sm:text-xl text-gray-600">📁</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-800 mb-1">
-                Upload Payment Screenshot
-              </p>
-              <p className="text-xs text-gray-500 mb-2 sm:mb-3">
-                JPG, PNG, WebP files (Max 5MB)
-              </p>
-              <button 
-                type="button"
-                className="bg-black text-white px-3 sm:px-4 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
-              >
-                Choose File
-              </button>
-            </label>
+        <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
+            <span className="text-gray-700 font-medium text-sm sm:text-base">
+              {paymentMethod === 'COD' ? 'Pre-payment Amount:' : 'Total Amount:'}
+            </span>
+            <span className="font-bold text-gray-900 text-base sm:text-lg">
+              {paymentMethod === 'COD' ? 'Rs 350' : `${currency} ${totalAmount.toFixed(2)}`}
+            </span>
           </div>
-        ) : (
-          <div className="border border-gray-300 rounded-lg p-3 sm:p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-3">
-              <p className="text-sm font-medium text-gray-800">Payment Screenshot</p>
-              <button
-                type="button"
-                onClick={removePaymentScreenshot}
-                className="text-red-500 hover:text-red-700 text-sm font-medium self-start sm:self-auto"
-              >
-                Remove
-              </button>
-            </div>
-            <div className="flex justify-center">
-              <img 
-                src={previewImage} 
-                alt="Payment screenshot" 
-                className="max-w-full h-auto max-h-32 sm:max-h-40 rounded border border-gray-200"
+          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
+            <span className="text-gray-700 font-medium text-sm sm:text-base">EasyPaisa Number:</span>
+            <span className="font-semibold text-gray-900 text-sm sm:text-base">0348 3450302</span>
+          </div>
+          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
+            <span className="text-gray-700 font-medium text-sm sm:text-base">Account:</span>
+            <span className="font-semibold text-gray-900 text-sm sm:text-base">Muhammad Ahmad</span>
+          </div>
+        </div>
+
+        <div className="mb-4 sm:mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Upload Payment Screenshot <span className="text-red-500">*</span>
+          </label>
+          
+          {!previewImage ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePaymentScreenshot}
+                className="hidden"
+                id="payment-screenshot"
               />
+              <label 
+                htmlFor="payment-screenshot" 
+                className="cursor-pointer block"
+              >
+                <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2 sm:mb-3">
+                  <span className="text-lg sm:text-xl text-gray-600">📁</span>
+                </div>
+                <p className="text-sm font-semibold text-gray-800 mb-1">
+                  Upload Payment Screenshot
+                </p>
+                <p className="text-xs text-gray-500 mb-2 sm:mb-3">
+                  JPG, PNG, WebP files (Max 5MB)
+                </p>
+                <button 
+                  type="button"
+                  className="bg-black text-white px-3 sm:px-4 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
+                >
+                  Choose File
+                </button>
+              </label>
             </div>
-          </div>
-        )}
-        
-        {validationErrors.payment && (
-          <p className="text-red-600 text-sm mt-3 flex items-center gap-2 bg-red-50 p-3 rounded">
-            <span>⚠</span> {validationErrors.payment}
-          </p>
-        )}
-      </div>
+          ) : (
+            <div className="border border-gray-300 rounded-lg p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-3">
+                <p className="text-sm font-medium text-gray-800">Payment Screenshot</p>
+                <button
+                  type="button"
+                  onClick={removePaymentScreenshot}
+                  className="text-red-500 hover:text-red-700 text-sm font-medium self-start sm:self-auto"
+                >
+                  Remove
+                </button>
+              </div>
+              <div className="flex justify-center">
+                <img 
+                  src={previewImage} 
+                  alt="Payment screenshot" 
+                  className="max-w-full h-auto max-h-32 sm:max-h-40 rounded border border-gray-200"
+                />
+              </div>
+            </div>
+          )}
+          
+          {validationErrors.payment && (
+            <p className="text-red-600 text-sm mt-3 flex items-center gap-2 bg-red-50 p-3 rounded">
+              <span>⚠</span> {validationErrors.payment}
+            </p>
+          )}
+        </div>
 
-      <div className="text-sm text-gray-600 space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
-        <p className="flex items-start gap-2">
-          <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-          <span>
-            Send <span className="font-semibold text-gray-900">
-              {paymentMethod === 'COD' ? 'Rs 350 pre-payment' : `${currency} ${totalAmount.toFixed(2)} full payment`}
-            </span> to our EasyPaisa account
-          </span>
-        </p>
-        <p className="flex items-start gap-2">
-          <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-          <span>Take a clear screenshot of the payment confirmation</span>
-        </p>
-        <p className="flex items-start gap-2">
-          <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-          <span>Upload the screenshot above to verify your payment</span>
-        </p>
-        {paymentMethod === 'COD' && (
+        <div className="text-sm text-gray-600 space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
           <p className="flex items-start gap-2">
             <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-            <span>Pay remaining balance when your order is delivered</span>
+            <span>
+              Send <span className="font-semibold text-gray-900">
+                {paymentMethod === 'COD' ? 'Rs 350 pre-payment' : `${currency} ${totalAmount.toFixed(2)} full payment`}
+              </span> to our EasyPaisa account
+            </span>
           </p>
-        )}
+          <p className="flex items-start gap-2">
+            <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
+            <span>Take a clear screenshot of the payment confirmation</span>
+          </p>
+          <p className="flex items-start gap-2">
+            <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
+            <span>Upload the screenshot above to verify your payment</span>
+          </p>
+          {paymentMethod === 'COD' && (
+            <p className="flex items-start gap-2">
+              <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
+              <span>Pay remaining balance when your order is delivered</span>
+            </p>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-8">

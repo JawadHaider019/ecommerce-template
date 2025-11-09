@@ -45,6 +45,7 @@ const Navbar = () => {
           setWebsiteLogo("");
         }
       } catch (error) {
+        console.error('Error fetching website logo:', error);
         setWebsiteLogo("");
       } finally {
         setLoading(false);
@@ -56,7 +57,7 @@ const Navbar = () => {
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [backendUrl]);
 
   const logout = () => {
     localStorage.removeItem('token')
@@ -72,6 +73,31 @@ const Navbar = () => {
     setVisible(false);
   };
 
+  // Close mobile menu on escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && visible) {
+        setVisible(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [visible]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (visible) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [visible]);
+
   // Logo display component
   const LogoDisplay = () => {
     if (!loading && websiteLogo) {
@@ -79,20 +105,25 @@ const Navbar = () => {
         <img 
           src={websiteLogo} 
           alt="Website Logo" 
-          className='w-20 object-contain transition-all duration-300'
+          className='w-20 h-auto object-contain transition-all duration-300'
           onError={(e) => {
             e.target.src = assets.logo;
+            e.target.className = 'w-20 h-auto object-contain transition-all duration-300';
           }}
         />
       );
     }
 
     return (
-      <img src={assets.logo} className='w-20object-contain transition-all duration-300' alt="Logo" />
+      <img 
+        src={assets.logo} 
+        className='w-20 h-auto object-contain transition-all duration-300' 
+        alt="Logo" 
+      />
     );
   };
 
-  // Desktop navigation items
+  // Navigation items
   const navItems = [
     { path: '/', label: 'HOME' },
     { path: '/collection', label: 'COLLECTION' },
@@ -106,9 +137,9 @@ const Navbar = () => {
       scrolled ? 'bg-white backdrop-blur-md shadow-sm' : 'bg-white'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-1">
+        <div className="flex items-center justify-between py-3 md:py-4">
           {/* Logo */}
-          <Link to='/' className="flex-shrink-0">
+          <Link to='/' className="flex-shrink-0 z-10">
             <LogoDisplay />
           </Link>
 
@@ -119,9 +150,9 @@ const Navbar = () => {
                 key={item.path}
                 to={item.path} 
                 className={({ isActive }) => 
-                  `relative text-sm font-medium tracking-wide transition-colors duration-200 ${
+                  `relative text-sm font-medium tracking-wide transition-colors duration-200 px-1 py-2 ${
                     isActive 
-                      ? 'text-black' 
+                      ? 'text-black font-semibold' 
                       : 'text-gray-600 hover:text-black'
                   }`
                 }
@@ -135,9 +166,9 @@ const Navbar = () => {
           </nav>
           
           {/* Right side icons */}
-          <div className='flex items-center gap-6'>
+          <div className='flex items-center gap-4 md:gap-6'>
             {/* Profile dropdown */}
-            <div className='group relative'>
+            <div className='hidden sm:block group relative'>
               <div className={`p-2 rounded-full transition-all duration-200 cursor-pointer ${
                 token ? 'hover:bg-gray-100' : ''
               }`}>
@@ -150,23 +181,33 @@ const Navbar = () => {
               </div>
               
               {token && (
-                <div className='absolute right-0 z-10 hidden pt-2 group-hover:block'>
+                <div className='absolute right-0 top-full mt-1 z-20 hidden group-hover:block'>
                   <div className='w-48 rounded-lg bg-white shadow-lg border border-gray-100 py-2'>
                     <div 
-                      onClick={() => { navigate('/orders'); setVisible(false); }}
-                      className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => { navigate('/orders'); }}
+                      className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors rounded-t-lg"
                     >
                       My Orders
                     </div>
                     <div 
                       onClick={logout}
-                      className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors border-t border-gray-100"
+                      className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors rounded-b-lg border-t border-gray-100"
                     >
                       Sign Out
                     </div>
                   </div>
                 </div>
               )}   
+            </div>
+
+            {/* Mobile Profile Icon */}
+            <div className='sm:hidden'>
+              <img 
+                onClick={() => token ? navigate('/orders') : navigate('/login')} 
+                src={assets.profile_icon} 
+                className='w-5 h-5 cursor-pointer' 
+                alt="Profile" 
+              />
             </div>
 
             {/* Cart */}
@@ -177,7 +218,7 @@ const Navbar = () => {
               <img src={assets.cart_icon} className='w-5 h-5' alt="Cart"/>
               {getCartCount() > 0 && (
                 <span className='absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-black text-white text-xs flex items-center justify-center font-medium'>
-                  {getCartCount()}
+                  {getCartCount() > 99 ? '99+' : getCartCount()}
                 </span>
               )}
             </Link>
@@ -195,65 +236,90 @@ const Navbar = () => {
       </div>
         
       {/* Mobile menu - Modern slide-in */}
-      <div className={`lg:hidden fixed inset-0 z-50 bg-white transition-transform duration-300 ease-out ${
-        visible ? "translate-x-0" : "translate-x-full"
+      <div className={`lg:hidden fixed inset-0 z-50 transition-all duration-300 ease-in-out ${
+        visible ? "opacity-100 visible" : "opacity-0 invisible"
       }`}>
-        <div className='flex h-full flex-col'>
-          {/* Header */}
-          <div className='flex items-center justify-between border-b border-gray-200 p-6'>
-            <Link to='/' onClick={handleMobileNavClick}>
-              <LogoDisplay />
-            </Link>
-            <button 
-              onClick={() => setVisible(false)}
-              className='p-2 rounded-full hover:bg-gray-100 transition-colors'
-              aria-label="Close menu"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Navigation items */}
-          <nav className="flex-1 overflow-y-auto py-6">
-            {navItems.map((item) => (
-              <NavLink 
-                key={item.path}
-                to={item.path} 
-                onClick={handleMobileNavClick}
-                className={({ isActive }) => 
-                  `block px-6 py-4 text-lg font-medium transition-colors border-l-4 ${
-                    isActive 
-                      ? 'text-black bg-gray-50 border-black' 
-                      : 'text-gray-600 border-transparent hover:bg-gray-50 hover:text-black'
-                  }`
-                }
+        {/* Backdrop */}
+        <div 
+          className={`absolute inset-0 bg-black transition-opacity duration-300 ${
+            visible ? "opacity-50" : "opacity-0"
+          }`}
+          onClick={() => setVisible(false)}
+        />
+        
+        {/* Menu Panel */}
+        <div className={`absolute right-0 top-0 h-full w-80 max-w-full bg-white shadow-xl transition-transform duration-300 ease-in-out ${
+          visible ? "translate-x-0" : "translate-x-full"
+        }`}>
+          <div className='flex h-full flex-col'>
+            {/* Header */}
+            <div className='flex items-center justify-between border-b border-gray-200 p-6'>
+              <Link to='/' onClick={handleMobileNavClick}>
+                <LogoDisplay />
+              </Link>
+              <button 
+                onClick={() => setVisible(false)}
+                className='p-2 rounded-full hover:bg-gray-100 transition-colors'
+                aria-label="Close menu"
               >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-          {/* Mobile footer */}
-          {token && (
-            <div className='border-t border-gray-200 p-6'>
-              <div className="space-y-3">
-                <button 
-                  onClick={() => { navigate('/orders'); handleMobileNavClick(); }}
-                  className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+            {/* Navigation items */}
+            <nav className="flex-1 overflow-y-auto py-6">
+              {navItems.map((item) => (
+                <NavLink 
+                  key={item.path}
+                  to={item.path} 
+                  onClick={handleMobileNavClick}
+                  className={({ isActive }) => 
+                    `block px-6 py-4 text-base font-medium transition-colors border-l-4 ${
+                      isActive 
+                        ? 'text-black bg-gray-50 border-black' 
+                        : 'text-gray-600 border-transparent hover:bg-gray-50 hover:text-black'
+                    }`
+                  }
                 >
-                  My Orders
-                </button>
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            {/* Mobile footer */}
+            {token && (
+              <div className='border-t border-gray-200 p-6'>
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => { navigate('/orders'); handleMobileNavClick(); }}
+                    className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-base"
+                  >
+                    My Orders
+                  </button>
+                  <button 
+                    onClick={logout}
+                    className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-base"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Login prompt for non-logged in users */}
+            {!token && (
+              <div className='border-t border-gray-200 p-6'>
                 <button 
-                  onClick={logout}
-                  className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                  onClick={() => { navigate('/login'); handleMobileNavClick(); }}
+                  className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-base"
                 >
-                  Sign Out
+                  Login / Register
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -19,23 +19,11 @@ const LatestCollection = () => {
     if (!products || !Array.isArray(products)) return [];
 
     try {
-      console.log('=== LATEST COLLECTION FILTERING DEBUG ===');
-      console.log('Total products:', products.length);
-      
       // Filter out draft products and only show published products
       const publishedProducts = products.filter(product => {
         const isPublished = product.status === 'published' || !product.status;
-        if (!isPublished) {
-          console.log('Filtering out draft product:', {
-            id: product._id,
-            name: product.name,
-            status: product.status
-          });
-        }
         return isPublished;
       });
-
-      console.log('Published products found:', publishedProducts.length);
 
       // Remove duplicate products by ID and get latest 10 from published products
       const uniqueProducts = publishedProducts.filter((product, index, self) =>
@@ -44,11 +32,9 @@ const LatestCollection = () => {
       
       const latestUniqueProducts = uniqueProducts.slice(0, 10);
 
-      console.log('Final latest products to display:', latestUniqueProducts.length);
       return latestUniqueProducts;
 
     } catch (err) {
-      console.error('Error processing latest products:', err);
       return [];
     }
   }, [products]);
@@ -180,7 +166,6 @@ const LatestCollection = () => {
   };
 
   // Determine if we should show slider based on current screen size logic
-  // Show slider when there are more products than what can be shown on screen
   const shouldShowSlider = () => {
     // For mobile (less than 768px): show slider if more than 1 product
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -229,7 +214,7 @@ const LatestCollection = () => {
         <div className="py-4 text-center text-2xl md:text-3xl">
           <Title text1={'LATEST'} text2={'COLLECTIONS'} />
          <p className="text-[14px] md:text-[16px] text-gray-600 font-light px-2">
-Explore Pure Clay’s latest organic collection — fresh, natural, and proudly made in Pakistan.
+Explore Pure Clay's latest organic collection — fresh, natural, and proudly made in Pakistan.
           </p>
         </div>
         <div className="text-center text-red-500 py-8">
@@ -244,7 +229,7 @@ Explore Pure Clay’s latest organic collection — fresh, natural, and proudly 
       <div className="py-2 text-center text-2xl md:text-3xl">
         <Title text1={'LATEST'} text2={'COLLECTIONS'} />
         <p className="text-[14px] md:text-[16px] text-gray-600 font-light px-4 max-w-2xl mx-auto">
-    Explore Pure Clay’s latest organic collection — fresh, natural, and proudly made in Pakistan.
+    Explore Pure Clay's latest organic collection — fresh, natural, and proudly made in Pakistan.
   </p>
       </div>
 

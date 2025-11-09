@@ -71,7 +71,7 @@ const Cart = () => {
     
     return {
       inStock: !isOutOfStock,
-      available: 999, // Don't limit deal quantity in cart
+      available: 99, // Don't limit deal quantity in cart
       requested: quantity,
       isOutOfStock
     };

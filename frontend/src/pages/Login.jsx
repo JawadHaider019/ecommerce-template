@@ -5,8 +5,8 @@ import { toast } from "react-toastify"
 import { useNavigate } from "react-router-dom"
 
 const Login = () => {
-  const [mode, setMode] = useState('login') // 'login', 'signup', 'forgot-password', 'reset-password'
-  const { token, setToken, backendUrl } = useContext(ShopContext)
+  const [mode, setMode] = useState('login')
+  const { token, setToken, setUser, backendUrl } = useContext(ShopContext) // Added setUser
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -42,7 +42,6 @@ const Login = () => {
   // Handle input changes
   const handleInputChange = (field, value) => {
     if (field === 'email') {
-      // Keep original case for display but store normalized version
       setFormData(prev => ({ ...prev, [field]: value }))
     } else {
       setFormData(prev => ({ ...prev, [field]: value }))
@@ -61,15 +60,14 @@ const Login = () => {
     try {
       setIsLoading(true)
       const response = await axios.post(`${backendUrl}/api/user/resend-otp`, {
-        email: getNormalizedEmail() // Use normalized email
+        email: getNormalizedEmail()
       })
       
       if (response.data.success) {
         toast.success("New OTP sent to your email")
         setCanResendOtp(false)
-        setResendTimer(60) // 60 seconds cooldown
+        setResendTimer(60)
         
-        // Start countdown timer
         const timer = setInterval(() => {
           setResendTimer(prev => {
             if (prev <= 1) {
@@ -93,31 +91,26 @@ const Login = () => {
   const handleSubmit = async (event) => {
     event.preventDefault()
     
-    // Email validation
     if (!validateEmail(formData.email)) {
       toast.error("Please enter a valid email address")
       return
     }
 
-    // Validate confirm password for signup
     if (isSignUp && formData.password !== formData.confirmPassword) {
       toast.error("Passwords don't match")
       return
     }
 
-    // Validate password length for signup
     if (isSignUp && formData.password.length < 8) {
       toast.error("Password must be at least 8 characters long")
       return
     }
 
-    // Validate new password for reset password
     if (isResetPassword && formData.newPassword.length < 8) {
       toast.error("Password must be at least 8 characters long")
       return
     }
 
-    // Validate OTP for reset password
     if (isResetPassword && formData.otp.length !== 6) {
       toast.error("Please enter a valid 6-digit OTP")
       return
@@ -126,18 +119,27 @@ const Login = () => {
     setIsLoading(true)
 
     try {
-      const normalizedEmail = getNormalizedEmail() // Get normalized email once
+      const normalizedEmail = getNormalizedEmail()
 
       if (isSignUp) {
         const response = await axios.post(`${backendUrl}/api/user/register`, {
           name: formData.name,
-          email: normalizedEmail, // Use normalized email
+          email: normalizedEmail,
           password: formData.password
         })
         
         if (response.data.success) {
           setToken(response.data.token)
           localStorage.setItem('token', response.data.token)
+          
+          // FIX: Set user data after registration
+          setUser({
+            _id: response.data.user?._id,
+            name: response.data.user?.name || formData.name,
+            email: normalizedEmail,
+            isLoggedIn: true
+          })
+          
           toast.success("Account created successfully")
           navigate("/")
         } else {
@@ -145,31 +147,38 @@ const Login = () => {
         }
       } else if (isLogin) {
         const response = await axios.post(`${backendUrl}/api/user/login`, {
-          email: normalizedEmail, // Use normalized email
+          email: normalizedEmail,
           password: formData.password
         })
         
         if (response.data.success) {
           setToken(response.data.token)
           localStorage.setItem('token', response.data.token)
+          
+          // FIX: Set user data after login - THIS IS THE KEY FIX
+          setUser({
+            _id: response.data.user?._id,
+            name: response.data.user?.name || 'User',
+            email: normalizedEmail,
+            isLoggedIn: true
+          })
+          
           toast.success("Logged in successfully")
           navigate("/")
         } else {
           toast.error(response.data.message)
         }
       } else if (isForgotPassword) {
-        // Send OTP for password reset
         const response = await axios.post(`${backendUrl}/api/user/forgot-password`, {
-          email: normalizedEmail // Use normalized email
+          email: normalizedEmail
         })
         
         if (response.data.success) {
           toast.success("OTP sent to your email")
           setMode('reset-password')
           setCanResendOtp(false)
-          setResendTimer(60) // Start 60 second cooldown
+          setResendTimer(60)
           
-          // Start countdown timer
           const timer = setInterval(() => {
             setResendTimer(prev => {
               if (prev <= 1) {
@@ -184,9 +193,8 @@ const Login = () => {
           toast.error(response.data.message)
         }
       } else if (isResetPassword) {
-        // Verify OTP and reset password
         const response = await axios.post(`${backendUrl}/api/user/reset-password`, {
-          email: normalizedEmail, // Use normalized email
+          email: normalizedEmail,
           otp: formData.otp,
           newPassword: formData.newPassword
         })
@@ -384,7 +392,6 @@ const Login = () => {
 
       {/* Action buttons */}
       <div className="mt-[-8px] flex w-full justify-between text-sm">
-        {/* Forgot password / Back to login */}
         {isLogin ? (
           <button 
             type="button" 
@@ -405,7 +412,6 @@ const Login = () => {
           </button>
         )}
         
-        {/* Toggle between login and signup */}
         {(isLogin || isSignUp) && (
           <button 
             type="button" 

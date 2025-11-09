@@ -34,26 +34,7 @@ const ShopContextProvider = ({ children }) => {
     user: { status: false, message: "Loading user data..." }
   });
 
-  // Optimized stock check functions
-  const checkProductStock = useCallback((productId, requestedQuantity = 1) => {
-    const product = products.find(p => p._id === productId);
-    if (!product) return { inStock: false, available: 0 };
-
-    const availableStock = product.stock || 0;
-    const inStock = availableStock >= requestedQuantity;
-
-    return { inStock, available: availableStock, requested: requestedQuantity };
-  }, [products]);
-
-  const checkDealStock = useCallback((dealId, requestedQuantity = 1) => {
-    const deal = deals.find(d => d._id === dealId);
-    if (!deal) return { inStock: false, available: 0 };
-
-    const availableStock = deal.quantity || 0;
-    const inStock = availableStock >= requestedQuantity;
-
-    return { inStock, available: availableStock, requested: requestedQuantity };
-  }, [deals]);
+  // ==================== OPTIMIZED LOADING MANAGEMENT ====================
 
   const setLoadingState = useCallback((key, status, message = null) => {
     setLoading(prev => ({
@@ -74,6 +55,335 @@ const ShopContextProvider = ({ children }) => {
     return activeLoaders.length > 0 ? activeLoaders[0][1].message : "Loading...";
   }, [loading]);
 
+  // ==================== CART PERSISTENCE & LOGIN HANDLING ====================
+
+  // Load cart from localStorage on initial load
+  useEffect(() => {
+    const savedCartItems = localStorage.getItem('cartItems');
+    const savedCartDeals = localStorage.getItem('cartDeals');
+    
+    if (savedCartItems) setCartItems(JSON.parse(savedCartItems));
+    if (savedCartDeals) setCartDeals(JSON.parse(savedCartDeals));
+  }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    if (Object.keys(cartItems).length > 0 || Object.keys(cartDeals).length > 0) {
+      localStorage.setItem('cartItems', JSON.stringify(cartItems));
+      localStorage.setItem('cartDeals', JSON.stringify(cartDeals));
+    } else {
+      localStorage.removeItem('cartItems');
+      localStorage.removeItem('cartDeals');
+    }
+  }, [cartItems, cartDeals]);
+
+  // Load user cart when logged in and merge with guest cart
+  useEffect(() => {
+    if (token && user) {
+      loadUserCartAndMerge();
+    }
+  }, [token, user]);
+
+  const loadUserCartAndMerge = async () => {
+    try {
+      // Get guest cart before loading user cart
+      const guestCartItems = localStorage.getItem('cartItems');
+      const guestCartDeals = localStorage.getItem('cartDeals');
+      
+      // Load user cart from server
+      const response = await axios.get(`${BACKEND_URL}/api/cart`, {
+        headers: { token }
+      });
+      
+      if (response.data.success) {
+        const serverCartItems = response.data.cartData?.products || {};
+        const serverCartDeals = response.data.cartData?.deals || {};
+        
+        // Merge guest cart with server cart
+        if (guestCartItems || guestCartDeals) {
+          const mergedCartItems = { ...serverCartItems };
+          const mergedCartDeals = { ...serverCartDeals };
+          
+          // Merge products
+          if (guestCartItems) {
+            const guestItems = JSON.parse(guestCartItems);
+            Object.entries(guestItems).forEach(([itemId, quantity]) => {
+              if (quantity > 0) {
+                mergedCartItems[itemId] = (mergedCartItems[itemId] || 0) + quantity;
+              }
+            });
+          }
+          
+          // Merge deals
+          if (guestCartDeals) {
+            const guestDeals = JSON.parse(guestCartDeals);
+            Object.entries(guestDeals).forEach(([dealId, quantity]) => {
+              if (quantity > 0) {
+                mergedCartDeals[dealId] = (mergedCartDeals[dealId] || 0) + quantity;
+              }
+            });
+          }
+          
+          // Update state with merged cart
+          setCartItems(mergedCartItems);
+          setCartDeals(mergedCartDeals);
+          
+          // Sync merged cart to server
+          await syncMergedCartToServer(mergedCartItems, mergedCartDeals);
+          
+          // Clear guest cart from localStorage after successful merge
+          localStorage.removeItem('cartItems');
+          localStorage.removeItem('cartDeals');
+        } else {
+          // No guest cart, use server cart directly
+          setCartItems(serverCartItems);
+          setCartDeals(serverCartDeals);
+        }
+      }
+    } catch (error) {
+      // Error handled silently
+    }
+  };
+
+  const syncMergedCartToServer = async (mergedItems, mergedDeals) => {
+    try {
+      await axios.post(`${BACKEND_URL}/api/cart/sync`, {
+        products: mergedItems,
+        deals: mergedDeals
+      }, {
+        headers: { token }
+      });
+    } catch (error) {
+      // Error handled silently
+    }
+  };
+
+  // Enhanced clear cart function for after order placement
+  const clearCart = async () => {
+    // Clear from state
+    setCartItems({});
+    setCartDeals({});
+    
+    // Clear from localStorage
+    localStorage.removeItem('cartItems');
+    localStorage.removeItem('cartDeals');
+    
+    // Clear from server if user is logged in
+    if (token) {
+      try {
+        await axios.post(`${BACKEND_URL}/api/cart/clear`, {}, {
+          headers: { token }
+        });
+      } catch (error) {
+        // Error handled silently
+      }
+    }
+  };
+
+  // ==================== OPTIMIZED CART OPERATIONS ====================
+
+  const updateCartItemQuantity = useCallback(async (itemId, quantity, itemType = 'product') => {
+    if (itemType === 'deal') {
+      await updateDealQuantity(itemId, quantity);
+    } else {
+      if (!itemId || quantity < 0) return;
+
+      const product = products.find(p => p._id === itemId);
+      if (quantity > 0 && product?.stock && quantity > product.stock) {
+        toast.error(`Only ${product.stock} items available for this product`);
+        return;
+      }
+
+      setCartItems(prev => {
+        const updated = { ...prev };
+        quantity === 0 ? delete updated[itemId] : (updated[itemId] = quantity);
+        
+        // Auto-save to localStorage
+        if (Object.keys(updated).length > 0) {
+          localStorage.setItem('cartItems', JSON.stringify(updated));
+        } else {
+          localStorage.removeItem('cartItems');
+        }
+        
+        return updated;
+      });
+
+      if (token) {
+        try {
+          await axios.post(
+            `${BACKEND_URL}/api/cart/update`,
+            { itemId, quantity },
+            { headers: { token } }
+          );
+        } catch {
+          // Silent fail for cart updates
+        }
+      }
+    }
+  }, [token, BACKEND_URL, products]);
+
+  const updateDealQuantity = useCallback(async (dealId, quantity) => {
+    if (!dealId || quantity < 0) return;
+
+    const deal = deals.find(d => d._id === dealId);
+    if (quantity > 0 && deal?.quantity && quantity > deal.quantity) {
+      toast.error(`Only ${deal.quantity} items available for this deal`);
+      return;
+    }
+
+    setCartDeals(prev => {
+      const updated = { ...prev };
+      quantity === 0 ? delete updated[dealId] : (updated[dealId] = quantity);
+      
+      // Auto-save to localStorage
+      if (Object.keys(updated).length > 0) {
+        localStorage.setItem('cartDeals', JSON.stringify(updated));
+      } else {
+        localStorage.removeItem('cartDeals');
+      }
+      
+      return updated;
+    });
+
+    if (token) {
+      try {
+        await axios.post(
+          `${BACKEND_URL}/api/cart/update-deal`,
+          { dealId, quantity },
+          { headers: { token } }
+        );
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Failed to update deal quantity");
+      }
+    }
+  }, [token, BACKEND_URL, deals]);
+
+  const addToCart = useCallback(async (itemId, quantity = 1, itemType = 'product') => {
+    if (itemType === 'deal') {
+      await addDealToCart(itemId, quantity);
+    } else {
+      if (!itemId || quantity < 1) return;
+
+      const product = products.find(p => p._id === itemId);
+      const currentQuantity = cartItems[itemId] || 0;
+
+      if (product?.stock && product.stock < currentQuantity + quantity) {
+        toast.error(`Only ${product.stock} items available for this product`);
+        return;
+      }
+
+      setCartItems(prev => {
+        const updated = {
+          ...prev,
+          [itemId]: (prev[itemId] || 0) + quantity
+        };
+        
+        // Auto-save to localStorage
+        localStorage.setItem('cartItems', JSON.stringify(updated));
+        
+        return updated;
+      });
+
+      if (token) {
+        try {
+          await axios.post(
+            `${BACKEND_URL}/api/cart/add`,
+            { itemId, quantity },
+            { headers: { token } }
+          );
+          toast.success("Product added to cart!");
+        } catch (error) {
+          toast.error(error.response?.data?.message || "Failed to add product to cart");
+          // Rollback on error
+          setCartItems(prev => {
+            const updated = { ...prev };
+            updated[itemId] <= quantity ? delete updated[itemId] : (updated[itemId] -= quantity);
+            localStorage.setItem('cartItems', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      } else {
+        toast.success("Product added to cart!");
+      }
+    }
+  }, [token, BACKEND_URL, cartItems, products]);
+
+  const addDealToCart = useCallback(async (dealId, quantity = 1) => {
+    if (!dealId || quantity < 1) return;
+
+    const deal = deals.find(d => d._id === dealId);
+    if (!deal) {
+      toast.error("Deal not found");
+      return;
+    }
+
+    const currentQuantity = cartDeals[dealId] || 0;
+    if (deal.quantity && deal.quantity < currentQuantity + quantity) {
+      toast.error(`Only ${deal.quantity} items available for this deal`);
+      return;
+    }
+
+    setCartDeals(prev => {
+      const updated = {
+        ...prev,
+        [dealId]: (prev[dealId] || 0) + quantity
+      };
+      
+      // Auto-save to localStorage
+      localStorage.setItem('cartDeals', JSON.stringify(updated));
+      
+      return updated;
+    });
+
+    if (token) {
+      try {
+        await axios.post(
+          `${BACKEND_URL}/api/cart/add-deal`,
+          { dealId, quantity },
+          { headers: { token } }
+        );
+        toast.success("Deal added to cart!");
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Failed to add deal to cart");
+        // Rollback on error
+        setCartDeals(prev => {
+          const updated = { ...prev };
+          updated[dealId] <= quantity ? delete updated[dealId] : (updated[dealId] -= quantity);
+          localStorage.setItem('cartDeals', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    } else {
+      toast.success("Deal added to cart!");
+    }
+  }, [token, BACKEND_URL, deals, cartDeals]);
+
+  const removeDealFromCart = useCallback(async (dealId) => {
+    await updateDealQuantity(dealId, 0);
+  }, [updateDealQuantity]);
+
+  // ==================== OPTIMIZED STOCK & DATA FUNCTIONS ====================
+
+  const checkProductStock = useCallback((productId, requestedQuantity = 1) => {
+    const product = products.find(p => p._id === productId);
+    if (!product) return { inStock: false, available: 0 };
+
+    const availableStock = product.stock || 0;
+    const inStock = availableStock >= requestedQuantity;
+
+    return { inStock, available: availableStock, requested: requestedQuantity };
+  }, [products]);
+
+  const checkDealStock = useCallback((dealId, requestedQuantity = 1) => {
+    const deal = deals.find(d => d._id === dealId);
+    if (!deal) return { inStock: false, available: 0 };
+
+    const availableStock = deal.quantity || 0;
+    const inStock = availableStock >= requestedQuantity;
+
+    return { inStock, available: availableStock, requested: requestedQuantity };
+  }, [deals]);
+
   const decodeToken = useCallback((token) => {
     try {
       if (!token) return null;
@@ -83,6 +393,8 @@ const ShopContextProvider = ({ children }) => {
       return null;
     }
   }, []);
+
+  // ==================== OPTIMIZED DATA FETCHING ====================
 
   const fetchUserData = useCallback(async () => {
     const storedToken = localStorage.getItem('token');
@@ -221,7 +533,7 @@ const ShopContextProvider = ({ children }) => {
     }
   }, [BACKEND_URL, processReviews]);
 
-  // Optimized products fetching with batch processing
+  // Optimized products fetching - WITHOUT reviews to speed up loading
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     setLoadingState('products', true, "Loading products...");
@@ -230,32 +542,41 @@ const ShopContextProvider = ({ children }) => {
       const productsData = response.data?.products;
       
       if (productsData) {
-        const productsWithRatings = await Promise.all(
-          productsData.map(async (product) => {
-            try {
-              const reviews = await fetchProductReviews(product._id);
-              const averageRating = calculateAverageRating(reviews);
-              
-              return {
-                ...product,
-                rating: averageRating,
-                reviewCount: reviews.length,
-                stock: product.stock || 0
-              };
-            } catch {
-              return {
-                ...product,
-                rating: 0,
-                reviewCount: 0,
-                stock: product.stock || 0
-              };
-            }
-          })
-        );
+        // Load products without reviews first for faster display
+        const productsWithBasicData = productsData.map(product => ({
+          ...product,
+          rating: 0,
+          reviewCount: 0,
+          stock: product.stock || 0
+        }));
 
-        setProducts(productsWithRatings);
-      } else {
-        toast.error("No products found");
+        setProducts(productsWithBasicData);
+
+        // Load reviews in background without blocking UI
+        setTimeout(async () => {
+          try {
+            const productsWithRatings = await Promise.all(
+              productsData.map(async (product) => {
+                try {
+                  const reviews = await fetchProductReviews(product._id);
+                  const averageRating = calculateAverageRating(reviews);
+                  
+                  return {
+                    ...product,
+                    rating: averageRating,
+                    reviewCount: reviews.length,
+                    stock: product.stock || 0
+                  };
+                } catch {
+                  return product;
+                }
+              })
+            );
+            setProducts(productsWithRatings);
+          } catch {
+            // Silent fail for background review loading
+          }
+        }, 100);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch products");
@@ -265,7 +586,7 @@ const ShopContextProvider = ({ children }) => {
     }
   }, [BACKEND_URL, fetchProductReviews, calculateAverageRating, setLoadingState]);
 
-  // Optimized deals fetching
+  // Optimized deals fetching - WITHOUT reviews to speed up loading
   const fetchDeals = useCallback(async () => {
     setDealsLoading(true);
     setLoadingState('deals', true, "Loading deals...");
@@ -281,31 +602,43 @@ const ShopContextProvider = ({ children }) => {
         return isPublished && isActive;
       });
 
-      const dealsWithRatings = await Promise.all(
-        activeDeals.map(async (deal) => {
-          try {
-            const reviews = await fetchDealReviews(deal._id);
-            const averageRating = calculateAverageRating(reviews);
-            
-            return {
-              ...deal,
-              rating: averageRating,
-              reviewCount: reviews.length,
-              quantity: deal.quantity || 0
-            };
-          } catch {
-            return {
-              ...deal,
-              rating: 0,
-              reviewCount: 0,
-              quantity: deal.quantity || 0
-            };
-          }
-        })
-      );
+      // Load deals without reviews first for faster display
+      const dealsWithBasicData = activeDeals.map(deal => ({
+        ...deal,
+        rating: 0,
+        reviewCount: 0,
+        quantity: deal.quantity || 0
+      }));
 
-      setDeals(dealsWithRatings);
-      return dealsWithRatings;
+      setDeals(dealsWithBasicData);
+
+      // Load reviews in background without blocking UI
+      setTimeout(async () => {
+        try {
+          const dealsWithRatings = await Promise.all(
+            activeDeals.map(async (deal) => {
+              try {
+                const reviews = await fetchDealReviews(deal._id);
+                const averageRating = calculateAverageRating(reviews);
+                
+                return {
+                  ...deal,
+                  rating: averageRating,
+                  reviewCount: reviews.length,
+                  quantity: deal.quantity || 0
+                };
+              } catch {
+                return deal;
+              }
+            })
+          );
+          setDeals(dealsWithRatings);
+        } catch {
+          // Silent fail for background review loading
+        }
+      }, 100);
+
+      return dealsWithBasicData;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch deals");
       return [];
@@ -372,7 +705,8 @@ const ShopContextProvider = ({ children }) => {
     return submitReview(reviewData, true);
   }, [submitReview]);
 
-  // Optimized getter functions
+  // ==================== OPTIMIZED GETTER FUNCTIONS ====================
+
   const getProductRatingInfo = useCallback((productId) => {
     const product = products.find(p => p._id === productId);
     return product ? { rating: product.rating || 0, reviewCount: product.reviewCount || 0 } : { rating: 0, reviewCount: 0 };
@@ -405,177 +739,6 @@ const ShopContextProvider = ({ children }) => {
     const { freeDeliveryAbove } = deliverySettings;
     return freeDeliveryAbove > 0 && subtotal < freeDeliveryAbove ? freeDeliveryAbove - subtotal : 0;
   }, [deliverySettings]);
-
-  // Optimized useEffect hooks
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
-
-  useEffect(() => {
-    fetchProducts();
-    fetchDeals();
-    fetchDeliverySettings();
-  }, [fetchProducts, fetchDeals, fetchDeliverySettings]);
-
-  useEffect(() => {
-    if (token) {
-      getCart(token);
-    }
-  }, [token]);
-
-  // Optimized cart operations
-  const updateDealQuantity = useCallback(async (dealId, quantity) => {
-    if (!dealId || quantity < 0) return;
-
-    const deal = deals.find(d => d._id === dealId);
-    if (quantity > 0 && deal?.quantity && quantity > deal.quantity) {
-      toast.error(`Only ${deal.quantity} items available for this deal`);
-      return;
-    }
-
-    setCartDeals(prev => {
-      const updated = { ...prev };
-      quantity === 0 ? delete updated[dealId] : (updated[dealId] = quantity);
-      return updated;
-    });
-
-    if (token) {
-      try {
-        await axios.post(
-          `${BACKEND_URL}/api/cart/update-deal`,
-          { dealId, quantity },
-          { headers: { token } }
-        );
-      } catch (error) {
-        toast.error(error.response?.data?.message || "Failed to update deal quantity");
-      }
-    }
-  }, [token, BACKEND_URL, deals]);
-
-  const removeDealFromCart = useCallback(async (dealId) => {
-    await updateDealQuantity(dealId, 0);
-  }, [updateDealQuantity]);
-
-  const addDealToCart = useCallback(async (dealId, quantity = 1) => {
-    if (!dealId || quantity < 1) return;
-
-    const deal = deals.find(d => d._id === dealId);
-    if (!deal) {
-      toast.error("Deal not found");
-      return;
-    }
-
-    const currentQuantity = cartDeals[dealId] || 0;
-    if (deal.quantity && deal.quantity < currentQuantity + quantity) {
-      toast.error(`Only ${deal.quantity} items available for this deal`);
-      return;
-    }
-
-    setCartDeals(prev => ({
-      ...prev,
-      [dealId]: (prev[dealId] || 0) + quantity
-    }));
-
-    if (token) {
-      try {
-        await axios.post(
-          `${BACKEND_URL}/api/cart/add-deal`,
-          { dealId, quantity },
-          { headers: { token } }
-        );
-        toast.success("Deal added to cart!");
-      } catch (error) {
-        toast.error(error.response?.data?.message || "Failed to add deal to cart");
-        setCartDeals(prev => {
-          const updated = { ...prev };
-          updated[dealId] <= quantity ? delete updated[dealId] : (updated[dealId] -= quantity);
-          return updated;
-        });
-      }
-    } else {
-      toast.success("Deal added to cart!");
-    }
-  }, [token, BACKEND_URL, deals, cartDeals]);
-
-  const addToCart = useCallback(async (itemId, quantity = 1, itemType = 'product') => {
-    if (itemType === 'deal') {
-      await addDealToCart(itemId, quantity);
-    } else {
-      if (!itemId || quantity < 1) return;
-
-      const product = products.find(p => p._id === itemId);
-      const currentQuantity = cartItems[itemId] || 0;
-
-      if (product?.stock && product.stock < currentQuantity + quantity) {
-        toast.error(`Only ${product.stock} items available for this product`);
-        return;
-      }
-
-      setCartItems(prev => ({
-        ...prev,
-        [itemId]: (prev[itemId] || 0) + quantity
-      }));
-
-      if (token) {
-        try {
-          await axios.post(
-            `${BACKEND_URL}/api/cart/add`,
-            { itemId, quantity },
-            { headers: { token } }
-          );
-          toast.success("Product added to cart!");
-        } catch (error) {
-          toast.error(error.response?.data?.message || "Failed to add product to cart");
-          setCartItems(prev => {
-            const updated = { ...prev };
-            updated[itemId] <= quantity ? delete updated[itemId] : (updated[itemId] -= quantity);
-            return updated;
-          });
-        }
-      } else {
-        toast.success("Product added to cart!");
-      }
-    }
-  }, [token, BACKEND_URL, addDealToCart, cartItems, products]);
-
-  const updateCartItemQuantity = useCallback(async (itemId, quantity, itemType = 'product') => {
-    if (itemType === 'deal') {
-      await updateDealQuantity(itemId, quantity);
-    } else {
-      if (!itemId || quantity < 0) return;
-
-      const product = products.find(p => p._id === itemId);
-      if (quantity > 0 && product?.stock && quantity > product.stock) {
-        toast.error(`Only ${product.stock} items available for this product`);
-        return;
-      }
-
-      setCartItems(prev => {
-        const updated = { ...prev };
-        quantity === 0 ? delete updated[itemId] : (updated[itemId] = quantity);
-        return updated;
-      });
-
-      if (token) {
-        try {
-          await axios.post(
-            `${BACKEND_URL}/api/cart/update`,
-            { itemId, quantity },
-            { headers: { token } }
-          );
-        } catch {
-          // Silent fail for cart updates
-        }
-      }
-    }
-  }, [token, BACKEND_URL, updateDealQuantity, products]);
 
   const getCart = useCallback(async (token) => {
     setLoadingState('cart', true, "Loading cart...");
@@ -650,8 +813,35 @@ const ShopContextProvider = ({ children }) => {
     return cartDeals[dealId] || 0;
   }, [cartDeals]);
 
-  // Optimized context value
+  // ==================== OPTIMIZED USE EFFECT HOOKS ====================
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      setToken(storedToken);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchDeals();
+    fetchDeliverySettings();
+  }, [fetchProducts, fetchDeals, fetchDeliverySettings]);
+
+  useEffect(() => {
+    if (token) {
+      getCart(token);
+    }
+  }, [token]);
+
+  // ==================== CONTEXT VALUE ====================
+
   const contextValue = useMemo(() => ({
+    // Data
     products,
     deals,
     isLoading,
@@ -668,12 +858,20 @@ const ShopContextProvider = ({ children }) => {
     dealReviews,
     token,
     loading,
+    
+    // Loading functions
     isLoadingAny,
     setLoadingState,
+    
+    // UI functions
     setSearch,
     setShowSearch,
+    
+    // Auth functions
     setToken,
     setUser,
+    
+    // Cart functions
     addToCart,
     addDealToCart,
     removeDealFromCart,
@@ -686,14 +884,21 @@ const ShopContextProvider = ({ children }) => {
     getTotalDiscount,
     getTotalAmount: getCartTotal,
     getCart,
+    clearCart,
+    
+    // Deal functions
     getDealById,
     isDealInCart,
     getDealQuantityInCart,
+    
+    // Delivery functions
     getDeliveryCharge,
     isFreeDeliveryAvailable,
     getAmountForFreeDelivery,
     updateDeliverySettings,
     fetchDeliverySettings,
+    
+    // Review functions
     fetchProductReviews,
     fetchDealReviews,
     submitReview,
@@ -701,8 +906,12 @@ const ShopContextProvider = ({ children }) => {
     getProductRatingInfo,
     getDealRatingInfo,
     calculateAverageRating,
+    
+    // Data refresh functions
     refetchProducts: fetchProducts,
     refetchDeals: fetchDeals,
+    
+    // Stock functions
     checkProductStock,
     checkDealStock
   }), [
@@ -749,6 +958,7 @@ const ShopContextProvider = ({ children }) => {
     fetchDeals,
     BACKEND_URL,
     getCart,
+    clearCart,
     checkProductStock,
     checkDealStock
   ]);

@@ -35,7 +35,7 @@ const DealCollection = () => {
   const { backendUrl, currency, deals: contextDeals } = useContext(ShopContext);
   const navigate = useNavigate();
   const [deals, setDeals] = useState([]);
-  const [loading, setLoading] = useState(false); // Start as false for instant render
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const sliderRef = useRef(null);
   const mountedRef = useRef(true);
@@ -50,7 +50,7 @@ const DealCollection = () => {
     return dealType || 'Deal';
   }, []);
 
-  // Ultra-fast fetch with race conditions
+  // Fast fetch with timeout
   const fetchDeals = useCallback(async (signal) => {
     try {
       const response = await axios.get(`${backendUrl}/api/deal/list`, {
@@ -69,7 +69,7 @@ const DealCollection = () => {
     }
   }, [backendUrl]);
 
-  // Process deals instantly with minimal logic
+  // Process deals with minimal logic
   const processedDeals = useMemo(() => {
     const source = deals.length > 0 ? deals : initialDeals;
     
@@ -85,7 +85,7 @@ const DealCollection = () => {
         
         return start <= now && end >= now;
       })
-      .slice(0, 8); // Fixed limit for consistency
+      .slice(0, 8);
   }, [deals, initialDeals]);
 
   // Load deals in background without blocking render
@@ -105,8 +105,7 @@ const DealCollection = () => {
           }
         } catch (err) {
           if (mountedRef.current && !axios.isCancel(err)) {
-            // Silent error - don't show to user for better UX
-            console.log('Deals fetch failed, using cached data if available');
+            // Silent error handling
           }
         } finally {
           if (mountedRef.current) {
@@ -187,7 +186,7 @@ const DealCollection = () => {
       <DealItem
         key={deal._id}
         id={deal._id}
-        image={deal.dealImages?.[0] }
+        image={deal.dealImages?.[0]}
         name={deal.dealName}
         price={deal.dealTotal || 0}
         discount={deal.dealFinalPrice || 0}
@@ -204,7 +203,7 @@ const DealCollection = () => {
   // Show content immediately with available data
   const hasContent = processedDeals.length > 0 || initialDeals.length > 0;
 
-  // DON'T RENDER ANYTHING IF NO DEALS
+  // Don't render anything if no deals
   if (!hasContent && !loading) {
     return null;
   }
@@ -216,9 +215,8 @@ const DealCollection = () => {
           <div className="text-3xl">
             <Title text1={'HOT'} text2={'DEALS'} />
           </div>
-          {/* Added small line of text below heading */}
           <p className="text-[16px] text-gray-600 my-3 font-light">
-     Trending Deals — Discover Organic Products Handcrafted with Care and Loved by All.
+            Trending Deals — Discover Organic Products Handcrafted with Care and Loved by All.
           </p>
         </div>
         
@@ -235,9 +233,8 @@ const DealCollection = () => {
         <div className="py-4 text-center text-3xl">
           <Title text1={'HOT'} text2={'DEALS'} />
         </div>
-        {/* Added small line of text below heading */}
         <p className="text-lg text-gray-600 font-light">
-Grab Pure Clay’s special deals — organic goodness, proudly made in Pakistan
+          Grab Pure Clay's special deals — organic goodness, proudly made in Pakistan
         </p>
         <div className="text-center text-gray-500 py-4 text-sm">
           Check your connection
@@ -252,9 +249,8 @@ Grab Pure Clay’s special deals — organic goodness, proudly made in Pakistan
         <div className="text-3xl">
           <Title text1={'HOT'} text2={'DEALS'} />
         </div>
-        {/* Added small line of text below heading */}
-        <p className="text-[16px] text-gray-600  font-light">
- Grab Pure Clay’s special deals — organic goodness, proudly made in Pakistan
+        <p className="text-[16px] text-gray-600 font-light">
+          Grab Pure Clay's special deals — organic goodness, proudly made in Pakistan
         </p>
       </div>
 
