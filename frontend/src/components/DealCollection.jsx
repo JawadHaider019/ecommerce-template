@@ -11,25 +11,30 @@ import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-// Memoized arrow components
-const NextArrow = memo(({ onClick }) => (
+// Memoized arrow components - IMPROVED VERSION
+const NextArrow = memo(({ onClick, isVisible }) => (
   <button
-    className="absolute right-0 top-1/2 z-10 -translate-y-1/2 bg-black/80 hover:bg-black text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors border border-white/20"
+    className={`absolute right-2 top-1/2 z-20 -translate-y-1/2 bg-black/90 hover:bg-black text-white rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20 ${
+      isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+    }`}
     onClick={onClick}
+    aria-label="Next deals"
   >
-    <FaChevronRight size={14} />
+    <FaChevronRight size={14} className="md:w-4 md:h-4" />
   </button>
 ));
 
-const PrevArrow = memo(({ onClick }) => (
+const PrevArrow = memo(({ onClick, isVisible }) => (
   <button
-    className="absolute left-0 top-1/2 z-10 -translate-y-1/2 bg-black/80 hover:bg-black text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors border border-white/20"
+    className={`absolute left-2 top-1/2 z-20 -translate-y-1/2 bg-black/90 hover:bg-black text-white rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 border border-white/20 ${
+      isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+    }`}
     onClick={onClick}
+    aria-label="Previous deals"
   >
-    <FaChevronLeft size={14} />
+    <FaChevronLeft size={14} className="md:w-4 md:h-4" />
   </button>
 ));
-
 
 const DealCollection = () => {
   const { backendUrl, currency, deals: contextDeals } = useContext(ShopContext);
@@ -39,6 +44,8 @@ const DealCollection = () => {
   const [error, setError] = useState(null);
   const sliderRef = useRef(null);
   const mountedRef = useRef(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [slidesToShow, setSlidesToShow] = useState(4);
 
   // Use context deals immediately if available
   const initialDeals = useMemo(() => {
@@ -133,10 +140,49 @@ const DealCollection = () => {
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
   }, [navigate]);
 
-  // Memoized view configuration
+  // Add inline styles to override slick dots
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .slick-dots {
+        position: relative !important;
+        bottom: 0 !important;
+        margin-top: 2rem !important;
+      }
+      .slick-dots li button:before {
+        display: none !important;
+      }
+      .slick-dots li {
+        margin: 0 !important;
+        width: auto !important;
+        height: auto !important;
+      }
+      .slick-dots li button {
+        padding: 0 !important;
+        width: 30px !important;
+        height: 30px !important;
+      }
+      .slick-dots li button:hover,
+      .slick-dots li button:focus {
+        background: transparent !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // Calculate if arrows should be visible
+  const shouldShowArrows = useMemo(() => {
+    return processedDeals.length > slidesToShow;
+  }, [processedDeals.length, slidesToShow]);
+
+  // Memoized view configuration - UPDATED with infinite sliding and arrows
   const viewConfig = useMemo(() => {
     const count = processedDeals.length;
-    const showSlider = count >= 3;
+    const showSlider = count > 1; // Always show slider for 2+ products
     
     const gridColumns = 
       count === 1 ? "grid-cols-1 max-w-xs mx-auto" :
@@ -144,41 +190,114 @@ const DealCollection = () => {
       "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 max-w-6xl mx-auto";
 
     const sliderSettings = {
-      dots: count > 1,
-      infinite: count > 3,
-      speed: 400,
-      slidesToShow: Math.min(3, count),
+      dots: true, // Always enable dots when slider is shown
+      infinite: count > 1, // Enable infinite sliding when we have more than 1 item
+      speed: 500,
+      slidesToShow: Math.min(4, count),
       slidesToScroll: 1,
-      autoplay: count > 3,
-      autoplaySpeed: 5000,
+      autoplay: count > 1,
+      autoplaySpeed: 4000,
       pauseOnHover: true,
-      arrows: false,
+      swipe: true,
+      swipeToSlide: true,
+      touchThreshold: 10,
+      arrows: false, // We'll use custom arrows
+      beforeChange: (current, next) => {
+        setCurrentSlide(next);
+        // Update slidesToShow based on current responsive breakpoint
+        const currentSlidesToShow = Math.min(4, count);
+        setSlidesToShow(currentSlidesToShow);
+      },
       responsive: [
         {
-          breakpoint: 768,
+          breakpoint: 1280, // Desktop
           settings: {
-            slidesToShow: Math.min(2, count),
+            slidesToShow: Math.min(4, count),
+            slidesToScroll: 1,
+            infinite: count > 4,
+            autoplay: count > 4,
+            dots: true
           }
         },
         {
-          breakpoint: 640,
+          breakpoint: 1024, // Small desktop/Tablet landscape
+          settings: {
+            slidesToShow: Math.min(3, count),
+            slidesToScroll: 1,
+            infinite: count > 3,
+            autoplay: count > 3,
+            dots: true
+          }
+        },
+        {
+          breakpoint: 768, // Tablet
+          settings: {
+            slidesToShow: Math.min(2, count),
+            slidesToScroll: 1,
+            infinite: count > 2,
+            autoplay: count > 2,
+            dots: true
+          }
+        },
+        {
+          breakpoint: 640, // Mobile
           settings: {
             slidesToShow: 1,
+            slidesToScroll: 1,
+            infinite: count > 1,
+            autoplay: count > 1,
+            dots: true,
+            arrows: false,
+            swipe: true,
+            touchMove: true,
+            adaptiveHeight: true
           }
         }
       ],
       appendDots: dots => (
-        <div className="mt-4">
-          <ul className="flex justify-center space-x-1"> {dots} </ul>
+        <div className="mt-8 md:mt-10">
+          <ul style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: '8px',
+            padding: 0,
+            margin: 0,
+            listStyle: 'none'
+          }}> 
+            {dots}
+          </ul>
         </div>
       ),
-      customPaging: () => (
-        <div className="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+      customPaging: i => (
+        <button 
+          style={{
+            width: '30px',
+            height: '30px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0
+          }}
+          aria-label={`Go to slide ${i + 1}`}
+        >
+          <div 
+            style={{
+              width: i === currentSlide ? '24px' : '8px',
+              height: i === currentSlide ? '4px' : '8px',
+              backgroundColor: i === currentSlide ? '#000' : '#d1d5db',
+              borderRadius: i === currentSlide ? '2px' : '50%',
+              transition: 'all 0.3s ease'
+            }}
+          />
+        </button>
       )
     };
 
     return { showSlider, gridColumns, sliderSettings, count };
-  }, [processedDeals.length]);
+  }, [processedDeals.length, currentSlide]);
 
   // Memoized deals rendering
   const renderedDeals = useMemo(() => 
@@ -259,24 +378,46 @@ const DealCollection = () => {
           No deals available
         </div>
       ) : viewConfig.showSlider ? (
-        <div className="relative px-2 sm:px-4">
+        <div className="relative px-1 sm:px-2">
           <Slider ref={sliderRef} {...viewConfig.sliderSettings}>
             {processedDeals.map((deal) => (
-              <div key={deal._id} className="px-1 sm:px-2">
-                {renderedDeals.find(item => item.key === deal._id)}
+              <div key={deal._id} className="px-0.5">
+                <div className="mx-0">
+                  <DealItem
+                    id={deal._id}
+                    image={deal.dealImages?.[0]}
+                    name={deal.dealName}
+                    price={deal.dealTotal || 0}
+                    discount={deal.dealFinalPrice || 0}
+                    rating={0}
+                    dealType={getDealTypeName(deal.dealType)}
+                    productsCount={deal.dealProducts?.length || 0}
+                    endDate={deal.dealEndDate}
+                    onDealClick={handleDealClick}
+                    currency={currency}
+                  />
+                </div>
               </div>
             ))}
           </Slider>
           
-          {viewConfig.count > 3 && (
+          {/* Add custom arrows outside the slider - visible when needed */}
+          {shouldShowArrows && (
             <>
-              <PrevArrow onClick={() => sliderRef.current?.slickPrev()} />
-              <NextArrow onClick={() => sliderRef.current?.slickNext()} />
+              <PrevArrow 
+                onClick={() => sliderRef.current?.slickPrev()} 
+                isVisible={shouldShowArrows}
+              />
+              <NextArrow 
+                onClick={() => sliderRef.current?.slickNext()} 
+                isVisible={shouldShowArrows}
+              />
             </>
           )}
         </div>
       ) : (
-        <div className={`grid ${viewConfig.gridColumns} gap-3 px-4`}>
+        // Show regular grid only when we have exactly 1 product
+        <div className={`grid ${viewConfig.gridColumns} gap-1 sm:gap-2 gap-y-4 px-0 sm:px-1`}>
           {renderedDeals}
         </div>
       )}

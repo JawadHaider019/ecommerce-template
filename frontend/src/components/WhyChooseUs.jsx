@@ -1,66 +1,29 @@
 import { assets } from "../assets/assets";
 import Title from './Title';
-import { FaCheck } from 'react-icons/fa';
-import { Link } from 'react-router-dom'; 
 
 const WhyChooseUs = () => {
-  const keyPoints = [
-    '100% natural and organic ingredients — healthy, safe, and nourishing',
-    'Free from preservatives, chemicals, and artificial flavors',
-    'Perfect for daily use for all ages',
-    'Handpicked and carefully crafted for maximum quality and taste',
-  ];
-
   return (
-    <div className="py-20 border-y border-gray-200">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <div className="text-center text-3xl">
-            <Title text1={'WHY'} text2={'PURE CLAY'} />
+    <div className="py-12 sm:py-16 lg:py-20 border-y border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Heading Section */}
+        <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+          <div className="text-center mb-4 sm:mb-6">
+            <Title text1={'Why Choose'} text2={'Pure Clay'} />
           </div>
-          <p className="text-gray-600 max-w-2xl mx-auto">Bringing you nature’s purity with love, care, and honesty — so your family can live healthier and happier.</p>
+          <p className="text-gray-800 font-normal leading-relaxed text-base text-lg  max-w-4xl mx-auto px-4 sm:px-0">
+            At Pure Clay, we believe true wellness starts with nature. Every product is made with care, honesty, and a deep respect for the earth. From sourcing pure ingredients to sustainable packaging, we stay committed to offering natural, wholesome, and chemical-free products — so your family can live healthier and happier every day.
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div className="relative">
+        {/* Centered Landscape Image */}
+        <div className="flex justify-center px-2 sm:px-0">
+          <div className="w-full max-w-3xl">
             <img
               src={assets.whyus}
-              alt="Natural Skincare Products"
-              className="w-full h-full object-cover border border-gray-200"
+              alt="Pure Clay Natural Products"
+              className="w-full h-48 xs:h-56 sm:h-64 md:h-72 lg:h-80 xl:h-96 object-cover border border-gray-200 rounded-3xl shadow-md sm:shadow-lg transition-all duration-300 hover:shadow-xl"
+              loading="lazy"
             />
-            <div className="absolute -bottom-6 -left-6 bg-white p-6 border border-gray-200 max-w-xs">
-              <p className="text-sm text-gray-600 italic">
-                "Pure ingredients, visible results"
-              </p>
-            </div>
-          </div>
-          
-          <div>
-            <p className="text-gray-700 leading-relaxed mb-6 text-lg">
-            We believe real wellness comes from nature — not artificial additives. Every product is crafted to bring you closer to pure, wholesome goodness.
-            </p>
-            
-            <div className="space-y-4 mb-6">
-              {keyPoints.map((point, index) => (
-                <div key={index} className="flex items-start">
-                  <FaCheck className="mr-3 mt-1 text-green-600 flex-shrink-0" />
-                  <span className="text-gray-700 leading-relaxed">{point}</span>
-                </div>
-              ))}
-            </div>
-
-            <blockquote className="text-xl font-serif text-gray-800 italic leading-relaxed border-l-4 border-green-500 pl-6 py-4">
-              "Nature’s goodness in every bite, crafted for your well-being"
-            </blockquote>
-
-            <div className="mt-6">
-              <Link
-                to="/about" 
-                className="inline-flex items-center px-6 py-3 border border-gray-300 text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm"
-              >
-                Learn More About Our Philosophy
-              </Link>
-            </div>
           </div>
         </div>
       </div>

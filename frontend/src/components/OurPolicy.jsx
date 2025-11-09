@@ -20,26 +20,24 @@ const OurPolicy = () => {
       description: "All products made with pure, certified natural ingredients safe for sensitive skin types",
       color: "text-black"
     },
-{
-  icon: faShippingFast,
-  title: "Fast Delivery",
-  description: "Free delivery across Pakistan; minimal charges apply at checkout for order confirmation.",
-  color: "text-black"
-}
-
-
+    {
+      icon: faShippingFast,
+      title: "Free Delivery",
+      description: "Free delivery across Pakistan; minimal charges apply at checkout for order confirmation.",
+      color: "text-black"
+    }
   ];
 
   return (
-    <div className="py-20 border-y border-gray-200">
+    <div className="py-20 ">
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-16">
-             <div className="text-center text-3xl">
-            <Title text1={'OUR'} text2={'POLICIES'} />
+          <div className="text-center text-3xl">
+            <Title text1={'Our'} text2={'Policies'} />
           </div>
           
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Discover our customer-first policies designed for your complete satisfaction with Natura Bliss natural skincare products
+          <p className="text-gray-600 font-normal leading-relaxed text-lg max-w-2xl mx-auto mt-4">
+            Discover our customer-first policies, designed to ensure your complete satisfaction with Pure Clay's natural and organic products.
           </p>
         </div>
 
@@ -47,16 +45,16 @@ const OurPolicy = () => {
           {policies.map((policy, index) => (
             <div 
               key={index}
-              className="bg-white p-8 border border-gray-200 text-center group hover:shadow-lg transition-all duration-300 hover:border-green-200"
+              className="bg-white rounded-xl p-8 text-center group transition-all duration-500 hover:-translate-y-2 cursor-pointer shadow-sm hover:shadow-xl border border-gray-100"
             >
-              <div className={`w-16 h-16 bg-white border border-gray-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 ${policy.color}`}>
+              <div className={`w-20 h-20  flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500 shadow-inner ${policy.color}`}>
                 <FontAwesomeIcon 
                   icon={policy.icon} 
                   className="text-2xl" 
                 />
               </div>
               
-              <h3 className="text-xl font-serif font-bold text-gray-900 mb-4">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
                 {policy.title}
               </h3>
               
@@ -64,16 +62,16 @@ const OurPolicy = () => {
                 {policy.description}
               </p>
               
-              {/* Hover effect line */}
-              <div className="w-0 group-hover:w-12 h-0.5 bg-green-500 mx-auto mt-4 transition-all duration-300"></div>
+              {/* Animated hover line */}
+              <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-gray-400 to-transparent mx-auto mt-6 transition-all duration-500 group-hover:via-gray-800"></div>
             </div>
           ))}
         </div>
 
         {/* Additional Info */}
-        <div className="mt-12 text-center">
-          <div className="bg-white p-6 border border-gray-200 inline-block max-w-2xl">
-            <p className="text-gray-700 leading-relaxed italic">
+        <div className="mt-16 text-center">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 inline-block max-w-2xl hover:shadow-md transition-shadow duration-300">
+            <p className="text-gray-700 leading-relaxed italic text-lg">
               "At Pure Clay, we build trust through clear policies and honest practices. Your satisfaction and well-being are our top priority."
             </p>
           </div>

@@ -13,27 +13,16 @@ import Orders from './pages/Orders'
 import PlaceOrder from './pages/PlaceOrder'
 import Blog from './pages/Blog'
 import BlogPost from './pages/BlogPost'
-import SearchBar from './components/SearchBar'
+import FaqBot from './components/FaqBot' // Add this import
+
 import { ToastContainer } from 'react-toastify'
 import Footer from './components/Footer'
 import 'react-toastify/dist/ReactToastify.css'
 import Favicon from './components/Favicon' 
 
-// ScrollToTop component that handles scrolling when route changes
-const ScrollToTop = () => {
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    // Scroll to top instantly when route changes
-    window.scrollTo(0, 0);
-  }, [pathname]);
-
-  return null;
-};
-
 const App = () => {
   return (
-    <div className="px-4 sm:px-[5vw] md:px-[5vw] ">
+    <div className="px-4">
       <Favicon />
       <ToastContainer
         position="top-right"
@@ -65,7 +54,6 @@ const App = () => {
       />
 
       <Navbar/>
-      <SearchBar/>
       <Routes>
         <Route path='/' element={<Home/>}/>
         <Route path='/collection' element={<Collection/>}/>
@@ -82,6 +70,7 @@ const App = () => {
         <Route path='/place-order' element={<PlaceOrder/>}/>
       </Routes>
       <Footer/>
+      <FaqBot /> {/* Add FAQ Bot here */}
     </div>
   )
 }

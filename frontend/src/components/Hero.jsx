@@ -20,6 +20,7 @@ const Hero = () => {
     }
   });
   const sliderRef = useRef(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -127,7 +128,7 @@ const Hero = () => {
             href={isActive ? socialUrl : "#"}
             target={isActive ? "_blank" : "_self"}
             rel={isActive ? "noopener noreferrer" : ""}
-            className={`text-white/80 hover:text-white transition-colors duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent rounded ${
+            className={`text-white/80 hover:text-white transition-colors duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent rounded-full ${
               !isActive ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             aria-label={isActive ? `Visit our ${platform.label}` : `${platform.label} link not set`}
@@ -160,7 +161,7 @@ const Hero = () => {
             href={isActive ? socialUrl : "#"}
             target={isActive ? "_blank" : "_self"}
             rel={isActive ? "noopener noreferrer" : ""}
-            className={`text-white hover:text-white/90 transition-colors duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent rounded ${
+            className={`text-white hover:text-white/90 transition-colors duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent rounded-full ${
               !isActive ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             aria-label={isActive ? `Visit our ${platform.label}` : `${platform.label} link not set`}
@@ -175,18 +176,37 @@ const Hero = () => {
     </div>
   );
 
-  // Minimal dots component
-  const CustomDots = ({ dots }) => (
-    <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
-      <ul className="flex flex-row gap-3 m-0 p-0">
-        {dots}
-      </ul>
-    </div>
-  );
+  // Custom Dots Component - Translated to bottom of header
+  const CustomDots = () => {
+    if (banners.length <= 1) return null;
+
+    return (
+      <div className="absolute -bottom-10 md:-bottom-16 left-1/2 transform -translate-x-1/2 z-20">
+        <div className="flex items-center gap-3">
+          {banners.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => sliderRef.current?.slickGoTo(index)}
+              className="focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent rounded-full transition-all duration-300"
+              aria-label={`Go to slide ${index + 1}`}
+            >
+              <div 
+                className={`transition-all duration-300 rounded-full ${
+                  index === currentSlide 
+                    ? 'bg-black w-8 h-2' 
+                    : 'bg-black/40 w-2 h-2 hover:bg-black/60'
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   // Professional slider settings with accessibility fixes
   const settings = useMemo(() => ({
-    dots: true,
+    dots: false, // Disable default dots since we're using custom ones
     infinite: true,
     speed: 1000,
     slidesToShow: 1,
@@ -206,48 +226,43 @@ const Hero = () => {
     focusOnSelect: false,
     // Remove focus from inactive slides
     waitForAnimate: true,
-    appendDots: dots => <CustomDots dots={dots} />,
-    customPaging: i => (
-      <button 
-        className="w-1.5 h-1.5 rounded-full bg-white/40 transition-all duration-300 hover:bg-white/80 focus:outline-none focus:ring-2 focus:ring-white"
-        aria-label={`Go to slide ${i + 1}`}
-      />
-    ),
-    dotsClass: "slick-dots !flex !flex-row !static !w-auto !m-0 justify-center"
+    beforeChange: (_, next) => setCurrentSlide(next),
   }), []);
 
   // Professional Banner Item Component
   const BannerItem = useCallback(({ banner, index, isActive }) => (
     <section 
-      className="relative w-full h-full overflow-hidden bg-gray-900"
+      className="relative w-full h-full"
       // Accessibility attributes
       aria-label={`Slide ${index + 1} of ${banners.length}`}
       role="group"
       aria-roledescription="slide"
     >
-      {/* Background Image with smooth loading */}
-      <img
-        src={banner.imageUrl}
-        alt={banner.headingLine1 || "Premium Banner"}
-        className="w-full h-screen object-cover transform scale-105 transition-transform duration-10000 ease-out"
-        loading={index === 0 ? "eager" : "lazy"}
-        decoding="async"
-        width="1920"
-        height="1080"
-      />
+      {/* Background Image with smooth loading and rounded corners */}
+      <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl mx-auto overflow-hidden">
+        <img
+          src={banner.imageUrl}
+          alt={banner.headingLine1 || "Premium Banner"}
+          className="w-full h-full object-cover transform scale-105 transition-transform duration-10000 ease-out"
+          loading={index === 0 ? "eager" : "lazy"}
+          decoding="async"
+          width="1920"
+          height="1080"
+        />
+      </div>
 
-      {/* Black Overlay - Added proper dark overlay */}
-      <div className="absolute inset-0 bg-black/50 z-2"></div>
+      {/* Full Coverage Black Overlay */}
+      <div className="absolute inset-0 bg-black/50 z-2 w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl"></div>
 
-      {/* Subtle gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30 z-3"></div>
+      {/* Full Coverage Subtle gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30 z-3 w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl"></div>
 
-      {/* Content Container - Centered and elegant */}
+      {/* Content Container - Mobile Responsive */}
       <div className="absolute inset-0 z-10 flex items-center justify-center">
-        <div className="text-center px-6 max-w-8xl">
+        <div className="text-center px-4 md:px-6 max-w-7xl md:max-w-8xl">
           
-          {/* Main Headline - Clean and professional */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white uppercase mb-6">
+          {/* Main Headline - Mobile Responsive */}
+          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white uppercase mb-4 md:mb-6">
             {banner.headingLine1}
             {banner.headingLine2 && (
               <>
@@ -257,47 +272,47 @@ const Hero = () => {
             )}
           </h1>
         
-          {/* Subtext - Minimal and elegant */}
+          {/* Subtext - Mobile Responsive */}
           {banner.subtext && (
-            <p className="text-lg md:text-xl text-white/90 font-light max-w-2xl mx-auto leading-relaxed mb-10">
+            <p className="text-base sm:text-lg md:text-xl text-white/90 font-light max-w-xs sm:max-w-sm md:max-w-2xl mx-auto leading-relaxed mb-6 md:mb-10 px-2">
               {banner.subtext}
             </p>
           )}
 
-          {/* CTA Button - Premium style */}
+          {/* CTA Button - Mobile Responsive */}
           {banner.buttonText && banner.redirectUrl && (
             <div className="relative z-30">
               <Link
                 to={banner.redirectUrl}
                 onClick={handleButtonClick}
-                className="inline-flex items-center gap-3 px-8 py-4 text-white border border-white/50 rounded-sm transition-all duration-300 hover:bg-white/10 hover:border-white/80 hover:gap-4 group focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent"
+                className="inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 text-white border border-white/50 rounded-full transition-all duration-300 hover:bg-white/10 hover:border-white/80 hover:gap-3 md:hover:gap-4 group focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent"
                 aria-label={`${banner.buttonText} - ${banner.headingLine1}`}
                 // Prevent focus on inactive slides
                 tabIndex={isActive ? 0 : -1}
               >
-                <span className="text-sm font-medium tracking-wider uppercase">{banner.buttonText}</span>
+                <span className="text-xs md:text-sm font-medium tracking-wider uppercase">{banner.buttonText}</span>
                 <span className="inline-flex items-center justify-center transition-transform group-hover:translate-x-1">
-                  <IoIosArrowForward size={16} />
+                  <IoIosArrowForward size={14} md:size={16} />
                 </span>
               </Link>
             </div>
           )}
 
           {/* Social Media Icons - Mobile Only (below button in row) */}
-          <div className="mt-8 md:hidden flex justify-center">
-            <SocialMediaIconsRow iconSize={24} />
+          <div className="mt-6 md:mt-8 md:hidden flex justify-center">
+            <SocialMediaIconsRow iconSize={20} />
           </div>
         </div>
       </div>
 
       {/* Social Media Icons - Desktop Only (left bottom in column) */}
-      <div className="text-white absolute bottom-8 left-8 z-10 hidden md:flex flex-col gap-4">
-        <SocialMediaIconsColumn iconSize={20} />
+      <div className="text-white absolute bottom-4 md:bottom-8 left-4 md:left-12 z-10 hidden md:flex flex-col gap-3 md:gap-4">
+        <SocialMediaIconsColumn iconSize={18} md:iconSize={20} />
       </div>
 
-      {/* Slide counter - Current slide / Total slides */}
-      <div className="absolute bottom-6 right-6 z-10">
-        <div className="text-white/80 text-lg font-light tracking-wide">
+      {/* Slide counter - Mobile Responsive */}
+      <div className="text-white absolute bottom-4 md:bottom-8 right-4 md:right-12 z-10">
+        <div className="text-white/80 text-sm md:text-lg font-light tracking-wide">
           {(index + 1).toString().padStart(2, '0')} / {banners.length.toString().padStart(2, '0')}
         </div>
       </div>
@@ -309,106 +324,134 @@ const Hero = () => {
     if (banners.length === 0) return null;
 
     return (
-      <Slider ref={sliderRef} {...settings}>
-        {banners.map((banner, index) => (
-          <div key={banner._id || banner.imageUrl}>
-            <BannerItem 
-              banner={banner} 
-              index={index} 
-              isActive={true} // In a real implementation, you'd track active slide
-            />
-          </div>
-        ))}
-      </Slider>
+      <div className="transform -translate-y-9 md:-translate-y-[2.7rem] relative">
+        <Slider ref={sliderRef} {...settings}>
+          {banners.map((banner, index) => (
+            <div key={banner._id || banner.imageUrl} className="px-2">
+              <BannerItem 
+                banner={banner} 
+                index={index} 
+                isActive={true}
+              />
+            </div>
+          ))}
+        </Slider>
+        {/* Custom Dots - Positioned at bottom of translated header */}
+        <CustomDots />
+      </div>
     );
   };
 
-  // Premium loading skeleton
+  // Premium loading skeleton - Mobile Responsive
   if (loading) {
     return (
       <section 
-        className="relative w-full h-screen overflow-hidden bg-gray-900"
+        className="relative w-full h-[100vh] md:h-screen transform -translate-y-9 md:-translate-y-[2.7rem]"
         aria-label="Loading banners"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse"></div>
-        <div className="absolute inset-0 bg-black/40 z-2"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30 z-3"></div>
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
-          <div className="text-center px-6 max-w-4xl">
-            <div className="h-20 bg-white/10 animate-pulse rounded mb-6 w-96 mx-auto"></div>
-            <div className="h-4 bg-white/10 animate-pulse rounded mb-2 w-80 mx-auto"></div>
-            <div className="h-4 bg-white/10 animate-pulse rounded mb-2 w-72 mx-auto"></div>
-            <div className="h-12 bg-white/10 animate-pulse rounded w-40 mx-auto mt-10"></div>
+        <div className="absolute inset-0 flex items-center justify-center px-4">
+          <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse overflow-hidden">
+            {/* Full Coverage Overlays */}
+            <div className="absolute inset-0 bg-black/40 z-2 w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30 z-3 w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl"></div>
             
-            {/* Social Media Icons Skeleton - Mobile (row) */}
-            <div className="mt-8 md:hidden flex justify-center gap-4">
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+              <div className="text-center px-4 md:px-6 max-w-7xl md:max-w-8xl">
+                <div className="h-16 md:h-20 bg-white/10 animate-pulse rounded-full mb-4 md:mb-6 w-64 md:w-96 mx-auto"></div>
+                <div className="h-3 md:h-4 bg-white/10 animate-pulse rounded-full mb-2 w-48 md:w-80 mx-auto"></div>
+                <div className="h-3 md:h-4 bg-white/10 animate-pulse rounded-full mb-2 w-40 md:w-72 mx-auto"></div>
+                <div className="h-10 md:h-12 bg-white/10 animate-pulse rounded-full w-32 md:w-40 mx-auto mt-6 md:mt-10"></div>
+                
+                {/* Social Media Icons Skeleton - Mobile (row) */}
+                <div className="mt-6 md:mt-8 md:hidden flex justify-center gap-3 md:gap-4">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="w-5 h-5 md:w-6 md:h-6 bg-white/20 animate-pulse rounded-full"></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Social Media Icons Skeleton - Desktop (column) */}
+            <div className="absolute bottom-4 md:bottom-8 left-4 md:left-12 z-10 hidden md:flex flex-col gap-3 md:gap-4">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="w-6 h-6 bg-white/20 animate-pulse rounded-full"></div>
+                <div key={i} className="w-4 h-4 md:w-5 md:h-5 bg-white/20 animate-pulse rounded-full"></div>
               ))}
+            </div>
+
+            {/* Loading state slide counter */}
+            <div className="absolute bottom-4 md:bottom-8 right-4 md:right-12 z-10">
+              <div className="text-white/60 text-sm md:text-lg font-light tracking-wide">
+                01 / 00
+              </div>
+            </div>
+
+            {/* Loading state dots skeleton - Positioned at bottom of translated header */}
+            <div className="absolute -bottom-6 md:-bottom-8 left-1/2 transform -translate-x-1/2 z-20">
+              <div className="flex items-center gap-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="w-1.5 h-1.5 bg-white/20 animate-pulse rounded-full"></div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Social Media Icons Skeleton - Desktop (column) */}
-        <div className="absolute bottom-8 left-8 z-10 hidden md:flex flex-col gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="w-5 h-5 bg-white/20 animate-pulse rounded-full"></div>
-          ))}
-        </div>
-
-        {/* Loading state slide counter */}
-        <div className="absolute bottom-8 right-8 z-10">
-          <div className="text-white/60 text-lg font-light tracking-wide">
-            01 / 00
-          </div>
-        </div>
       </section>
     );
   }
 
-  // Error state
+  // Error state - Mobile Responsive
   if (error) {
     return (
       <section 
-        className="relative w-full h-screen overflow-hidden bg-gray-900"
+        className="relative w-full h-[100vh] md:h-screen transform -translate-y-9 md:-translate-y-[2.7rem]"
         aria-label="Error loading banners"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900"></div>
-        <div className="absolute inset-0 bg-black/40 z-2"></div>
-        <div className="relative z-10 h-full flex items-center justify-center text-center text-white px-6">
-          <div>
-            <p className="text-xl mb-6 font-light">{error}</p>
-            <button
-              onClick={fetchBanners}
-              className="px-8 py-3 text-base font-medium text-gray-900 bg-white rounded-sm transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900"
-              aria-label="Retry loading banners"
-            >
-              Try Again
-            </button>
+        <div className="absolute inset-0 flex items-center justify-center px-4">
+          <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
+            {/* Full Coverage Overlay */}
+            <div className="absolute inset-0 bg-black/40 z-2 w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl"></div>
+            
+            <div className="relative z-10 h-full flex items-center justify-center text-center text-white px-4 md:px-6">
+              <div>
+                <p className="text-lg md:text-xl mb-4 md:mb-6 font-light">{error}</p>
+                <button
+                  onClick={fetchBanners}
+                  className="px-6 md:px-8 py-2 md:py-3 text-sm md:text-base font-medium text-gray-900 bg-white rounded-full transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900"
+                  aria-label="Retry loading banners"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
     );
   }
 
-  // Empty state
+  // Empty state - Mobile Responsive
   if (banners.length === 0) {
     return (
       <section 
-        className="relative w-full h-screen overflow-hidden bg-gray-900"
+        className="relative w-full h-[100vh] md:h-screen transform -translate-y-9 md:-translate-y-[2.7rem]"
         aria-label="No banners available"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900"></div>
-        <div className="absolute inset-0 bg-black/40 z-2"></div>
-        <div className="h-full flex items-center justify-center text-center text-white/60 px-6">
-          <div>
-            <p className="text-xl font-light mb-4">No banners available</p>
-            <button
-              onClick={fetchBanners}
-              className="px-6 py-2 text-white border border-white/30 rounded-sm hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-            >
-              Refresh
-            </button>
+        <div className="absolute inset-0 flex items-center justify-center px-4">
+          <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
+            {/* Full Coverage Overlay */}
+            <div className="absolute inset-0 bg-black/40 z-2 w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl"></div>
+            
+            <div className="h-full flex items-center justify-center text-center text-white/60 px-4 md:px-6">
+              <div>
+                <p className="text-lg md:text-xl font-light mb-3 md:mb-4">No banners available</p>
+                <button
+                  onClick={fetchBanners}
+                  className="px-4 md:px-6 py-2 text-white border border-white/30 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white text-sm md:text-base"
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -417,21 +460,25 @@ const Hero = () => {
 
   return (
     <div 
-      className="relative w-full overflow-hidden" 
+      className="relative w-full transform -translate-y-9 md:-translate-y-[2.7rem]" 
       aria-label="Featured banners"
       role="region"
       aria-roledescription="carousel"
     >
       {/* Global styles for active dot state */}
       <style>{`
-        .slick-dots li.slick-active button {
-          background: white !important;
-          transform: scale(1.3);
-        }
-        
         /* Hide inactive slides from focus */
         .slick-slide[aria-hidden="true"] * {
           visibility: hidden;
+        }
+
+        /* Ensure rounded corners are maintained */
+        .slick-slide > div {
+          border-radius: 1.5rem;
+        }
+
+        .slick-list {
+          border-radius: 1.5rem;
         }
       `}</style>
       

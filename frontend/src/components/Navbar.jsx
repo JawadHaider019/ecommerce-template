@@ -1,10 +1,16 @@
-import {useContext, useState, useEffect} from 'react'
-import { assets } from '../assets/assets'
-import {Link, NavLink, useLocation } from 'react-router-dom'
-import {ShopContext} from '../context/ShopContext'
+import { useContext, useState, useEffect } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
+import { ShopContext } from '../context/ShopContext'
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import axios from "axios";
+import { 
+  FaUser, 
+  FaShoppingCart, 
+  FaBars, 
+  FaTimes,
+  FaChevronDown
+} from 'react-icons/fa';
 
 // Import directly from environment variables
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -14,7 +20,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false)
   const [websiteLogo, setWebsiteLogo] = useState("")
   const [loading, setLoading] = useState(false)
-  const {getCartCount,token,setToken,setCartItems} = useContext(ShopContext)
+  const { getCartCount, token, setToken, setCartItems } = useContext(ShopContext)
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -105,21 +111,20 @@ const Navbar = () => {
         <img 
           src={websiteLogo} 
           alt="Website Logo" 
-          className='w-20 h-auto object-contain transition-all duration-300'
+          className='w-16 sm:w-20 h-auto object-contain transition-all duration-300'
           onError={(e) => {
-            e.target.src = assets.logo;
-            e.target.className = 'w-20 h-auto object-contain transition-all duration-300';
+            // Fallback to text logo if image fails
+            e.target.style.display = 'none';
           }}
         />
       );
     }
 
+    // Fallback text logo
     return (
-      <img 
-        src={assets.logo} 
-        className='w-20 h-auto object-contain transition-all duration-300' 
-        alt="Logo" 
-      />
+      <div className="text-white font-bold text-xl sm:text-2xl tracking-wider">
+        LOGO
+      </div>
     );
   };
 
@@ -133,110 +138,198 @@ const Navbar = () => {
   ];
 
   return (
-    <div className={`sticky top-0 z-50 transition-all duration-300 ${
-      scrolled ? 'bg-white backdrop-blur-md shadow-sm' : 'bg-white'
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-3 md:py-4">
-          {/* Logo */}
-          <Link to='/' className="flex-shrink-0 z-10">
-            <LogoDisplay />
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <NavLink 
-                key={item.path}
-                to={item.path} 
-                className={({ isActive }) => 
-                  `relative text-sm font-medium tracking-wide transition-colors duration-200 px-1 py-2 ${
-                    isActive 
-                      ? 'text-black font-semibold' 
-                      : 'text-gray-600 hover:text-black'
-                  }`
-                }
-              >
-                {item.label}
-                <span className={`absolute -bottom-1 left-0 h-0.5 bg-black transition-all duration-300 ${
-                  location.pathname === item.path ? 'w-full' : 'w-0'
-                }`} />
-              </NavLink>
-            ))}
-          </nav>
-          
-          {/* Right side icons */}
-          <div className='flex items-center gap-4 md:gap-6'>
-            {/* Profile dropdown */}
-            <div className='hidden sm:block group relative'>
-              <div className={`p-2 rounded-full transition-all duration-200 cursor-pointer ${
-                token ? 'hover:bg-gray-100' : ''
-              }`}>
-                <img 
-                  onClick={() => token ? null : navigate('/login')} 
-                  src={assets.profile_icon} 
-                  className='w-5 h-5 cursor-pointer' 
-                  alt="Profile" 
-                />
-              </div>
-              
-              {token && (
-                <div className='absolute right-0 top-full mt-1 z-20 hidden group-hover:block'>
-                  <div className='w-48 rounded-lg bg-white shadow-lg border border-gray-100 py-2'>
-                    <div 
-                      onClick={() => { navigate('/orders'); }}
-                      className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors rounded-t-lg"
-                    >
-                      My Orders
-                    </div>
-                    <div 
-                      onClick={logout}
-                      className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors rounded-b-lg border-t border-gray-100"
-                    >
-                      Sign Out
-                    </div>
-                  </div>
-                </div>
-              )}   
-            </div>
-
-            {/* Mobile Profile Icon */}
-            <div className='sm:hidden'>
-              <img 
-                onClick={() => token ? navigate('/orders') : navigate('/login')} 
-                src={assets.profile_icon} 
-                className='w-5 h-5 cursor-pointer' 
-                alt="Profile" 
-              />
-            </div>
-
-            {/* Cart */}
-            <Link 
-              to='/cart' 
-              className='relative p-2 rounded-full hover:bg-gray-100 transition-all duration-200'
-            >
-              <img src={assets.cart_icon} className='w-5 h-5' alt="Cart"/>
-              {getCartCount() > 0 && (
-                <span className='absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-black text-white text-xs flex items-center justify-center font-medium'>
-                  {getCartCount() > 99 ? '99+' : getCartCount()}
-                </span>
-              )}
+    <div className={`sticky top-3 z-50 transition-all duration-300`}>
+      <div className="max-w-8xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        {/* Rounded navbar container - Transparent when not scrolled */}
+        <div className={`rounded-full  transition-all duration-300 border border-white/50 ${
+          scrolled 
+            ? 'bg-white/50 backdrop-blur-md shadow-lg ' 
+            : 'bg-transparent shadow-sm'
+        }`}>
+          <div className="flex items-center justify-between py-1 px-4 sm:px-6">
+            {/* Logo */}
+            <Link to='/' className="flex-shrink-0 z-10">
+              <LogoDisplay />
             </Link>
 
-            {/* Mobile menu button */}
-            <button 
-              onClick={() => setVisible(true)}
-              className='lg:hidden p-2 rounded-full hover:bg-gray-100 transition-all duration-200'
-              aria-label="Open menu"
-            >
-              <img src={assets.menu_icon} className='w-5 h-5' alt="Menu" />
-            </button>
+            {/* Desktop Navigation - Show on large screens */}
+            <nav className="hidden xl:flex items-center space-x-6 2xl:space-x-8">
+              {navItems.map((item) => (
+                <NavLink 
+                  key={item.path}
+                  to={item.path} 
+                  className={({ isActive }) => 
+                    `relative text-sm font-medium tracking-wide transition-colors duration-200 px-1 py-2 ${
+                      isActive 
+                        ? `${scrolled ? 'text-black' : 'text-white'} font-semibold` 
+                        : `${scrolled ? 'text-gray-600 hover:text-black' : 'text-gray-200 hover:text-white'}`
+                    }`
+                  }
+                >
+                  {item.label}
+                  <span className={`absolute -bottom-1 left-0 h-0.5 transition-all duration-300 rounded-full ${
+                    location.pathname === item.path 
+                      ? `${scrolled ? 'bg-black' : 'bg-white'} w-full` 
+                      : 'w-0'
+                  }`} />
+                </NavLink>
+              ))}
+            </nav>
+
+            {/* Tablet Navigation - Show on medium screens, hide on mobile and desktop */}
+            <nav className="hidden md:flex xl:hidden items-center space-x-4">
+              {navItems.slice(0, 3).map((item) => (
+                <NavLink 
+                  key={item.path}
+                  to={item.path} 
+                  className={({ isActive }) => 
+                    `relative text-xs font-medium tracking-wide transition-colors duration-200 px-1 py-2 ${
+                      isActive 
+                        ? `${scrolled ? 'text-black' : 'text-white'} font-semibold` 
+                        : `${scrolled ? 'text-gray-600 hover:text-black' : 'text-gray-200 hover:text-white'}`
+                    }`
+                  }
+                >
+                  {item.label}
+                  <span className={`absolute -bottom-1 left-0 h-0.5 transition-all duration-300 rounded-full ${
+                    location.pathname === item.path 
+                      ? `${scrolled ? 'bg-black' : 'bg-white'} w-full` 
+                      : 'w-0'
+                  }`} />
+                </NavLink>
+              ))}
+              {/* More items dropdown for tablet */}
+              <div className="relative group">
+                <button className={`text-xs font-medium tracking-wide transition-colors duration-200 px-1 py-2 flex items-center gap-1 ${
+                  scrolled ? 'text-gray-600 hover:text-black' : 'text-gray-200 hover:text-white'
+                }`}>
+                  MORE
+                  <FaChevronDown size={10} />
+                </button>
+                <div className="absolute right-0 top-full mt-2 z-20 hidden group-hover:block">
+                  <div className="w-32 rounded-2xl bg-white/95 backdrop-blur-md shadow-lg border border-white/20 py-2">
+                    {navItems.slice(3).map((item) => (
+                      <NavLink 
+                        key={item.path}
+                        to={item.path}
+                        className={({ isActive }) => 
+                          `block px-4 py-2 text-xs transition-colors ${
+                            isActive 
+                              ? 'bg-gray-100 text-black' 
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`
+                        }
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </nav>
+            
+            {/* Right side icons */}
+            <div className='flex items-center gap-3 sm:gap-4 md:gap-6'>
+              {/* Desktop Profile dropdown */}
+              <div className='hidden sm:block group relative'>
+                <div className={`p-2 sm:p-3 rounded-full transition-all duration-200 cursor-pointer ${
+                  scrolled 
+                    ? 'hover:bg-gray-100 text-black' 
+                    : 'hover:bg-white/20 text-white'
+                }`}>
+                  <FaUser 
+                    onClick={() => token ? null : navigate('/login')} 
+                    className={`w-4 h-4 sm:w-5 sm:h-5 cursor-pointer transition-colors ${
+                      scrolled ? 'text-gray-600' : 'text-white'
+                    }`}
+                  />
+                </div>
+                
+                {token && (
+                  <div className='absolute right-0 top-full mt-2 z-20 hidden group-hover:block'>
+                    <div className='w-40 sm:w-48 rounded-2xl bg-white/95 backdrop-blur-md shadow-lg border border-white/20 py-2'>
+                      <div 
+                        onClick={() => { navigate('/orders'); }}
+                        className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors rounded-t-lg"
+                      >
+                        My Orders
+                      </div>
+                      <div 
+                        onClick={logout}
+                        className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors rounded-b-lg border-t border-gray-100"
+                      >
+                        Sign Out
+                      </div>
+                    </div>
+                  </div>
+                )}   
+              </div>
+
+              {/* Mobile Profile Icon */}
+              <div className='sm:hidden'>
+                <FaUser 
+                  onClick={() => token ? navigate('/orders') : navigate('/login')} 
+                  className={`w-4 h-4 cursor-pointer transition-colors ${
+                    scrolled ? 'text-gray-600' : 'text-white'
+                  }`}
+                />
+              </div>
+
+              {/* Cart */}
+              <Link 
+                to='/cart' 
+                className={`relative p-2 sm:p-3 rounded-full transition-all duration-200 ${
+                  scrolled 
+                    ? 'hover:bg-gray-100 text-gray-600' 
+                    : 'hover:bg-white/20 text-white'
+                }`}
+              >
+                <FaShoppingCart className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
+                  scrolled ? 'text-gray-600' : 'text-white'
+                }`} />
+                {getCartCount() > 0 && (
+                  <span className={`absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full flex items-center justify-center font-medium text-xs ${
+                    scrolled 
+                      ? 'bg-black text-white' 
+                      : 'bg-white text-black'
+                  }`}>
+                    {getCartCount() > 99 ? '99+' : getCartCount()}
+                  </span>
+                )}
+              </Link>
+
+              {/* Mobile menu button */}
+              <button 
+                onClick={() => setVisible(true)}
+                className={`md:hidden p-2 rounded-full transition-all duration-200 ${
+                  scrolled 
+                    ? 'hover:bg-gray-100 text-gray-600' 
+                    : 'hover:bg-white/20 text-white'
+                }`}
+                aria-label="Open menu"
+              >
+                <FaBars className="w-4 h-4" />
+              </button>
+
+              {/* Tablet menu button */}
+              <button 
+                onClick={() => setVisible(true)}
+                className={`hidden md:flex xl:hidden p-2 rounded-full transition-all duration-200 ${
+                  scrolled 
+                    ? 'hover:bg-gray-100 text-gray-600' 
+                    : 'hover:bg-white/20 text-white'
+                }`}
+                aria-label="Open menu"
+              >
+                <FaBars className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
         
-      {/* Mobile menu - Modern slide-in */}
-      <div className={`lg:hidden fixed inset-0 z-50 transition-all duration-300 ease-in-out ${
+      {/* Mobile & Tablet menu - Modern slide-in */}
+      <div className={`md:xl:hidden fixed inset-0 z-50 transition-all duration-300 ease-in-out ${
         visible ? "opacity-100 visible" : "opacity-0 invisible"
       }`}>
         {/* Backdrop */}
@@ -247,36 +340,34 @@ const Navbar = () => {
           onClick={() => setVisible(false)}
         />
         
-        {/* Menu Panel */}
-        <div className={`absolute right-0 top-0 h-full w-80 max-w-full bg-white shadow-xl transition-transform duration-300 ease-in-out ${
+        {/* Menu Panel - Responsive width */}
+        <div className={`absolute right-0 top-0 h-full w-80 max-w-[90vw] bg-white shadow-xl transition-transform duration-300 ease-in-out ${
           visible ? "translate-x-0" : "translate-x-full"
         }`}>
           <div className='flex h-full flex-col'>
             {/* Header */}
-            <div className='flex items-center justify-between border-b border-gray-200 p-6'>
+            <div className='flex items-center justify-between border-b border-gray-200 p-4 sm:p-6'>
               <Link to='/' onClick={handleMobileNavClick}>
                 <LogoDisplay />
               </Link>
               <button 
                 onClick={() => setVisible(false)}
-                className='p-2 rounded-full hover:bg-gray-100 transition-colors'
+                className='p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600'
                 aria-label="Close menu"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <FaTimes className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             {/* Navigation items */}
-            <nav className="flex-1 overflow-y-auto py-6">
+            <nav className="flex-1 overflow-y-auto py-4">
               {navItems.map((item) => (
                 <NavLink 
                   key={item.path}
                   to={item.path} 
                   onClick={handleMobileNavClick}
                   className={({ isActive }) => 
-                    `block px-6 py-4 text-base font-medium transition-colors border-l-4 ${
+                    `block px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors border-l-4 ${
                       isActive 
                         ? 'text-black bg-gray-50 border-black' 
                         : 'text-gray-600 border-transparent hover:bg-gray-50 hover:text-black'
@@ -290,17 +381,17 @@ const Navbar = () => {
 
             {/* Mobile footer */}
             {token && (
-              <div className='border-t border-gray-200 p-6'>
+              <div className='border-t border-gray-200 p-4 sm:p-6'>
                 <div className="space-y-2">
                   <button 
                     onClick={() => { navigate('/orders'); handleMobileNavClick(); }}
-                    className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-base"
+                    className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
                   >
                     My Orders
                   </button>
                   <button 
                     onClick={logout}
-                    className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-base"
+                    className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
                   >
                     Sign Out
                   </button>
@@ -310,10 +401,10 @@ const Navbar = () => {
 
             {/* Login prompt for non-logged in users */}
             {!token && (
-              <div className='border-t border-gray-200 p-6'>
+              <div className='border-t border-gray-200 p-4 sm:p-6'>
                 <button 
                   onClick={() => { navigate('/login'); handleMobileNavClick(); }}
-                  className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-base"
+                  className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
                 >
                   Login / Register
                 </button>

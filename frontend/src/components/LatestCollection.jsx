@@ -13,6 +13,7 @@ const LatestCollection = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const sliderRef = useRef(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   // Use useMemo to filter and process products
   const processedProducts = useMemo(() => {
@@ -81,26 +82,28 @@ const LatestCollection = () => {
 
   // Enhanced Slick Slider settings for better mobile experience
   const sliderSettings = {
-    dots: true,
+    dots: true, 
     infinite: latestProducts.length > 1,
     speed: 500,
     slidesToShow: Math.min(4, latestProducts.length),
     slidesToScroll: 1,
     autoplay: latestProducts.length > Math.min(4, latestProducts.length),
-    autoplaySpeed: 4000,
+    autoplaySpeed: 3000,
     pauseOnHover: true,
     swipe: true,
     swipeToSlide: true,
     touchThreshold: 10,
     arrows: false,
+    beforeChange: (current, next) => setCurrentSlide(next),
     responsive: [
       {
         breakpoint: 1280, // Desktop
         settings: {
-          slidesToShow: Math.min(4, latestProducts.length),
+          slidesToShow: Math.min(3, latestProducts.length),
           slidesToScroll: 1,
-          infinite: latestProducts.length > 4,
-          autoplay: latestProducts.length > 4,
+          infinite: latestProducts.length > 3,
+          autoplay: latestProducts.length > 3,
+          dots: true // Ensure dots are enabled
         }
       },
       {
@@ -110,6 +113,7 @@ const LatestCollection = () => {
           slidesToScroll: 1,
           infinite: latestProducts.length > 3,
           autoplay: latestProducts.length > 3,
+          dots: true // Ensure dots are enabled
         }
       },
       {
@@ -119,7 +123,7 @@ const LatestCollection = () => {
           slidesToScroll: 1,
           infinite: latestProducts.length > 2,
           autoplay: latestProducts.length > 2,
-          dots: true
+          dots: true // Ensure dots are enabled
         }
       },
       {
@@ -129,7 +133,7 @@ const LatestCollection = () => {
           slidesToScroll: 1,
           infinite: latestProducts.length > 1,
           autoplay: latestProducts.length > 1,
-          dots: latestProducts.length > 1,
+          dots: true, // Ensure dots are enabled
           arrows: false,
           swipe: true,
           touchMove: true,
@@ -143,7 +147,7 @@ const LatestCollection = () => {
           slidesToScroll: 1,
           infinite: latestProducts.length > 1,
           autoplay: latestProducts.length > 1,
-          dots: latestProducts.length > 1,
+          dots: true, // Ensure dots are enabled
           arrows: false,
           centerMode: false,
           swipe: true,
@@ -153,30 +157,86 @@ const LatestCollection = () => {
       }
     ],
     appendDots: dots => (
-      <div className="mt-6 md:mt-8">
-        <ul className="flex justify-center space-x-1 md:space-x-2"> {dots} </ul>
+      <div className="mt-8 md:mt-10"> {/* Increased margin top */}
+        <ul style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          gap: '8px',
+          padding: 0,
+          margin: 0,
+          listStyle: 'none'
+        }}> 
+          {dots}
+        </ul>
       </div>
     ),
     customPaging: i => (
       <button 
-        className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-gray-300 transition-all duration-300 hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400"
+        style={{
+          width: '30px',
+          height: '30px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: 0
+        }}
         aria-label={`Go to slide ${i + 1}`}
-      />
+      >
+        <div 
+          style={{
+            width: i === currentSlide ? '24px' : '8px',
+            height: i === currentSlide ? '4px' : '8px',
+            backgroundColor: i === currentSlide ? '#000' : '#d1d5db',
+            borderRadius: i === currentSlide ? '2px' : '50%',
+            transition: 'all 0.3s ease'
+          }}
+        />
+      </button>
     )
   };
 
-  // Determine if we should show slider based on current screen size logic
+  // Add inline styles to override slick dots
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .slick-dots {
+        position: relative !important;
+        bottom: 0 !important;
+        margin-top: 2rem !important;
+      }
+      .slick-dots li button:before {
+        display: none !important;
+      }
+      .slick-dots li {
+        margin: 0 !important;
+        width: auto !important;
+        height: auto !important;
+      }
+      .slick-dots li button {
+        padding: 0 !important;
+        width: 30px !important;
+        height: 30px !important;
+      }
+      .slick-dots li button:hover,
+      .slick-dots li button:focus {
+        background: transparent !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // NEW: Always show slider when we have multiple products
   const shouldShowSlider = () => {
-    // For mobile (less than 768px): show slider if more than 1 product
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      return latestProducts.length > 1;
-    }
-    // For tablet (768px - 1024px): show slider if more than 2 products
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      return latestProducts.length > 2;
-    }
-    // For desktop (1024px+): show slider if more than 4 products
-    return latestProducts.length > 4;
+    // Always show slider if we have more than 1 product
+    // This ensures dots are visible on all devices
+    return latestProducts.length > 1;
   };
 
   const [showSlider, setShowSlider] = useState(false);
@@ -199,7 +259,7 @@ const LatestCollection = () => {
     return (
       <div className="my-16 md:my-24">
         <div className="py-2 text-center text-2xl md:text-3xl">
-          <Title text1={'LATEST'} text2={'COLLECTIONS'} />
+          <Title text1={'New'} text2={'Arrivals'} />
         </div>
         <div className="text-center text-gray-500 py-8">
           Loading latest collections...
@@ -211,10 +271,12 @@ const LatestCollection = () => {
   if (error) {
     return (
       <div className="my-16 md:my-24">
-        <div className="py-4 text-center text-2xl md:text-3xl">
-          <Title text1={'LATEST'} text2={'COLLECTIONS'} />
-         <p className="text-[14px] md:text-[16px] text-gray-600 font-light px-2">
-Explore Pure Clay's latest organic collection — fresh, natural, and proudly made in Pakistan.
+        <div className="flex justify-between flex-col md:flex-row md:items-start gap-3 md:gap-20 py-2 mx-4 md:mx-10 text-center md:text-left mb-5">
+          <div className="flex-shrink-0">
+            <Title text1={'New'} text2={'Arrivals'} />
+          </div>
+          <p className="w-full md:max-w-[60%] text-gray-800 font-normal leading-relaxed text-base text-lg  flex-1">
+            Discover Pure Clay's newest range of organic products, proudly made in Pakistan. Each item is crafted with care, delivering natural, wholesome, and sustainable options for a healthier life.
           </p>
         </div>
         <div className="text-center text-red-500 py-8">
@@ -226,24 +288,26 @@ Explore Pure Clay's latest organic collection — fresh, natural, and proudly ma
 
   return (
     <div className="my-16 md:my-24">
-      <div className="py-2 text-center text-2xl md:text-3xl">
-        <Title text1={'LATEST'} text2={'COLLECTIONS'} />
-        <p className="text-[14px] md:text-[16px] text-gray-600 font-light px-4 max-w-2xl mx-auto">
-    Explore Pure Clay's latest organic collection — fresh, natural, and proudly made in Pakistan.
-  </p>
+      <div className="flex justify-between flex-col md:flex-row md:items-start gap-3 md:gap-20 py-2 mx-4 md:mx-10 text-center md:text-left mb-5">
+        <div className="flex-shrink-0">
+          <Title text1={'New'} text2={'Arrivals'} />
+        </div>
+        <p className="w-full md:max-w-[50%] text-gray-800 font-normal leading-relaxed text-base text-lg  flex-1">
+          Discover Pure Clay's newest range of organic products, proudly made in Pakistan. Each item is crafted with care, delivering natural, wholesome, and sustainable options for a healthier life.
+        </p>
       </div>
-
+      
       {latestProducts.length === 0 ? (
         <div className="text-center text-gray-500 py-8 px-4">
           No products available at the moment.
         </div>
       ) : showSlider ? (
         // Show slider when we have more products than can be shown on screen
-        <div className="relative px-2 sm:px-4">
+        <div className="relative px-1 sm:px-2">
           <Slider ref={sliderRef} {...sliderSettings}>
             {latestProducts.map((item) => (
-              <div key={item._id} className="px-1 sm:px-2">
-                <div className="mx-1">
+              <div key={item._id} className="px-0.5">
+                <div className="mx-0">
                   <ProductItem
                     id={item._id}
                     image={item.image && item.image.length > 0 ? item.image[0] : "/images/fallback-image.jpg"}
@@ -267,8 +331,8 @@ Explore Pure Clay's latest organic collection — fresh, natural, and proudly ma
           )}
         </div>
       ) : (
-        // Show regular grid when we have less products than can be shown on screen
-        <div className={`grid ${getGridColumns()} gap-3 sm:gap-4 gap-y-6 px-2 sm:px-4`}>
+        // Show regular grid only when we have exactly 1 product
+        <div className={`grid ${getGridColumns()} gap-2 sm:gap-3 gap-y-6 px-1 sm:px-2`}>
           {latestProducts.map((item) => (
             <ProductItem
               key={item._id}

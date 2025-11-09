@@ -104,7 +104,7 @@ const Footer = () => {
 
     // Get current year for copyright
     const currentYear = new Date().getFullYear()
-    const copyrightText = `© ${currentYear} ${businessInfo.company?.name || 'Natural Skincare'}. All rights reserved.`
+    const copyrightText = `© ${currentYear} ${businessInfo.company?.name }. All rights reserved.    `
        
     // Logo display component
     const LogoDisplay = () => {
@@ -112,7 +112,7 @@ const Footer = () => {
             return (
                 <img 
                     src={businessInfo.logos.website.url} 
-                    alt={`${businessInfo.company?.name || 'Natural Skincare'} Logo`} 
+                    alt={`${businessInfo.company?.name } Logo`} 
                     className="w-20 mb-4 object-contain"
                     onError={(e) => {
                         e.target.src = assets.logo
@@ -232,13 +232,13 @@ const Footer = () => {
 
                 {/* Bottom Footer */}
                 <div className="border-t border-gray-200 pt-8">
-                    <div className="flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
+                    <div className="flex flex-col md:flex-row justify-center items-center space-y-2 md:space-y-0">
                         <p className="text-gray-600 text-sm">
                             {copyrightText}
                         </p>
-                        <div className="text-gray-500 text-sm">
-                            Developed by <Link to='https://jawumitech.com/' className="text-gray-700 hover:text-gray-500">JawumiTech</Link>
-                        </div>
+                        <span className="text-gray-500 text-sm pl-1">
+                           Developed by <Link to='https://jawumitech.com/' className="text-gray-700 hover:text-gray-500">JawumiTech</Link>
+                        </span>
                     </div>
                 </div>
             </div>
