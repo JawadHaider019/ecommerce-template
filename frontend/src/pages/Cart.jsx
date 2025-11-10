@@ -323,7 +323,7 @@ const Cart = () => {
     if (itemData.isOutOfStock) {
       return (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center border border-red-300 bg-red-50 text-red-700 px-3 py-2">
+          <div className="flex items-center border rounded-3xl border-red-300 bg-red-50 text-red-700 px-3 py-2">
             <span className="text-sm font-medium">Out of Stock</span>
           </div>
         </div>
@@ -361,7 +361,7 @@ const Cart = () => {
 
     return (
       <div className="flex flex-col gap-2">
-        <div className="flex items-center border border-gray-300 bg-white">
+        <div className="flex items-center border rounded-lg border-black/50 bg-white">
           <button
             onClick={handleDecrement}
             disabled={isDecrementDisabled}
@@ -379,7 +379,7 @@ const Cart = () => {
             min={1}
             max={maxQuantity}
             disabled={itemData.isOutOfStock}
-            className={`w-16 rounded border-2 border-gray-300 px-2 py-1 text-center text-sm ${
+            className={`w-16 rounded border-2 border-black/50 px-2 py-1 text-center text-sm ${
               itemData.isOutOfStock ? 'bg-gray-100 cursor-not-allowed' : ''
             }`}
           />
@@ -446,7 +446,7 @@ const Cart = () => {
               {renderStockStatus(itemData.availableStock, selectedItem.quantity, itemData.isOutOfStock)}
             </div>
 
-            <div className="space-y-3 bg-gray-50 p-4 border border-gray-200">
+            <div className="space-y-3 bg-gray-50 p-4 border rounded-3xl border-gray-200">
               <h4 className="font-semibold text-black">Pricing Summary</h4>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
@@ -481,7 +481,7 @@ const Cart = () => {
                   <span className="font-semibold">{selectedItem.quantity}</span>
                 </div>
                 
-                <div className="flex justify-between items-center border-t border-gray-300 pt-2">
+                <div className="flex justify-between items-center border-t border-black/50 pt-2">
                   <span className="font-semibold text-lg">Total:</span>
                   <span className="font-bold text-black text-lg">
                     {currency}{itemData.itemTotalPrice.toFixed(2)}
@@ -520,7 +520,7 @@ const Cart = () => {
               {renderStockStatus(itemData.availableStock, selectedItem.quantity, itemData.isOutOfStock)}
             </div>
 
-            <div className="space-y-3 bg-gray-50 p-4 border border-gray-200">
+            <div className="space-y-3 bg-gray-50 p-4 border rounded-3xl border-gray-200">
               <h4 className="font-semibold text-black">Deal Pricing</h4>
               <div className="space-y-2">
                 {deal.dealTotal && deal.dealTotal > deal.dealFinalPrice && (
@@ -553,7 +553,7 @@ const Cart = () => {
                   <span className="font-semibold">{selectedItem.quantity}</span>
                 </div>
                 
-                <div className="flex justify-between items-center border-t border-gray-300 pt-2">
+                <div className="flex justify-between items-center border-t border-black/50 pt-2">
                   <span className="font-semibold text-lg">Total:</span>
                   <span className="font-bold text-black text-lg">
                     {currency}{itemData.itemTotalPrice.toFixed(2)}
@@ -565,7 +565,7 @@ const Cart = () => {
         </div>
 
         {(deal.dealProducts || deal.products) && (
-          <div className="border-t border-gray-300 pt-6">
+          <div className="border-t border-black/50 pt-6">
             <h3 className="font-semibold text-lg mb-4">
               Includes {(deal.dealProducts || deal.products).length} Products
             </h3>
@@ -579,7 +579,7 @@ const Cart = () => {
                 const productTotal = sellingPrice * quantity;
                 
                 return (
-                  <div key={index} className={`flex items-center justify-between p-3 border border-gray-200 ${
+                  <div key={index} className={`flex items-center justify-between p-3 border rounded-3xl border-gray-200 ${
                     product.isOutOfStock ? 'bg-red-50' : 'bg-white'
                   }`}>
                     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -642,9 +642,9 @@ const Cart = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-gray-300">
+        <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto border rounded-3xl border-black/50">
           <div className="p-6">
-            <div className="flex justify-between items-start mb-6 border-b border-gray-300 pb-4">
+            <div className="flex justify-between items-start mb-6 border-b border-black/50 pb-4">
               <h2 className="text-2xl font-bold text-black">{itemData.name}</h2>
               <button 
                 onClick={handleCloseDetails}
@@ -667,7 +667,7 @@ const Cart = () => {
     if (dealProducts.length === 0) return null;
 
     return (
-      <div className="mt-4 border border-gray-200 bg-gray-50">
+      <div className="mt-4 rounded-3 border rounded-3xl border-gray-200 bg-gray-50">
         <div className="p-3 border-b border-gray-200">
           <h4 className="font-semibold text-sm text-black">Includes {dealProducts.length} products:</h4>
         </div>
@@ -741,18 +741,18 @@ const Cart = () => {
   };
 
   return (
-    <div className="border-t border-gray-300 pt-8 md:pt-14 px-4 md:px-0">
+    <div className=" pt-8 md:pt-14 px-4 md:px-0">
       <div className="mb-6 md:mb-8 text-3xl text-center">
-        <Title text1={'YOUR'} text2={'CART'} />
+        <Title text1={'Your'} text2={'Cart'} />
       </div>
 
       <div>
         {productCartData.length === 0 && dealCartData.length === 0 ? (
-          <div className="text-center py-12 md:py-16 border border-gray-300 bg-gray-50">
+          <div className="text-center py-12 md:py-16 border rounded-3xl border-black/50 bg-gray-50">
             <p className="text-gray-600 text-lg mb-4">Your cart is empty</p>
             <button
               onClick={() => navigate('/')}
-              className="bg-black text-white px-8 py-3 hover:bg-gray-800 transition-colors font-medium"
+              className="bg-black border rounded-3xl text-white px-8 py-3 hover:bg-gray-800 transition-colors font-medium"
             >
               CONTINUE SHOPPING
             </button>
@@ -762,7 +762,7 @@ const Cart = () => {
             {/* Products Section */}
             {productCartData.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-lg font-semibold mb-4 border-b border-gray-300 pb-3 text-black">
+                <h3 className="text-lg font-semibold mb-4 border-b border-black/50 pb-3 text-black">
                   PRODUCTS ({productCartData.length})
                 </h3>
                 <div className="space-y-4">
@@ -772,8 +772,8 @@ const Cart = () => {
                     return (
                       <div
                         key={`product-${item.id}-${index}`}
-                        className={`bg-white border ${
-                          itemData.isOutOfStock ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        className={`bg-white border rounded-3xl ${
+                          itemData.isOutOfStock ? 'border-red-300 bg-red-50' : 'border-black/50'
                         } p-4`}
                       >
                         <div className="flex flex-col sm:flex-row gap-4">
@@ -873,7 +873,7 @@ const Cart = () => {
             {/* Deals Section */}
             {dealCartData.length > 0 && (
               <div>
-                <h3 className="text-lg font-semibold mb-4 border-b border-gray-300 pb-3 text-black">
+                <h3 className="text-lg font-semibold mb-4 border-b border-black/50 pb-3 text-black">
                   DEALS ({dealCartData.length})
                 </h3>
                 <div className="space-y-4">
@@ -886,8 +886,8 @@ const Cart = () => {
                     return (
                       <div
                         key={`deal-${item.id}-${index}`}
-                        className={`bg-white border ${
-                          itemData.isOutOfStock ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        className={`bg-white border rounded-3xl ${
+                          itemData.isOutOfStock ? 'border-red-300 bg-red-50' : 'border-black/50'
                         }`}
                       >
                         <div className="p-4">
@@ -1031,13 +1031,13 @@ const Cart = () => {
       {/* Cart Total and Checkout */}
       {(productCartData.length > 0 || dealCartData.length > 0) && (
         <div className="my-12 md:my-20">
-          <div className="w-full md:w-[450px] ml-auto border border-gray-300 bg-white p-6">
+          <div className="w-full md:w-[450px] ml-auto border rounded-3xl border-black/50 bg-white p-6">
             <CartTotal />
-            <div className="w-full text-center md:text-end mt-6 pt-4 border-t border-gray-300">
+            <div className="w-full text-center md:text-end mt-6 pt-4 border-t border-black/50">
               <button
                 onClick={handleProceedToCheckout}
                 disabled={hasOutOfStockItems}
-                className={`px-8 py-4 font-semibold transition-colors w-full md:w-auto text-base ${
+                className={` border rounded-3xl px-8 py-4 font-semibold transition-colors w-full md:w-auto text-base ${
                   hasOutOfStockItems
                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     : 'bg-black text-white hover:bg-gray-800 active:bg-gray-900'

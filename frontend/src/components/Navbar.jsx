@@ -143,8 +143,8 @@ const Navbar = () => {
         {/* Rounded navbar container - Transparent when not scrolled */}
         <div className={`rounded-full  transition-all duration-300 border border-white/50 ${
           scrolled 
-            ? 'bg-white/50 backdrop-blur-md shadow-lg ' 
-            : 'bg-transparent shadow-sm'
+            ? 'bg-black/50 backdrop-blur-md shadow-lg ' 
+            : 'bg-black/50 shadow-sm'
         }`}>
           <div className="flex items-center justify-between py-1 px-4 sm:px-6">
             {/* Logo */}
@@ -161,15 +161,15 @@ const Navbar = () => {
                   className={({ isActive }) => 
                     `relative text-sm font-medium tracking-wide transition-colors duration-200 px-1 py-2 ${
                       isActive 
-                        ? `${scrolled ? 'text-black' : 'text-white'} font-semibold` 
-                        : `${scrolled ? 'text-gray-600 hover:text-black' : 'text-gray-200 hover:text-white'}`
+                        ? `${scrolled ? 'text-white' : 'text-white'} font-semibold` 
+                        : `${scrolled ? 'text-white hover:text-white' : 'text-gray-200 hover:text-white'}`
                     }`
                   }
                 >
                   {item.label}
                   <span className={`absolute -bottom-1 left-0 h-0.5 transition-all duration-300 rounded-full ${
                     location.pathname === item.path 
-                      ? `${scrolled ? 'bg-black' : 'bg-white'} w-full` 
+                      ? `${scrolled ? 'bg-white' : 'bg-white'} w-full` 
                       : 'w-0'
                   }`} />
                 </NavLink>
@@ -185,15 +185,15 @@ const Navbar = () => {
                   className={({ isActive }) => 
                     `relative text-xs font-medium tracking-wide transition-colors duration-200 px-1 py-2 ${
                       isActive 
-                        ? `${scrolled ? 'text-black' : 'text-white'} font-semibold` 
-                        : `${scrolled ? 'text-gray-600 hover:text-black' : 'text-gray-200 hover:text-white'}`
+                        ? `${scrolled ? 'text-white' : 'text-white'} font-semibold` 
+                        : `${scrolled ? 'text-white hover:white' : 'text-gray-200 hover:text-white'}`
                     }`
                   }
                 >
                   {item.label}
                   <span className={`absolute -bottom-1 left-0 h-0.5 transition-all duration-300 rounded-full ${
                     location.pathname === item.path 
-                      ? `${scrolled ? 'bg-black' : 'bg-white'} w-full` 
+                      ? `${scrolled ? 'bg-white' : 'bg-white'} w-full` 
                       : 'w-0'
                   }`} />
                 </NavLink>
@@ -234,13 +234,13 @@ const Navbar = () => {
               <div className='hidden sm:block group relative'>
                 <div className={`p-2 sm:p-3 rounded-full transition-all duration-200 cursor-pointer ${
                   scrolled 
-                    ? 'hover:bg-gray-100 text-black' 
-                    : 'hover:bg-white/20 text-white'
+                    ? 'hover:bg-black text-white' 
+                    : 'hover:bg-black/50 text-white'
                 }`}>
                   <FaUser 
                     onClick={() => token ? null : navigate('/login')} 
                     className={`w-4 h-4 sm:w-5 sm:h-5 cursor-pointer transition-colors ${
-                      scrolled ? 'text-gray-600' : 'text-white'
+                      scrolled ? 'text-white' : 'text-white'
                     }`}
                   />
                 </div>
@@ -280,18 +280,18 @@ const Navbar = () => {
                 to='/cart' 
                 className={`relative p-2 sm:p-3 rounded-full transition-all duration-200 ${
                   scrolled 
-                    ? 'hover:bg-gray-100 text-gray-600' 
-                    : 'hover:bg-white/20 text-white'
+                    ? 'hover:bg-black text-white' 
+                    : 'hover:bg-black/50 text-white'
                 }`}
               >
                 <FaShoppingCart className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
-                  scrolled ? 'text-gray-600' : 'text-white'
+                  scrolled ? 'text-white' : 'text-white'
                 }`} />
                 {getCartCount() > 0 && (
                   <span className={`absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full flex items-center justify-center font-medium text-xs ${
                     scrolled 
                       ? 'bg-black text-white' 
-                      : 'bg-white text-black'
+                      : 'bg-black text-white'
                   }`}>
                     {getCartCount() > 99 ? '99+' : getCartCount()}
                   </span>

@@ -121,19 +121,19 @@ const OrderItemImage = memo(({ imageUrl, alt, className = "" }) => {
   const displayUrl = error ? assets.placeholder_image : imageUrl;
 
   return (
-    <div className={`flex items-center justify-center overflow-hidden bg-white border border-gray-200 ${className}`}>
+    <div className={`flex items-center justify-center overflow-hidden bg-gray-50 ${className}`}>
       {!loaded ? (
         <div className="flex items-center justify-center w-full h-full bg-gray-100 animate-pulse">
-          <FontAwesomeIcon icon={faImage} className="text-gray-200 text-lg" />
+          <FontAwesomeIcon icon={faImage} className="text-gray-300" />
         </div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center w-full h-full p-2 bg-gray-100">
-          <FontAwesomeIcon icon={faImage} className="text-gray-400 text-lg mb-1" />
+          <FontAwesomeIcon icon={faImage} className="text-gray-900 mb-1" />
           <span className="text-xs text-gray-500">No image</span>
         </div>
       ) : (
         <img
-          className="w-full h-full object-contain p-1"
+          className="w-full h-full object-cover"
           src={displayUrl}
           alt={alt}
           loading="eager"
@@ -171,57 +171,57 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
   }), [itemData, item.quantity]);
 
   return (
-    <div className="flex gap-4 p-4 hover:bg-gray-50 md:items-start">
+    <div className="flex gap-4 p-4 hover:bg-gray-50 transition-colors">
       <div className="flex-shrink-0">
         <OrderItemImage 
           imageUrl={itemData.image}
           alt={itemData.name}
-          className="w-24 h-24 md:w-28 md:h-28"
+          className="w-20 h-20 rounded-2xl"
         />
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-2 mb-2">
-          <p className="font-semibold text-black text-base truncate">{itemData.name}</p>
+          <p className="font-medium text-gray-900 text-sm leading-tight">{itemData.name}</p>
           {itemData.isFromDeal && (
-            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-black text-white shrink-0">
+            <span className="inline-flex items-center px-2 py-1 text-xs text-blue-700 bg-blue-50 rounded-md shrink-0">
               Deal
             </span>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="grid grid-cols-2 gap-3 text-sm">
           {showOriginalPrice && (
             <div className="flex flex-col">
-              <span className="text-gray-600 font-medium">Original</span>
-              <span className="line-through text-gray-500 text-base">
+              <span className="text-gray-900 text-xs">Original</span>
+              <span className="line-through text-gray-900">
                 {currency}{originalTotalPrice}
               </span>
             </div>
           )}
 
           <div className="flex flex-col">
-            <span className="text-gray-600 font-medium">{itemData.isFromDeal ? 'Deal' : 'Price'}</span>
-            <span className="font-semibold text-black text-base">
+            <span className="text-gray-900 text-xs">{itemData.isFromDeal ? 'Deal' : 'Price'}</span>
+            <span className="font-medium text-gray-900">
               {currency}{totalPrice}
             </span>
           </div>
 
           <div className="flex flex-col">
-            <span className="text-gray-600 font-medium">Quantity</span>
-            <span className="font-semibold text-black text-base">{item.quantity}</span>
+            <span className="text-gray-900 text-xs">Quantity</span>
+            <span className="font-medium text-gray-900">{item.quantity}</span>
           </div>
 
           <div className="flex flex-col">
-            <span className="text-gray-600 font-medium">Unit Price</span>
-            <span className="font-semibold text-gray-800 text-base">
+            <span className="text-gray-900 text-xs">Unit Price</span>
+            <span className="font-medium text-gray-700">
               {currency}{unitPrice}
             </span>
           </div>
         </div>
 
         {itemData.description && (
-          <p className="text-sm text-gray-600 mt-2 line-clamp-1">
+          <p className="text-xs text-gray-900 mt-2 line-clamp-1">
             {itemData.description}
           </p>
         )}
@@ -238,11 +238,11 @@ const OrderCard = memo(({ order, currency, backendUrl, isCancellable, onCancelOr
     const formattedDate = new Date(parseInt(order.date)).toLocaleDateString();
     
     const statusMap = {
-      'Order Placed': { icon: faClock, color: 'text-black bg-yellow-100 border-yellow-300' },
-      'Packing': { icon: faBox, color: 'text-black bg-blue-100 border-blue-300' },
-      'Shipped': { icon: faShippingFast, color: 'text-black bg-purple-100 border-purple-300' },
-      'Out for delivery': { icon: faMotorcycle, color: 'text-black bg-orange-100 border-orange-300' },
-      'Delivered': { icon: faCheckCircle, color: 'text-black bg-green-100 border-green-300' }
+      'Order Placed': { icon: faClock, color: 'text-yellow-700 bg-yellow-50' },
+      'Packing': { icon: faBox, color: 'text-blue-700 bg-blue-50' },
+      'Shipped': { icon: faShippingFast, color: 'text-purple-700 bg-purple-50' },
+      'Out for delivery': { icon: faMotorcycle, color: 'text-orange-700 bg-orange-50' },
+      'Delivered': { icon: faCheckCircle, color: 'text-green-700 bg-green-50' }
     };
 
     const status = statusMap[order.status] || statusMap['Order Placed'];
@@ -261,23 +261,23 @@ const OrderCard = memo(({ order, currency, backendUrl, isCancellable, onCancelOr
   }, [order.items, backendUrl]);
 
   return (
-    <div className="mb-6 border-2 border-gray-200 bg-white shadow-lg   overflow-hidden">
+    <div className="mb-6 bg-white rounded-2xl shadow-sm border border-black/50 overflow-hidden">
       {/* Header */}
-      <div className="bg-gray-100 px-4 py-3 border-b-2 border-gray-200">
+      <div className="px-4 py-3 border-b border-black/50">
         <div className="flex justify-between items-center">
           <div className="min-w-0">
-            <p className="font-semibold text-black text-lg">Order #{order._id?.substring(0, 8)}</p>
-            <p className="text-sm text-gray-600 font-medium">{formattedDate}</p>
+            <p className="font-medium text-gray-900">Order #{order._id?.substring(0, 8)}</p>
+            <p className="text-sm text-gray-500">{formattedDate}</p>
           </div>
-          <div className={`inline-flex items-center px-3 py-2 border-2 font-semibold text-sm ${statusColor}`}>
-            <FontAwesomeIcon icon={statusIcon} className="mr-2 text-base" />
-            <span className="font-semibold">{order.status}</span>
+          <div className={`inline-flex  border rounded-lg border-black/50 items-center px-3 py-2 text-sm font-medium  ${statusColor}`}>
+            <FontAwesomeIcon icon={statusIcon} className="mr-2" />
+            <span>{order.status}</span>
           </div>
         </div>
       </div>
 
       {/* Items */}
-      <div className="divide-y divide-gray-200">
+      <div className="divide-y divide-gray-100">
         {order.items.map((item, index) => (
           <OrderItem 
             key={`${order._id}-${item.id || index}`}
@@ -289,44 +289,43 @@ const OrderCard = memo(({ order, currency, backendUrl, isCancellable, onCancelOr
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 bg-gray-100 border-t-2 border-gray-200">
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+      <div className="px-4 py-3 bg-gray-50 border-t border-black/50">
+        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
           {/* Info */}
           <div className="space-y-2 flex-1 min-w-0">
             <div className="flex items-center gap-2 text-sm">
-              <FontAwesomeIcon icon={faMapMarkerAlt} className="text-gray-600 shrink-0 text-base" />
-              <span className="text-gray-700 font-medium truncate">
+              <FontAwesomeIcon icon={faMapMarkerAlt} className="text-gray-900 shrink-0" />
+              <span className="text-gray-900 truncate">
                 {order.address?.city}, {order.address?.state}
               </span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <FontAwesomeIcon icon={faCreditCard} className="text-gray-600 shrink-0 text-base" />
-              <span className="text-gray-700 font-medium capitalize">
-                {order.paymentMethod} • {order.payment ? 'Paid' : 'COD'}
+              <FontAwesomeIcon icon={faCreditCard} className="text-gray-900 shrink-0" />
+              <span className="text-gray-900 capitalize">
+                {order.paymentMethod} 
               </span>
             </div>
           </div>
 
           {/* Price & Actions */}
           <div className="space-y-2 min-w-[140px]">
-            <div className="bg-white border-2 border-gray-200 p-3 text-sm  ">
+            <div className="bg-white p-3 text-sm rounded-2xl border border-black/50">
               <div className="flex justify-between mb-1">
-                <span className="text-gray-600 font-medium">Subtotal:</span>
-                <span className="font-semibold text-base">{currency}{subtotal.toFixed(2)}</span>
+                <span className="text-gray-900">Subtotal:</span>
+                <span className="font-medium text-gray-900">{currency}{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 font-medium">Total:</span>
-                <span className="font-semibold text-lg text-black">{currency}{total.toFixed(2)}</span>
+                <span className="text-gray-900">Total:</span>
+                <span className="font-semibold text-gray-900">{currency}{total.toFixed(2)}</span>
               </div>
             </div>
 
             {isCancellable && (
               <button
                 onClick={() => onCancelOrder(order._id)}
-                className="w-full border-2 border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 flex items-center justify-center gap-2  "
+                className="w-full px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
               >
-                <FontAwesomeIcon icon={faTimesCircle} className="text-base" />
-                <span>Cancel Order</span>
+                Cancel Order
               </button>
             )}
           </div>
@@ -444,48 +443,48 @@ const Orders = () => {
 
   if (loading) {
     return (
-      <div className="border-t border-gray-200 pt-16">
-        <div className="text-3xl mb-8">
-          <Title text1={"MY"} text2={"ORDERS"} />
+      <div className="pt-16">
+        <div className="text-3xl mb-8 text-center">
+          <Title text1={"My"} text2={"Orders"} />
         </div>
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black/50"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="border-t border-gray-200 pt-16">
-      <div className="text-3xl mb-8">
-        <Title text1={"MY"} text2={"ORDERS"} />
-      </div>
+    <div className="pt-16">
+     <div className="text-3xl mb-8 text-center">
+          <Title text1={"My"} text2={"Orders"} />
+        </div>
 
       {/* Cancellation Modal */}
       {cancellingOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-md w-full border-2 border-gray-400  ">
-            <div className="flex items-center justify-between p-4 border-b-2 border-gray-400 bg-gray-100">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white max-w-md w-full rounded-2xl shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-black/50">
               <div className="flex items-center gap-3">
-                <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-600 text-xl" />
-                <h3 className="font-semibold text-black text-lg">Cancel Order</h3>
+                <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500" />
+                <h3 className="font-medium text-gray-900">Cancel Order</h3>
               </div>
               <button
                 onClick={() => setCancellingOrder(null)}
-                className="text-gray-600 hover:text-black text-xl font-semibold"
+                className="text-gray-900 hover:text-gray-900"
               >
                 ✕
               </button>
             </div>
 
             <div className="p-4">
-              <p className="text-base text-gray-700 mb-4 font-medium">Please tell us why you want to cancel this order:</p>
+              <p className="text-sm text-gray-900 mb-4">Please tell us why you want to cancel this order:</p>
 
               <div className="space-y-3">
                 <select
                   value={selectedReason}
                   onChange={(e) => setSelectedReason(e.target.value)}
-                  className="w-full p-3 border-2 border-gray-400 text-base font-medium  "
+                  className="w-full p-2 border border-black/50 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
                 >
                   <option value="">Select a reason</option>
                   {cancellationReasons.map(reason => (
@@ -499,24 +498,24 @@ const Orders = () => {
                     onChange={(e) => setCancellationReason(e.target.value)}
                     placeholder="Please provide details..."
                     rows="3"
-                    className="w-full p-3 border-2 border-gray-400 text-base font-medium   resize-none"
+                    className="w-full p-2 border border-black/50 rounded text-sm resize-none focus:outline-none focus:ring-1 focus:ring-gray-400"
                     maxLength={200}
                   />
                 )}
               </div>
             </div>
 
-            <div className="flex gap-3 p-4 border-t-2 border-gray-400 bg-gray-100">
+            <div className="flex gap-3 p-4 border-t border-black/50">
               <button
                 onClick={() => setCancellingOrder(null)}
-                className="flex-1 px-4 py-3 border-2 border-gray-400 text-black text-base font-semibold hover:bg-gray-200  "
+                className="flex-1 px-4 py-2 text-gray-700 border border-black/50 rounded text-sm hover:bg-gray-50 transition-colors"
               >
                 Keep Order
               </button>
               <button
                 onClick={() => cancelOrder(cancellingOrder)}
                 disabled={!selectedReason || (selectedReason === 'Other' && !cancellationReason.trim())}
-                className={`flex-1 px-4 py-3 bg-red-600 text-white text-base font-semibold   ${
+                className={`flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded transition-colors ${
                   (!selectedReason || (selectedReason === 'Other' && !cancellationReason.trim()))
                     ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'
                 }`}
@@ -530,12 +529,12 @@ const Orders = () => {
 
       <div>
         {orders.length === 0 ? (
-          <div className="text-center py-12 border-2 border-gray-400 bg-gray-100  ">
-            <div className="mx-auto h-16 w-16 text-gray-500 mb-4">
-              <img src={assets.parcel_icon} alt="No orders" className="opacity-60" />
+          <div className="text-center py-12 bg-gray-50 rounded-2xl">
+            <div className="mx-auto h-12 w-12 text-gray-900 mb-4">
+              <img src={assets.parcel_icon} alt="No orders" className="opacity-50" />
             </div>
-            <p className="text-gray-600 text-lg font-semibold">No active orders found</p>
-            <p className="text-gray-500 text-base mt-2">Your orders will appear here once placed</p>
+            <p className="text-gray-900">No active orders found</p>
+            <p className="text-gray-900 text-sm mt-1">Your orders will appear here once placed</p>
           </div>
         ) : (
           orders.map((order) => (

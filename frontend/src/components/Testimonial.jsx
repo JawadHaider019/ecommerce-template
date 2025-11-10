@@ -70,7 +70,7 @@ const Testimonial = () => {
         return (
             <div className="relative my-10 px-4 md:px-20 lg:px-40">
                 <div className="text-center text-2xl">
-                    <Title text1={'CUSTOMER'} text2={'TESTIMONIALS'} />
+                    <Title text1={'Customer'} text2={'Testimonials'} />
                 </div>
                 <div className="flex justify-center items-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
@@ -83,7 +83,7 @@ const Testimonial = () => {
         return (
             <div className="relative my-10 px-4 md:px-20 lg:px-40">
                 <div className="text-center text-2xl">
-                    <Title text1={'CUSTOMER'} text2={'TESTIMONIALS'} />
+                      <Title text1={'Customer'} text2={'Testimonials'} />
                 </div>
                 <div className="text-center py-12">
                     <p className="text-red-600">Error: {error}</p>
@@ -102,7 +102,7 @@ const Testimonial = () => {
         return (
             <div className="relative my-10 px-4 md:px-20 lg:px-40">
                 <div className="text-center text-2xl">
-                    <Title text1={'CUSTOMER'} text2={'TESTIMONIALS'} />
+                    <Title text1={'Customer'} text2={'Testimonials'} />
                 </div>
                 <div className="text-center py-12">
                     <p className="text-gray-600">No testimonials available yet.</p>
@@ -115,7 +115,7 @@ const Testimonial = () => {
     return (
         <div className="relative my-10 px-4 md:px-20 lg:px-40">
             <div className="text-center text-2xl">
-                <Title text1={'CUSTOMER'} text2={'TESTIMONIALS'} />
+                 <Title text1={'Customer'} text2={'Testimonials'} />
             </div>
 
             {/* Navigation Buttons */}
@@ -140,7 +140,7 @@ const Testimonial = () => {
             <Slider ref={sliderRef} {...sliderSettings}>
                 {testimonials.map((testimonial, index) => (
                     <div key={testimonial._id || index} className="flex items-center justify-center">
-                        <div className="max-w-3xl rounded-lg bg-white p-8 text-center transition duration-300 hover:scale-105">
+                        <div className="max-w-3xl rounded-lg border border-black/50 bg-white p-8 text-center transition duration-300 hover:scale-105">
                             <p className="text-xl font-semibold text-gray-700">"{testimonial.content}"</p>
                             <p className="mt-4 text-sm font-medium text-gray-600">
                                 - {testimonial.name}, via {getPlatformLabel(testimonial.platform)}

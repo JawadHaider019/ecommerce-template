@@ -376,8 +376,8 @@ const Contact = () => {
     return (
       <div className="min-h-screen bg-white py-8">
         <div className="animate-pulse text-center">
-          <div className="h-8 bg-gray-300 w-48 mx-auto mb-4"></div>
-          <div className="h-4 bg-gray-300 w-32 mx-auto"></div>
+          <div className="h-8 bg-gray-300 w-48 mx-auto mb-4 rounded-3xl"></div>
+          <div className="h-4 bg-gray-300 w-32 mx-auto rounded-3xl"></div>
         </div>
       </div>
     );
@@ -386,10 +386,10 @@ const Contact = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Header Section */}
-      <div className="py-8 border-b border-gray-200">
+      <div className="py-8">
         <div className="text-center">
           <div className="text-3xl">
-            <Title text1={'GET IN'} text2={'TOUCH'} />
+            <Title text1={'Get in'} text2={'Touch'} />
           </div>
           <p className="text-gray-600 text-base max-w-2xl mx-auto px-4">
             We'd love to hear from you. Send us a message and we'll respond as soon as possible.
@@ -402,8 +402,8 @@ const Contact = () => {
         <div className="grid grid-cols-1 lg:grid-cols-5">
           {/* Contact Form - 3 columns */}
           <div className="lg:col-span-3 p-4">
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-              <div className="p-6 border-b border-gray-200">
+            <div className="bg-white border border-black/50 rounded-3xl shadow-sm">
+              <div className="p-6 border-b border-black/50">
                 <h2 className="text-2xl font-bold text-gray-900">Send Us a Message</h2>
                 <p className="text-gray-600 mt-1">Fill out the form below and we'll get back to you soon</p>
               </div>
@@ -418,7 +418,7 @@ const Contact = () => {
                       value={formData.name}
                       onChange={handleInputChange}
                       placeholder="Enter your full name"
-                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-lg"
+                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-3xl"
                       required
                     />
                   </div>
@@ -430,7 +430,7 @@ const Contact = () => {
                       value={formData.email}
                       onChange={handleInputChange}
                       placeholder="Enter your email address"
-                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-lg"
+                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-3xl"
                       required
                     />
                   </div>
@@ -445,7 +445,7 @@ const Contact = () => {
                       value={formData.phone}
                       onChange={handleInputChange}
                       placeholder="Enter your phone number"
-                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-lg"
+                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-3xl"
                     />
                   </div>
                   <div>
@@ -454,7 +454,7 @@ const Contact = () => {
                       name="subject"
                       value={formData.subject}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-lg"
+                      className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white rounded-3xl"
                       required
                     >
                       <option value="">Select a subject</option>
@@ -479,7 +479,7 @@ const Contact = () => {
                     onChange={handleInputChange}
                     placeholder="Tell us how we can help you..."
                     rows="5"
-                    className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white resize-none rounded-lg"
+                    className="w-full border border-gray-300 p-3 focus:outline-none focus:border-black transition-all bg-white resize-none rounded-3xl"
                     required
                   ></textarea>
                 </div>
@@ -487,7 +487,7 @@ const Contact = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full bg-black text-white py-3 px-6 font-semibold text-base hover:bg-gray-800 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+                  className="w-full bg-black text-white py-3 px-6 font-semibold text-base hover:bg-gray-800 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed rounded-3xl"
                 >
                   {submitting ? 'Sending...' : 'Send Message'}
                 </button>
@@ -497,14 +497,14 @@ const Contact = () => {
 
           {/* Sidebar - Contact Information - 2 columns */}
           <div className="lg:col-span-2 p-4">
-            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm sticky top-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 border-b border-gray-200 pb-4">
+            <div className="bg-white p-6 border border-black/50 rounded-3xl shadow-sm sticky top-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-6 border-b border-black/50 pb-4">
                 Contact Info
               </h3>
 
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
-                  <div className="bg-black w-12 h-12 flex items-center justify-center rounded-full flex-shrink-0">
+                  <div className="bg-black w-12 h-12 flex items-center justify-center rounded-3xl flex-shrink-0">
                     <FontAwesomeIcon icon={faPhone} className="text-white text-lg" />
                   </div>
                   <div>
@@ -516,7 +516,7 @@ const Contact = () => {
                 </div>
 
                 <div className="flex items-start space-x-4">
-                  <div className="bg-black w-12 h-12 flex items-center justify-center rounded-full flex-shrink-0">
+                  <div className="bg-black w-12 h-12 flex items-center justify-center rounded-3xl flex-shrink-0">
                     <FontAwesomeIcon icon={faEnvelope} className="text-white text-lg" />
                   </div>
                   <div>
@@ -528,7 +528,7 @@ const Contact = () => {
                 </div>
 
                 <div className="flex items-start space-x-4">
-                  <div className="bg-black w-12 h-12 flex items-center justify-center rounded-full flex-shrink-0">
+                  <div className="bg-black w-12 h-12 flex items-center justify-center rounded-3xl flex-shrink-0">
                     <FontAwesomeIcon icon={faMapMarkerAlt} className="text-white text-lg" />
                   </div>
                   <div>
@@ -541,7 +541,7 @@ const Contact = () => {
               </div>
 
               {/* Social Media */}
-              <div className="mt-8 pt-6 border-t border-gray-200">
+              <div className="mt-8 pt-6 border-t border-black/50">
                 <h4 className="font-semibold text-gray-900 mb-4 text-base">Follow Us</h4>
                 <div className="flex space-x-3">
                   {socialPlatforms.map((platform) => {
@@ -554,7 +554,7 @@ const Contact = () => {
                         href={isActive ? socialUrl : "#"}
                         target={isActive ? "_blank" : "_self"}
                         rel={isActive ? "noopener noreferrer" : ""}
-                        className={`bg-black w-10 h-10 flex items-center justify-center rounded-full text-white hover:bg-gray-800 transition-all ${!isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`bg-black w-10 h-10 flex items-center justify-center rounded-3xl text-white hover:bg-gray-800 transition-all ${!isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                         aria-label={platform.label}
                         title={isActive ? `Follow us on ${platform.label}` : `${platform.label} link not set`}
                         onClick={!isActive ? (e) => e.preventDefault() : undefined}
@@ -580,7 +580,7 @@ const Contact = () => {
       </div>
 
       {/* Full Width Locations Section */}
-      {/* <div className="w-full py-12 border-t border-gray-200">
+      {/* <div className="w-full py-12 border-t border-black/50">
         <div className="w-full px-4">
           <div className="text-center mb-12">
             <div className="text-3xl">
@@ -603,14 +603,14 @@ const Contact = () => {
               const mapUrl = getMapUrlWithZoom(store, storeId);
 
               return (
-                <div key={storeId} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 group">
+                <div key={storeId} className="bg-white border border-black/50 rounded-3xl p-6 hover:shadow-lg transition-all duration-300 group">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <h4 className="font-bold text-gray-900 text-lg group-hover:text-black transition-colors">
                         {store.storeName}
                       </h4>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${store.storeType === 'retail' ? 'bg-blue-100 text-blue-800' :
+                    <span className={`px-3 py-1 rounded-3xl text-xs font-medium ${store.storeType === 'retail' ? 'bg-blue-100 text-blue-800' :
                         store.storeType === 'warehouse' ? 'bg-orange-100 text-orange-800' :
                           'bg-purple-100 text-purple-800'
                       }`}>
@@ -675,7 +675,7 @@ const Contact = () => {
 
                     {store.status && (
                       <div className="flex justify-start">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${store.status === 'active' ? 'bg-green-100 text-green-800' :
+                        <span className={`px-3 py-1 rounded-3xl text-xs font-medium ${store.status === 'active' ? 'bg-green-100 text-green-800' :
                             store.status === 'inactive' ? 'bg-red-100 text-red-800' :
                               'bg-yellow-100 text-yellow-800'
                           }`}>
@@ -688,7 +688,7 @@ const Contact = () => {
                 
                   {store.location?.googleMapsEmbed && (
                     <div className="mt-4">
-                      <div className="border border-gray-200 rounded-lg overflow-hidden group/map">
+                      <div className="border border-black/50 rounded-3xl overflow-hidden group/map">
                         <div className="relative">
                           <iframe
                             title={`Location - ${store.storeName}`}

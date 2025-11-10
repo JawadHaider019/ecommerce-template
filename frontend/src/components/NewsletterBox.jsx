@@ -83,11 +83,11 @@ const NewsletterBox = () => {
 
   return (
     <div
-      className="relative w-full bg-cover bg-center px-6 py-16"
+      className="relative w-full bg-cover bg-center px-6 py-16 rounded-3xl"
       style={{ backgroundImage: `url(${assets.Newsletter})` }}
     >
       {/* Overlay for better readability */}
-      <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+      <div className="absolute inset-0 bg-black bg-opacity-50  rounded-3xl"></div>
 
       {/* Content */}
       <div className="relative z-10 mx-auto max-w-2xl text-center text-white">

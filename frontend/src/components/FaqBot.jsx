@@ -171,7 +171,7 @@ export default function FaqBot() {
       ]);
     } else if (option === "Contact on WhatsApp") {
       // Open WhatsApp
-      window.open("https://wa.me/923260325475", "_blank");
+      window.open("https://wa.me/923329780355", "_blank");
     } else {
       handleClick(option);
     }
@@ -221,7 +221,7 @@ export default function FaqBot() {
   }, [open]);
 
   const openWhatsApp = () => {
-    window.open("https://wa.me/923260325475", "_blank");
+    window.open("https://wa.me/923329780355", "_blank");
   };
 
   return (

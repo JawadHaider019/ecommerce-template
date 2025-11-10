@@ -720,7 +720,7 @@ const PlaceOrder = () => {
           <p className="text-gray-600 mb-8">Add some products to your cart before placing an order.</p>
           <button 
             onClick={() => navigate('/')}
-            className="bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors w-full"
+            className="bg-black text-white px-8 py-3 rounded-3xl font-medium hover:bg-gray-800 transition-colors w-full"
           >
             Continue Shopping
           </button>
@@ -729,7 +729,7 @@ const PlaceOrder = () => {
     );
   }
 
-  // Render methods with professional e-commerce styling
+  // Render methods with clean, simple styling
   const renderInputField = (name, type = 'text', placeholder, label, required = true) => (
     <div className="w-full">
       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -740,18 +740,18 @@ const PlaceOrder = () => {
         onBlur={onBlurHandler}
         name={name} 
         value={formData[name]} 
-        className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+        className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
           validationErrors[name] 
             ? 'border-red-500 bg-red-50' 
-            : 'border-gray-300 bg-white hover:border-gray-400'
+            : 'bg-white hover:border-gray-400'
         }`} 
         type={type}
         placeholder={placeholder}
         required={required}
       />
       {validationErrors[name] && (
-        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
-          <span>⚠</span> {validationErrors[name]}
+        <p className="text-red-600 text-sm mt-2">
+          {validationErrors[name]}
         </p>
       )}
     </div>
@@ -767,10 +767,10 @@ const PlaceOrder = () => {
         onBlur={onBlurHandler}
         name={name}
         value={formData[name]}
-        className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+        className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
           validationErrors[name] 
             ? 'border-red-500 bg-red-50' 
-            : 'border-gray-300 bg-white hover:border-gray-400'
+            : 'bg-white hover:border-gray-400'
         }`}
         required={required}
       >
@@ -780,8 +780,8 @@ const PlaceOrder = () => {
         ))}
       </select>
       {validationErrors[name] && (
-        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
-          <span>⚠</span> {validationErrors[name]}
+        <p className="text-red-600 text-sm mt-2">
+          {validationErrors[name]}
         </p>
       )}
     </div>
@@ -799,10 +799,10 @@ const PlaceOrder = () => {
           name="city"
           value={formData.city}
           list="city-suggestions"
-          className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+          className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
             validationErrors.city 
               ? 'border-red-500 bg-red-50' 
-              : 'border-gray-300 bg-white hover:border-gray-400'
+              : 'bg-white hover:border-gray-400'
           } ${!formData.state ? 'opacity-50 cursor-not-allowed' : ''}`}
           type="text"
           placeholder={formData.state ? "Select from list or type your city" : "Select province first"}
@@ -824,8 +824,8 @@ const PlaceOrder = () => {
       </datalist>
       
       {validationErrors.city && (
-        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
-          <span>⚠</span> {validationErrors.city}
+        <p className="text-red-600 text-sm mt-2">
+          {validationErrors.city}
         </p>
       )}
     </div>
@@ -842,10 +842,10 @@ const PlaceOrder = () => {
           onBlur={onBlurHandler}
           name="zipcode" 
           value={formData.zipcode} 
-          className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+          className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
             validationErrors.zipcode 
               ? 'border-red-500 bg-red-50' 
-              : 'border-gray-300 bg-white hover:border-gray-400'
+              : 'bg-white hover:border-gray-400'
           }`} 
           type="number"
           placeholder="5-digit ZIP code"
@@ -853,15 +853,15 @@ const PlaceOrder = () => {
         />
         {formData.zipcode && cityZipData[formData.city] === formData.zipcode && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+            <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center">
               <span className="text-white text-xs">✓</span>
             </div>
           </div>
         )}
       </div>
       {validationErrors.zipcode && (
-        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
-          <span>⚠</span> {validationErrors.zipcode}
+        <p className="text-red-600 text-sm mt-2">
+          {validationErrors.zipcode}
         </p>
       )}
     </div>
@@ -879,10 +879,10 @@ const PlaceOrder = () => {
           onFocus={() => formData.street.length >= 3 && setShowSuggestions(true)}
           name="street" 
           value={formData.street} 
-          className={`w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors ${
+          className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
             validationErrors.street 
               ? 'border-red-500 bg-red-50' 
-              : 'border-gray-300 bg-white hover:border-gray-400'
+              : 'bg-white hover:border-gray-400'
           }`} 
           type="text"
           placeholder="House number, street, area"
@@ -896,7 +896,7 @@ const PlaceOrder = () => {
         )}
         
         {showSuggestions && addressSuggestions.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-3xl shadow-lg max-h-48 overflow-y-auto">
             {addressSuggestions.map((suggestion, index) => (
               <div
                 key={index}
@@ -912,8 +912,8 @@ const PlaceOrder = () => {
         )}
       </div>
       {validationErrors.street && (
-        <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
-          <span>⚠</span> {validationErrors.street}
+        <p className="text-red-600 text-sm mt-2">
+          {validationErrors.street}
         </p>
       )}
     </div>
@@ -926,16 +926,16 @@ const PlaceOrder = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* COD Option */}
         <div 
-          className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+          className={`border border-gray-300 rounded-xl p-4 cursor-pointer transition-all ${
             paymentMethod === 'COD' 
-              ? 'border-black bg-gray-50' 
-              : 'border-gray-300 hover:border-gray-400'
+              ? 'border-gray-900 bg-gray-50' 
+              : 'hover:border-gray-400'
           }`}
           onClick={() => setPaymentMethod('COD')}
         >
           <div className="flex items-center gap-3">
             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-              paymentMethod === 'COD' ? 'border-black bg-black' : 'border-gray-400'
+              paymentMethod === 'COD' ? 'border-gray-900 bg-gray-900' : 'border-gray-400'
             }`}>
               {paymentMethod === 'COD' && <div className="w-2 h-2 bg-white rounded-full"></div>}
             </div>
@@ -948,16 +948,16 @@ const PlaceOrder = () => {
         
         {/* Online Payment Option */}
         <div 
-          className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+          className={`border border-gray-300 rounded-xl p-4 cursor-pointer transition-all ${
             paymentMethod === 'online' 
-              ? 'border-black bg-gray-50' 
-              : 'border-gray-300 hover:border-gray-400'
+              ? 'border-gray-900 bg-gray-50' 
+              : 'hover:border-gray-400'
           }`}
           onClick={() => setPaymentMethod('online')}
         >
           <div className="flex items-center gap-3">
             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-              paymentMethod === 'online' ? 'border-black bg-black' : 'border-gray-400'
+              paymentMethod === 'online' ? 'border-gray-900 bg-gray-900' : 'border-gray-400'
             }`}>
               {paymentMethod === 'online' && <div className="w-2 h-2 bg-white rounded-full"></div>}
             </div>
@@ -973,36 +973,36 @@ const PlaceOrder = () => {
 
   // Render EasyPaisa Payment Section
   const renderEasyPaisaPayment = () => (
-    <div className="mt-6 sm:mt-8">
-      <div className="bg-white p-4 sm:p-6 border border-gray-200 rounded-lg">
-        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Payment</h3>
+    <div className="mt-6">
+      <div className="bg-white p-6 border border-gray-300 rounded-3xl">
+        <h3 className="text-lg font-bold text-gray-900 mb-6">Payment</h3>
         
-        <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
-            <span className="text-gray-700 font-medium text-sm sm:text-base">
+        <div className="space-y-4 mb-6 p-4 bg-gray-50 rounded-3xl">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-700 font-medium">
               {paymentMethod === 'COD' ? 'Pre-payment Amount:' : 'Total Amount:'}
             </span>
-            <span className="font-bold text-gray-900 text-base sm:text-lg">
+            <span className="font-bold text-gray-900">
               {paymentMethod === 'COD' ? 'Rs 350' : `${currency} ${totalAmount.toFixed(2)}`}
             </span>
           </div>
-          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
-            <span className="text-gray-700 font-medium text-sm sm:text-base">EasyPaisa Number:</span>
-            <span className="font-semibold text-gray-900 text-sm sm:text-base">0348 3450302</span>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-700 font-medium">EasyPaisa Number:</span>
+            <span className="font-semibold text-gray-900">0348 3450302</span>
           </div>
-          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2">
-            <span className="text-gray-700 font-medium text-sm sm:text-base">Account:</span>
-            <span className="font-semibold text-gray-900 text-sm sm:text-base">Muhammad Ahmad</span>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-700 font-medium">Account:</span>
+            <span className="font-semibold text-gray-900">Muhammad Ahmad</span>
           </div>
         </div>
 
-        <div className="mb-4 sm:mb-6">
+        <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-3">
             Upload Payment Screenshot <span className="text-red-500">*</span>
           </label>
           
           {!previewImage ? (
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
+            <div className="border-2 border-dashed border-gray-300 rounded-3xl p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
               <input
                 type="file"
                 accept="image/*"
@@ -1014,31 +1014,31 @@ const PlaceOrder = () => {
                 htmlFor="payment-screenshot" 
                 className="cursor-pointer block"
               >
-                <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2 sm:mb-3">
-                  <span className="text-lg sm:text-xl text-gray-600">📁</span>
+                <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                  <span className="text-xl text-gray-600">📁</span>
                 </div>
                 <p className="text-sm font-semibold text-gray-800 mb-1">
                   Upload Payment Screenshot
                 </p>
-                <p className="text-xs text-gray-500 mb-2 sm:mb-3">
+                <p className="text-xs text-gray-500 mb-3">
                   JPG, PNG, WebP files (Max 5MB)
                 </p>
                 <button 
                   type="button"
-                  className="bg-black text-white px-3 sm:px-4 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
+                  className="bg-black text-white px-4 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
                 >
                   Choose File
                 </button>
               </label>
             </div>
           ) : (
-            <div className="border border-gray-300 rounded-lg p-3 sm:p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-3">
+            <div className="border border-gray-300 rounded-3xl p-4">
+              <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium text-gray-800">Payment Screenshot</p>
                 <button
                   type="button"
                   onClick={removePaymentScreenshot}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium self-start sm:self-auto"
+                  className="text-red-500 hover:text-red-700 text-sm font-medium"
                 >
                   Remove
                 </button>
@@ -1047,15 +1047,15 @@ const PlaceOrder = () => {
                 <img 
                   src={previewImage} 
                   alt="Payment screenshot" 
-                  className="max-w-full h-auto max-h-32 sm:max-h-40 rounded border border-gray-200"
+                  className="max-w-full h-auto max-h-40 rounded border border-gray-200"
                 />
               </div>
             </div>
           )}
           
           {validationErrors.payment && (
-            <p className="text-red-600 text-sm mt-3 flex items-center gap-2 bg-red-50 p-3 rounded">
-              <span>⚠</span> {validationErrors.payment}
+            <p className="text-red-600 text-sm mt-3 bg-red-50 p-3 rounded">
+              {validationErrors.payment}
             </p>
           )}
         </div>
@@ -1089,17 +1089,17 @@ const PlaceOrder = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-6xl mx-auto px-4">
         {/* Header */}
-        <div className="mb-6 sm:mb-8 px-2 sm:px-0">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Complete your order with delivery information</p>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
+          <p className="text-gray-600">Complete your order with delivery information</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Delivery Information */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          <div className="bg-white rounded-3xl border border-gray-300 p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Delivery Information</h2>
             
             <form onSubmit={onSubmitHandler} className="space-y-6">
@@ -1125,22 +1125,22 @@ const PlaceOrder = () => {
             </form>
           </div>
 
-          {/* Right Column - Order Summary - Fixed on desktop only */}
+          {/* Right Column - Order Summary */}
           <div className="lg:sticky lg:top-4 lg:h-fit space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+            <div className="bg-white rounded-3xl border border-gray-300 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
               <CartTotal/>
-            </div>
+           
             
             {/* Place Order Button */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+            <div className=" p-8">
               <button 
                 type='submit' 
                 onClick={onSubmitHandler}
-                className={`w-full bg-black text-white px-6 py-4 font-semibold rounded-lg hover:bg-gray-800 transition-colors ${
+                className={`w-full bg-black text-white px-6 py-4 font-semibold rounded-3xl hover:bg-gray-800 transition-colors ${
                   loading || !isDataReady || Object.keys(validationErrors).length > 0 || isValidatingAddress || isUploadingPayment || !paymentScreenshot
                     ? 'opacity-50 cursor-not-allowed' 
-                    : 'hover:shadow-lg'
+                    : ''
                 }`}
                 disabled={loading || !isDataReady || Object.keys(validationErrors).length > 0 || isValidatingAddress || isUploadingPayment || !paymentScreenshot}
               >
@@ -1169,12 +1169,11 @@ const PlaceOrder = () => {
                   `Place Order - ${currency} ${totalAmount.toFixed(2)}`
                 )}
               </button>
-              
+               </div>
               {/* Validation Summary */}
               {Object.keys(validationErrors).length > 0 && (
-                <div className="mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-700 text-sm font-medium flex items-center gap-2">
-                    <span>⚠</span>
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-3xl">
+                  <p className="text-red-700 text-sm font-medium">
                     Please fix the following errors before placing your order:
                   </p>
                   <ul className="text-red-600 text-sm mt-2 space-y-1">

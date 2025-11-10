@@ -6,14 +6,11 @@ import {
   FaUser, 
   FaClock, 
   FaShare, 
- 
   FaArrowLeft, 
   FaSpinner,
   FaEye,
   FaTag,
   FaFacebookF,
-  FaInstagram,
-  FaTiktok,
   FaWhatsapp,
   FaLink,
   FaTimes
@@ -133,7 +130,7 @@ const BlogPost = () => {
       // Lists
       .replace(/^\s*[\*\-]\s+(.*)/gim, '<li class="ml-4 mb-2">$1</li>')
       // Blockquotes
-      .replace(/^>\s+(.*)/gim, '<blockquote class="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4 bg-gray-50 py-2">$1</blockquote>')
+      .replace(/^>\s+(.*)/gim, '<blockquote class="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4 bg-gray-50 py-2 rounded-r-3xl">$1</blockquote>')
       // Line breaks
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br>');
@@ -164,15 +161,15 @@ const BlogPost = () => {
       <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center py-20">
-            <div className="bg-white border border-gray-300 p-8 max-w-md mx-auto">
-              <div className="w-16 h-16 bg-gray-100 flex items-center justify-center mx-auto mb-4">
+            <div className="bg-white border border-gray-300 rounded-3xl p-8 max-w-md mx-auto">
+              <div className="w-16 h-16 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
                 <FaEye className="text-gray-600 text-2xl" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Article Not Found</h3>
               <p className="text-gray-600 mb-6">{error || 'The requested article could not be found.'}</p>
               <Link 
                 to="/blog"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white hover:bg-gray-800 transition-all duration-300 font-medium"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white hover:bg-gray-800 transition-all duration-300 font-medium rounded-3xl"
               >
                 <FaArrowLeft className="text-sm" />
                 Back to Blog
@@ -189,12 +186,12 @@ const BlogPost = () => {
       {/* Share Modal */}
       {showShareModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900">Share this article</h3>
               <button 
                 onClick={closeShareModal}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-gray-500 hover:text-gray-700 transition-colors rounded-3xl"
               >
                 <FaTimes className="text-lg" />
               </button>
@@ -203,9 +200,9 @@ const BlogPost = () => {
             <div className="grid grid-cols-4 gap-4 mb-6">
               <button 
                 onClick={() => shareBlog('facebook')}
-                className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors group"
+                className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-blue-50 transition-colors group"
               >
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-blue-700 transition-colors">
+                <div className="w-12 h-12 bg-blue-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-blue-700 transition-colors">
                   <FaFacebookF className="text-white text-lg" />
                 </div>
                 <span className="text-sm text-gray-700">Facebook</span>
@@ -213,9 +210,9 @@ const BlogPost = () => {
               
               <button 
                 onClick={() => shareBlog('whatsapp')}
-                className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-green-50 transition-colors group"
+                className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-green-50 transition-colors group"
               >
-                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-green-700 transition-colors">
+                <div className="w-12 h-12 bg-green-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-green-700 transition-colors">
                   <FaWhatsapp className="text-white text-lg" />
                 </div>
                 <span className="text-sm text-gray-700">WhatsApp</span>
@@ -228,9 +225,9 @@ const BlogPost = () => {
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
+                className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-gray-100 transition-colors group"
               >
-                <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-gray-700 transition-colors">
+                <div className="w-12 h-12 bg-gray-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-gray-700 transition-colors">
                   <FaLink className="text-white text-lg" />
                 </div>
                 <span className="text-sm text-gray-700">
@@ -245,13 +242,13 @@ const BlogPost = () => {
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-pink-50 transition-colors group"
+                className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-pink-50 transition-colors group"
               >
-                <div className="w-12 h-12 bg-pink-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-pink-700 transition-colors">
-                  <FaInstagram className="text-white text-lg" />
+                <div className="w-12 h-12 bg-pink-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-pink-700 transition-colors">
+                  <FaLink className="text-white text-lg" />
                 </div>
                 <span className="text-sm text-gray-700">
-                  {copied ? 'Copied!' : 'Instagram'}
+                  {copied ? 'Copied!' : 'Copy'}
                 </span>
               </button>
             </div>
@@ -261,7 +258,7 @@ const BlogPost = () => {
                 type="text"
                 value={window.location.href}
                 readOnly
-                className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm bg-gray-50"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-3xl text-sm bg-gray-50"
               />
               <button 
                 onClick={() => {
@@ -269,7 +266,7 @@ const BlogPost = () => {
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className="px-4 py-2 bg-black text-white text-sm hover:bg-gray-800 transition-colors"
+                className="px-4 py-2 bg-black text-white text-sm hover:bg-gray-800 transition-colors rounded-3xl"
               >
                 {copied ? 'Copied!' : 'Copy'}
               </button>
@@ -297,29 +294,29 @@ const BlogPost = () => {
             <img
               src={blog.imageUrl}
               alt={blog.title}
-              className="w-full h-96 object-cover"
+              className="w-full h-96 object-cover rounded-3xl"
             />
           ) : (
-            <div className="w-full h-96 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+            <div className="w-full h-96 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-3xl">
               <FaEye className="text-gray-400 text-4xl" />
             </div>
           )}
         </div>
 
         {/* Article Header - Separate Section */}
-        <div className="bg-white p-8 mb-8">
+        <div className="bg-white p-8 mb-8 rounded-3xl border border-gray-200">
           {/* Categories */}
           <div className="flex flex-wrap gap-2 mb-4">
             {blog.category?.map((cat, index) => (
               <span 
                 key={index}
-                className="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium border border-gray-300"
+                className="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium border border-gray-300 rounded-3xl"
               >
                 {cat}
               </span>
             ))}
             {blog.featured && (
-              <span className="px-3 py-1 bg-red-100 text-red-700 border border-red-300 text-sm font-bold">
+              <span className="px-3 py-1 bg-red-100 text-red-700 border border-red-300 text-sm font-bold rounded-3xl">
                 FEATURED
               </span>
             )}
@@ -344,10 +341,7 @@ const BlogPost = () => {
                 day: 'numeric' 
               })}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <FaClock className="text-sm" />
-              <span>{blog.readTime || 5} min read</span>
-            </div>
+           
           </div>
         </div>
 
@@ -371,7 +365,7 @@ const BlogPost = () => {
                 <div className="flex gap-3">
                   <button 
                     onClick={openShareModal}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white transition-colors duration-300 border border-gray-300"
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white transition-colors duration-300 border border-gray-300 rounded-3xl"
                   >
                     <FaShare className="text-sm" />
                     Share
@@ -388,7 +382,7 @@ const BlogPost = () => {
                       dangerouslySetInnerHTML={{ 
                         __html: formatBlogContent(blog.content).replace(
                           /!\[video\]\((.*?)\)/g, 
-                          '<div class="video-container my-6"><video controls src="$1" class="w-full"></video></div>'
+                          '<div class="video-container my-6"><video controls src="$1" class="w-full rounded-3xl"></video></div>'
                         ) 
                       }} 
                     />
@@ -414,7 +408,7 @@ const BlogPost = () => {
                         These findings are based on real-world data and practical experience.
                       </p>
 
-                      <blockquote className="border-l-4 border-gray-400 pl-6 italic text-gray-600 my-8 bg-gray-50 py-4">
+                      <blockquote className="border-l-4 border-gray-400 pl-6 italic text-gray-600 my-8 bg-gray-50 py-4 rounded-r-3xl">
                         "The most profound discoveries often come from questioning what we take for granted 
                         and exploring new perspectives on familiar challenges."
                       </blockquote>
@@ -426,7 +420,7 @@ const BlogPost = () => {
                         implement these concepts effectively in your specific context.
                       </p>
 
-                      <div className="bg-gray-50 p-6 my-8 border border-gray-200">
+                      <div className="bg-gray-50 p-6 my-8 border border-gray-200 rounded-3xl">
                         <h4 className="font-semibold text-gray-900 mb-3">Quick Summary</h4>
                         <ul className="space-y-2 text-gray-700">
                           <li>• Understand the fundamental principles first</li>
@@ -458,7 +452,7 @@ const BlogPost = () => {
                     {blog.tags.map((tag, index) => (
                       <span 
                         key={index}
-                        className="px-3 py-1 bg-gray-100 text-gray-700 text-sm hover:bg-gray-200 transition-colors duration-300 border border-gray-300"
+                        className="px-3 py-1 bg-gray-100 text-gray-700 text-sm hover:bg-gray-200 transition-colors duration-300 border border-gray-300 rounded-3xl"
                       >
                         #{tag}
                       </span>
@@ -473,10 +467,10 @@ const BlogPost = () => {
           {/* Sidebar */}
           <div className="lg:col-span-1">
             {/* Author Info */}
-            <div className="bg-gray-50 p-6 mb-6 border border-gray-200">
+            <div className="bg-gray-50 p-6 mb-6 border border-gray-200 rounded-3xl">
               <h3 className="font-semibold text-gray-900 mb-4">About the Author</h3>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-gray-200 flex items-center justify-center">
+                <div className="w-12 h-12 bg-gray-200 rounded-3xl flex items-center justify-center">
                   <FaUser className="text-gray-600" />
                 </div>
                 <div>
@@ -516,13 +510,13 @@ const BlogPost = () => {
 const RelatedBlogCard = ({ blog }) => {
   return (
     <Link to={`/blog/${blog._id}`} className="group">
-      <div className="bg-white border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-300 h-full flex flex-col">
+      <div className="bg-white border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-300 h-full flex flex-col rounded-3xl">
         {blog.imageUrl && (
           <div className="relative overflow-hidden">
             <img
               src={blog.imageUrl}
               alt={blog.title}
-              className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
+              className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-3xl"
             />
           </div>
         )}
@@ -541,8 +535,7 @@ const RelatedBlogCard = ({ blog }) => {
           <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-200">
             <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
             <span className="flex items-center gap-1">
-              <FaClock className="text-xs" />
-              {blog.readTime || 5} min
+             
             </span>
           </div>
         </div>

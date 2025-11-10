@@ -323,14 +323,14 @@ const Collection = () => {
   }
 
   return (
-    <div className="flex flex-col gap-1 border-t pt-10 sm:flex-row sm:gap-10">
+    <div className="flex flex-col gap-1 pt-10 sm:flex-row sm:gap-10">
       {/* Filters Sidebar */}
       <div className="min-w-60">
         <p 
           onClick={() => setShowFilter(!showFilter)} 
-          className="my-2 flex cursor-pointer items-center gap-2 text-xl"
+          className="my-2 flex cursor-pointer items-center gap-2 text-2xl"
         >
-          FILTERS
+          Filters
           <img 
             className={`h-3 sm:hidden ${showFilter ? 'rotate-90' : ''}`} 
             src={assets.dropdown_icon} 
@@ -338,16 +338,16 @@ const Collection = () => {
           />
         </p>
 
-        <div className={`mt-6 border border-gray-300 py-3 pl-5 ${showFilter ? '' : 'hidden'} sm:block`}>
+        <div className={`mt-6 rounded-3xl border border-gray-300 py-3 pl-5 ${showFilter ? '' : 'hidden'} sm:block`}>
           {error && (
             <div className="mb-4 p-2 bg-yellow-100 border border-yellow-400 rounded text-xs">
               <strong>Note:</strong> Using fallback categories. {error}
             </div>
-          )}
+          )} 
 
         
           {/* Categories Section */}
-          <p className="mb-3 text-sm font-medium">CATEGORIES</p>
+          <p className="mb-3 text-md font-medium">Categories</p>
           <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
             {backendCategories.length > 0 ? (
               backendCategories.map(cat => {
@@ -375,7 +375,7 @@ const Collection = () => {
           {/* Subcategories Section */}
           {availableSubcategories.length > 0 && (
             <>
-              <p className="mt-6 mb-3 text-sm font-medium">SUBCATEGORIES</p>
+              <p className="mt-6 mb-3 text-md font-medium">Subcategories</p>
               <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
                 {availableSubcategories.map(sub => {
                   const productCount = getSubcategoryProductCount(sub);
@@ -416,7 +416,7 @@ const Collection = () => {
       {/* Products Grid */}
       <div className="flex-1">
         <div className="mb-4 text-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <Title  text1={'ALL'} text2={'COLLECTIONS'} />
+          <Title  text1={'All'} text2={'Collections'} />
           
           {/* Results count and active filters */}
           <div className="flex flex-col gap-2">

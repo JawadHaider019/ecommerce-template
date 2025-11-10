@@ -45,7 +45,7 @@ const OurPolicy = () => {
           {policies.map((policy, index) => (
             <div 
               key={index}
-              className="bg-white rounded-xl p-8 text-center group transition-all duration-500 hover:-translate-y-2 cursor-pointer shadow-sm hover:shadow-xl border border-gray-100"
+              className="bg-white rounded-3xl border border-black/50 p-8 text-center group transition-all duration-500 hover:-translate-y-2 cursor-pointer shadow-sm hover:shadow-xl border border-gray-100"
             >
               <div className={`w-20 h-20  flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500 shadow-inner ${policy.color}`}>
                 <FontAwesomeIcon 
@@ -58,19 +58,18 @@ const OurPolicy = () => {
                 {policy.title}
               </h3>
               
-              <p className="text-gray-600 leading-relaxed text-sm">
+              <p className="text-gray-600 leading-relaxed text-sm mb-6">
                 {policy.description}
               </p>
               
-              {/* Animated hover line */}
-              <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-gray-400 to-transparent mx-auto mt-6 transition-all duration-500 group-hover:via-gray-800"></div>
+             
             </div>
           ))}
         </div>
 
         {/* Additional Info */}
         <div className="mt-16 text-center">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 inline-block max-w-2xl hover:shadow-md transition-shadow duration-300">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-black/50 inline-block max-w-2xl hover:shadow-md transition-shadow duration-300">
             <p className="text-gray-700 leading-relaxed italic text-lg">
               "At Pure Clay, we build trust through clear policies and honest practices. Your satisfaction and well-being are our top priority."
             </p>

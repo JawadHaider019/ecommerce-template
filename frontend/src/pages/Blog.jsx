@@ -66,12 +66,12 @@ const Blog = () => {
       <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
-            <div className="bg-red-50 border border-red-200   p-6 max-w-md mx-auto">
+            <div className="bg-red-50 border border-red-200 rounded-3xl p-6 max-w-md mx-auto">
               <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Articles</h3>
               <p className="text-red-600 mb-4">{error}</p>
               <button 
                 onClick={() => window.location.reload()} 
-                className="px-4 py-2 bg-red-600 text-white   hover:bg-red-700 transition-colors"
+                className="px-4 py-2 bg-red-600 text-white rounded-3xl hover:bg-red-700 transition-colors"
               >
                 Try Again
               </button>
@@ -88,7 +88,7 @@ const Blog = () => {
       <div className="border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-3xl">
-            <Title text1={"PURE CLAY"} text2={"JOURNAL"} />
+            <Title text1={"Pure Clay"} text2={"Articles"} />
             <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
             Expert tips, natural ingredient insights, and wholesome wellness advice for a healthy, nourished life.
             </p>
@@ -101,11 +101,11 @@ const Blog = () => {
         <section className="border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <FaFire className="text-black" />
+              <h2 className="text-2xl font-bold  flex items-center gap-2 text-gray-900 border-l-4 border-black pl-3">
+          
                 Featured Guides
               </h2>
-              <div className="text-sm text-gray-100 bg-red-600 px-3 py-1 rounded-full">
+              <div className="text-sm text-gray-100 bg-black px-3 py-1 rounded-3xl">
                 Must Read
               </div>
             </div>
@@ -140,9 +140,9 @@ const Blog = () => {
               </div>
 
               {latestBlogs.length === 0 && (
-                <div className="text-center py-12 bg-gray-50   border-2 border-dashed border-gray-300">
+                <div className="text-center py-12 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-300">
                   <h3 className="text-lg font-medium text-gray-600 mb-2">No articles yet</h3>
-                  <p className="text-gray-500">Check back later for new skincare insights.</p>
+                  <p className="text-gray-500">Check back later for new  insights.</p>
                 </div>
               )}
             </section>
@@ -166,7 +166,7 @@ const Blog = () => {
           <div className="lg:col-span-1">
             {/* Trending Articles */}
             {trendingBlogs.length > 0 && (
-              <div className="bg-black/10   p-6 mb-8">
+              <div className="bg-black/10 rounded-3xl p-6 mb-8">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <FaFire className="text-green-600" />
                   Trending Now
@@ -180,16 +180,16 @@ const Blog = () => {
             )}
 
             {/* Categories */}
-            <div className="bg-white border border-gray-200   p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Skin Concerns</h3>
+            <div className="bg-white border border-gray-200 rounded-3xl p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Categories</h3>
               <div className="space-y-2">
                 {Array.from(new Set(blogs.flatMap(blog => blog.category || []))).slice(0, 8).map(category => (
                   <div
                     key={category}
-                    className="flex items-center justify-between py-2 px-3   hover:bg-black/10 transition-colors group"
+                    className="flex items-center justify-between py-2 px-3 rounded-3xl hover:bg-black/10 transition-colors group"
                   >
                     <span className="text-gray-700 group-hover:text-gray-500">{category}</span>
-                    <span className="text-gray-400 text-sm bg-gray-100 px-2 py-1 rounded-full">
+                    <span className="text-gray-400 text-sm bg-gray-100 px-2 py-1 rounded-3xl">
                       {blogs.filter(blog => blog.category?.includes(category)).length}
                     </span>
                   </div>
@@ -209,24 +209,24 @@ const HeroStory = ({ blog, isMain }) => {
     return (
       <div className="lg:col-span-2 group">
         <Link to={`/blog/${blog._id}`} className="block">
-          <div className="relative overflow-hidden   bg-gray-900">
+          <div className="relative overflow-hidden rounded-3xl bg-gray-900">
             {blog.imageUrl ? (
               <img
                 src={blog.imageUrl}
                 alt={blog.title}
-                className="w-full h-80 object-cover group-hover:scale-105 transition-transform duration-500"
+                className="w-full h-80 object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
               />
             ) : (
-              <div className="w-full h-80 bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center">
+              <div className="w-full h-80 bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center rounded-3xl">
                 <FaTag className="text-gray-400 text-4xl" />
               </div>
             )}
             
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent rounded-3xl" />
             
             <div className="absolute bottom-0 left-0 right-0 p-6">
               <div className="flex items-center gap-3 mb-3">
-                <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                <span className="bg-red-600 text-white px-3 py-1 rounded-3xl text-sm font-medium">
                   Featured
                 </span>
               </div>
@@ -250,10 +250,7 @@ const HeroStory = ({ blog, isMain }) => {
                     {new Date(blog.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                <span className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full">
-                  <FaClock className="text-xs" />
-                  {blog.readTime || 5} min read
-                </span>
+               
               </div>
             </div>
           </div>
@@ -265,22 +262,22 @@ const HeroStory = ({ blog, isMain }) => {
   return (
     <div className="group">
       <Link to={`/blog/${blog._id}`} className="block">
-        <div className="relative overflow-hidden   bg-white border border-gray-200 hover:shadow-lg transition-all duration-300">
+        <div className="relative overflow-hidden rounded-3xl bg-white border border-gray-200 hover:shadow-lg transition-all duration-300">
           {blog.imageUrl ? (
             <img
               src={blog.imageUrl}
               alt={blog.title}
-              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
             />
           ) : (
-            <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+            <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-3xl">
               <FaTag className="text-gray-400 text-xl" />
             </div>
           )}
           
           <div className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-700 bg-gray-50 px-2 py-1 rounded">
+              <span className="text-xs font-medium text-gray-700 bg-gray-50 px-2 py-1 rounded-3xl">
                 FEATURED
               </span>
             </div>
@@ -291,7 +288,7 @@ const HeroStory = ({ blog, isMain }) => {
             
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
-              <span>{blog.readTime || 5} min read</span>
+              
             </div>
           </div>
         </div>
@@ -306,16 +303,16 @@ const NewsCard = ({ blog, featured = false }) => {
     return (
       <div className="group">
         <Link to={`/blog/${blog._id}`} className="block">
-          <div className="flex flex-col sm:flex-row gap-4 bg-white   border border-gray-200 hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div className="flex flex-col sm:flex-row gap-4 bg-white rounded-3xl border border-gray-200 hover:shadow-md transition-all duration-300 overflow-hidden">
             <div className="sm:w-2/5 relative">
               {blog.imageUrl ? (
                 <img
                   src={blog.imageUrl}
                   alt={blog.title}
-                  className="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
                 />
               ) : (
-                <div className="w-full h-48 sm:h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <div className="w-full h-48 sm:h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-3xl">
                   <FaTag className="text-gray-400 text-xl" />
                 </div>
               )}
@@ -339,8 +336,7 @@ const NewsCard = ({ blog, featured = false }) => {
                   <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
                 </div>
                 <span className="flex items-center gap-1">
-                  <FaClock className="text-xs" />
-                  {blog.readTime || 5} min
+                
                 </span>
               </div>
             </div>
@@ -353,13 +349,13 @@ const NewsCard = ({ blog, featured = false }) => {
   return (
     <div className="group">
       <Link to={`/blog/${blog._id}`} className="block">
-        <div className="bg-white   border border-gray-200 hover:shadow-md transition-all duration-300 overflow-hidden">
+        <div className="bg-white rounded-3xl border border-gray-200 hover:shadow-md transition-all duration-300 overflow-hidden">
           {blog.imageUrl && (
             <div className="relative overflow-hidden">
               <img
                 src={blog.imageUrl}
                 alt={blog.title}
-                className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
+                className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
               />
             </div>
           )}
@@ -376,8 +372,8 @@ const NewsCard = ({ blog, featured = false }) => {
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
               <span className="flex items-center gap-1">
-                <FaClock className="text-xs" />
-                {blog.readTime || 5} min
+            
+              
               </span>
             </div>
           </div>
@@ -392,22 +388,22 @@ const FeaturedCard = ({ blog }) => {
   return (
     <div className="group">
       <Link to={`/blog/${blog._id}`} className="block">
-        <div className="bg-white   border border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden">
+        <div className="bg-white rounded-3xl border border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden">
           {blog.imageUrl ? (
             <img
               src={blog.imageUrl}
               alt={blog.title}
-              className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
+              className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
             />
           ) : (
-            <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+            <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-3xl">
               <FaTag className="text-gray-400 text-xl" />
             </div>
           )}
           
           <div className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-600 bg-gray-50 px-2 py-1 rounded">
+              <span className="text-xs font-medium text-gray-600 bg-gray-50 px-2 py-1 rounded-3xl">
                 EXPERT'S PICK
               </span>
             </div>
@@ -418,7 +414,7 @@ const FeaturedCard = ({ blog }) => {
             
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
-              <span>{blog.readTime || 5} min read</span>
+           
             </div>
           </div>
         </div>
@@ -430,8 +426,8 @@ const FeaturedCard = ({ blog }) => {
 // Trending Story Component
 const TrendingStory = ({ blog, rank }) => {
   return (
-    <Link to={`/blog/${blog._id}`} className="flex items-start gap-3 group hover:bg-gray-50 p-2   transition-colors">
-      <div className="flex-shrink-0 w-6 h-6 bg-gray-200 text-gray-700 rounded-full text-xs font-bold flex items-center justify-center">
+    <Link to={`/blog/${blog._id}`} className="flex items-start gap-3 group hover:bg-gray-50 p-2 rounded-3xl transition-colors">
+      <div className="flex-shrink-0 w-6 h-6 bg-gray-200 text-gray-700 rounded-3xl text-xs font-bold flex items-center justify-center">
         {rank}
       </div>
       <div className="flex-1 min-w-0">
@@ -440,8 +436,7 @@ const TrendingStory = ({ blog, rank }) => {
         </h5>
         <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
           <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
-          <span>•</span>
-          <span>{blog.readTime || 5} min read</span>
+         
         </div>
       </div>
     </Link>

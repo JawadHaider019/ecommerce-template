@@ -48,7 +48,7 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
   return (
     <div 
       onClick={handleClick} 
-      className="cursor-pointer bg-white rounded-2xl border border-gray-200 p-2 hover:shadow-lg transition-all duration-300 hover:-translate-y-2"
+      className="cursor-pointer bg-white rounded-2xl border border-black/80  p-2 hover:shadow-lg transition-all duration-300 hover:-translate-y-2"
     >
       <div className="relative overflow-hidden rounded-xl mb-4">
         {discount && (
