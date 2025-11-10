@@ -476,7 +476,7 @@ const Collection = () => {
 
         {/* Products Grid */}
         {filterProducts.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 gap-y-6 md:grid-cols-3 ">
+          <div className="grid grid-cols-1 gap-4 gap-y-6 md:grid-cols-2 lg:grid-cols-3 ">
             {filterProducts.map((item) => (
               <ProductItem
                 key={item._id}

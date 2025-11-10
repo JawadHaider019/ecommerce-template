@@ -901,21 +901,7 @@ const Deal = () => {
                 </button>
               </div>
 
-              {/* Features */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-blue-600 text-sm font-medium">🚚 Free Shipping</div>
-                  <div className="text-xs text-blue-500">On orders over $50</div>
-                </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-green-600 text-sm font-medium">🔒 Secure Payment</div>
-                  <div className="text-xs text-green-500">100% protected</div>
-                </div>
-                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                  <div className="text-purple-600 text-sm font-medium">↩️ Easy Returns</div>
-                  <div className="text-xs text-purple-500">30-day policy</div>
-                </div>
-              </div>
+        
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react'
+import { useContext, useState, useEffect, useMemo } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ShopContext } from '../context/ShopContext'
 import { useNavigate } from "react-router-dom";
@@ -11,9 +11,17 @@ import {
   FaTimes,
   FaChevronDown
 } from 'react-icons/fa';
+import { assets } from '../assets/assets'
 
 // Import directly from environment variables
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+// Cache for logo to prevent refetching
+let logoCache = {
+  url: '',
+  timestamp: 0,
+  cacheTime: 5 * 60 * 1000 // 5 minutes
+};
 
 const Navbar = () => {
   const [visible, setVisible] = useState(false)
@@ -24,29 +32,64 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Handle scroll effect
+  // Memoized navigation items
+  const navItems = useMemo(() => [
+    { path: '/', label: 'HOME' },
+    { path: '/collection', label: 'COLLECTION' },
+    { path: '/about', label: 'ABOUT' },
+    { path: '/blog', label: 'BLOG' },
+    { path: '/contact', label: 'CONTACT' }
+  ], []);
+
+  // Throttled scroll handler
   useEffect(() => {
+    let ticking = false;
+    
     const handleScroll = () => {
-      const isScrolled = window.scrollY > 10;
-      setScrolled(isScrolled);
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const isScrolled = window.scrollY > 10;
+          setScrolled(isScrolled);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Fetch website logo from backend
+  // Fetch website logo from backend with caching
   useEffect(() => {
     const fetchWebsiteLogo = async () => {
+      // Check cache first
+      const now = Date.now();
+      if (logoCache.url && now - logoCache.timestamp < logoCache.cacheTime) {
+        setWebsiteLogo(logoCache.url);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         
         const response = await axios.get(`${backendUrl}/api/business-details`, {
-          timeout: 5000
+          timeout: 3000, // Reduced timeout for faster fallback
+          headers: {
+            'Cache-Control': 'max-age=300' // 5 minutes cache
+          }
         });
         
         if (response.data.success && response.data.data?.logos?.website?.url) {
-          setWebsiteLogo(response.data.data.logos.website.url);
+          const logoUrl = response.data.data.logos.website.url;
+          // Update cache
+          logoCache = {
+            url: logoUrl,
+            timestamp: now,
+            cacheTime: 5 * 60 * 1000
+          };
+          setWebsiteLogo(logoUrl);
         } else {
           setWebsiteLogo("");
         }
@@ -104,7 +147,7 @@ const Navbar = () => {
     };
   }, [visible]);
 
-  // Logo display component
+  // Optimized Logo display component
   const LogoDisplay = () => {
     if (!loading && websiteLogo) {
       return (
@@ -113,37 +156,29 @@ const Navbar = () => {
           alt="Website Logo" 
           className='w-16 sm:w-20 h-auto object-contain transition-all duration-300'
           onError={(e) => {
-            // Fallback to text logo if image fails
-            e.target.style.display = 'none';
+            // Show asset logo if website logo fails
+            e.target.src = assets.logo;
           }}
         />
       );
     }
 
-    // Fallback text logo
     return (
-      <div className="text-white font-bold text-xl sm:text-2xl tracking-wider">
-        LOGO
-      </div>
+      <img 
+        src={assets.logo} 
+        className='w-16 sm:w-20 h-auto object-contain transition-all duration-300' 
+        alt="Logo" 
+      />
     );
   };
-
-  // Navigation items
-  const navItems = [
-    { path: '/', label: 'HOME' },
-    { path: '/collection', label: 'COLLECTION' },
-    { path: '/about', label: 'ABOUT' },
-    { path: '/blog', label: 'BLOG' },
-    { path: '/contact', label: 'CONTACT' }
-  ];
 
   return (
     <div className={`sticky top-3 z-50 transition-all duration-300`}>
       <div className="max-w-8xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         {/* Rounded navbar container - Transparent when not scrolled */}
-        <div className={`rounded-full  transition-all duration-300 border border-white/50 ${
+        <div className={`rounded-full transition-all duration-300 border border-white/50 ${
           scrolled 
-            ? 'bg-black/50 backdrop-blur-md shadow-lg ' 
+            ? 'bg-black/50 backdrop-blur-md shadow-lg' 
             : 'bg-black/50 shadow-sm'
         }`}>
           <div className="flex items-center justify-between py-1 px-4 sm:px-6">
@@ -201,7 +236,7 @@ const Navbar = () => {
               {/* More items dropdown for tablet */}
               <div className="relative group">
                 <button className={`text-xs font-medium tracking-wide transition-colors duration-200 px-1 py-2 flex items-center gap-1 ${
-                  scrolled ? 'text-gray-600 hover:text-black' : 'text-gray-200 hover:text-white'
+                  scrolled ? 'text-white hover:text-white' : 'text-gray-200 hover:text-white'
                 }`}>
                   MORE
                   <FaChevronDown size={10} />
@@ -270,7 +305,7 @@ const Navbar = () => {
                 <FaUser 
                   onClick={() => token ? navigate('/orders') : navigate('/login')} 
                   className={`w-4 h-4 cursor-pointer transition-colors ${
-                    scrolled ? 'text-gray-600' : 'text-white'
+                    scrolled ? 'text-white' : 'text-white'
                   }`}
                 />
               </div>
@@ -303,7 +338,7 @@ const Navbar = () => {
                 onClick={() => setVisible(true)}
                 className={`md:hidden p-2 rounded-full transition-all duration-200 ${
                   scrolled 
-                    ? 'hover:bg-gray-100 text-gray-600' 
+                    ? 'hover:bg-white/20 text-white' 
                     : 'hover:bg-white/20 text-white'
                 }`}
                 aria-label="Open menu"
@@ -316,7 +351,7 @@ const Navbar = () => {
                 onClick={() => setVisible(true)}
                 className={`hidden md:flex xl:hidden p-2 rounded-full transition-all duration-200 ${
                   scrolled 
-                    ? 'hover:bg-gray-100 text-gray-600' 
+                    ? 'hover:bg-white/20 text-white' 
                     : 'hover:bg-white/20 text-white'
                 }`}
                 aria-label="Open menu"

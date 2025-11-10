@@ -5,6 +5,15 @@ import Loader from '../components/Loader';
 
 export const ShopContext = createContext();
 
+// Cache for frequently accessed data
+const dataCache = {
+  products: null,
+  deals: null,
+  deliverySettings: null,
+  timestamp: 0,
+  CACHE_DURATION: 2 * 60 * 1000 // 2 minutes
+};
+
 const ShopContextProvider = ({ children }) => {
   const CURRENCY = "Rs. ";
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -86,25 +95,22 @@ const ShopContextProvider = ({ children }) => {
 
   const loadUserCartAndMerge = async () => {
     try {
-      // Get guest cart before loading user cart
       const guestCartItems = localStorage.getItem('cartItems');
       const guestCartDeals = localStorage.getItem('cartDeals');
       
-      // Load user cart from server
       const response = await axios.get(`${BACKEND_URL}/api/cart`, {
-        headers: { token }
+        headers: { token },
+        timeout: 5000
       });
       
       if (response.data.success) {
         const serverCartItems = response.data.cartData?.products || {};
         const serverCartDeals = response.data.cartData?.deals || {};
         
-        // Merge guest cart with server cart
         if (guestCartItems || guestCartDeals) {
           const mergedCartItems = { ...serverCartItems };
           const mergedCartDeals = { ...serverCartDeals };
           
-          // Merge products
           if (guestCartItems) {
             const guestItems = JSON.parse(guestCartItems);
             Object.entries(guestItems).forEach(([itemId, quantity]) => {
@@ -114,7 +120,6 @@ const ShopContextProvider = ({ children }) => {
             });
           }
           
-          // Merge deals
           if (guestCartDeals) {
             const guestDeals = JSON.parse(guestCartDeals);
             Object.entries(guestDeals).forEach(([dealId, quantity]) => {
@@ -124,24 +129,20 @@ const ShopContextProvider = ({ children }) => {
             });
           }
           
-          // Update state with merged cart
           setCartItems(mergedCartItems);
           setCartDeals(mergedCartDeals);
           
-          // Sync merged cart to server
           await syncMergedCartToServer(mergedCartItems, mergedCartDeals);
           
-          // Clear guest cart from localStorage after successful merge
           localStorage.removeItem('cartItems');
           localStorage.removeItem('cartDeals');
         } else {
-          // No guest cart, use server cart directly
           setCartItems(serverCartItems);
           setCartDeals(serverCartDeals);
         }
       }
     } catch (error) {
-      // Error handled silently
+      // Silent error handling
     }
   };
 
@@ -151,31 +152,30 @@ const ShopContextProvider = ({ children }) => {
         products: mergedItems,
         deals: mergedDeals
       }, {
-        headers: { token }
+        headers: { token },
+        timeout: 5000
       });
     } catch (error) {
-      // Error handled silently
+      // Silent error handling
     }
   };
 
-  // Enhanced clear cart function for after order placement
+  // Enhanced clear cart function
   const clearCart = async () => {
-    // Clear from state
     setCartItems({});
     setCartDeals({});
     
-    // Clear from localStorage
     localStorage.removeItem('cartItems');
     localStorage.removeItem('cartDeals');
     
-    // Clear from server if user is logged in
     if (token) {
       try {
         await axios.post(`${BACKEND_URL}/api/cart/clear`, {}, {
-          headers: { token }
+          headers: { token },
+          timeout: 5000
         });
       } catch (error) {
-        // Error handled silently
+        // Silent error handling
       }
     }
   };
@@ -190,7 +190,7 @@ const ShopContextProvider = ({ children }) => {
 
       const product = products.find(p => p._id === itemId);
       if (quantity > 0 && product?.stock && quantity > product.stock) {
-        toast.error(`Only ${product.stock} items available for this product`);
+        toast.error(`Only ${product.stock} items available`);
         return;
       }
 
@@ -198,7 +198,6 @@ const ShopContextProvider = ({ children }) => {
         const updated = { ...prev };
         quantity === 0 ? delete updated[itemId] : (updated[itemId] = quantity);
         
-        // Auto-save to localStorage
         if (Object.keys(updated).length > 0) {
           localStorage.setItem('cartItems', JSON.stringify(updated));
         } else {
@@ -213,7 +212,10 @@ const ShopContextProvider = ({ children }) => {
           await axios.post(
             `${BACKEND_URL}/api/cart/update`,
             { itemId, quantity },
-            { headers: { token } }
+            { 
+              headers: { token },
+              timeout: 5000
+            }
           );
         } catch {
           // Silent fail for cart updates
@@ -227,7 +229,7 @@ const ShopContextProvider = ({ children }) => {
 
     const deal = deals.find(d => d._id === dealId);
     if (quantity > 0 && deal?.quantity && quantity > deal.quantity) {
-      toast.error(`Only ${deal.quantity} items available for this deal`);
+      toast.error(`Only ${deal.quantity} items available`);
       return;
     }
 
@@ -235,7 +237,6 @@ const ShopContextProvider = ({ children }) => {
       const updated = { ...prev };
       quantity === 0 ? delete updated[dealId] : (updated[dealId] = quantity);
       
-      // Auto-save to localStorage
       if (Object.keys(updated).length > 0) {
         localStorage.setItem('cartDeals', JSON.stringify(updated));
       } else {
@@ -250,10 +251,13 @@ const ShopContextProvider = ({ children }) => {
         await axios.post(
           `${BACKEND_URL}/api/cart/update-deal`,
           { dealId, quantity },
-          { headers: { token } }
+          { 
+            headers: { token },
+            timeout: 5000
+          }
         );
       } catch (error) {
-        toast.error(error.response?.data?.message || "Failed to update deal quantity");
+        // Silent error handling
       }
     }
   }, [token, BACKEND_URL, deals]);
@@ -268,7 +272,7 @@ const ShopContextProvider = ({ children }) => {
       const currentQuantity = cartItems[itemId] || 0;
 
       if (product?.stock && product.stock < currentQuantity + quantity) {
-        toast.error(`Only ${product.stock} items available for this product`);
+        toast.error(`Only ${product.stock} items available`);
         return;
       }
 
@@ -278,9 +282,7 @@ const ShopContextProvider = ({ children }) => {
           [itemId]: (prev[itemId] || 0) + quantity
         };
         
-        // Auto-save to localStorage
         localStorage.setItem('cartItems', JSON.stringify(updated));
-        
         return updated;
       });
 
@@ -289,11 +291,13 @@ const ShopContextProvider = ({ children }) => {
           await axios.post(
             `${BACKEND_URL}/api/cart/add`,
             { itemId, quantity },
-            { headers: { token } }
+            { 
+              headers: { token },
+              timeout: 5000
+            }
           );
           toast.success("Product added to cart!");
         } catch (error) {
-          toast.error(error.response?.data?.message || "Failed to add product to cart");
           // Rollback on error
           setCartItems(prev => {
             const updated = { ...prev };
@@ -312,14 +316,11 @@ const ShopContextProvider = ({ children }) => {
     if (!dealId || quantity < 1) return;
 
     const deal = deals.find(d => d._id === dealId);
-    if (!deal) {
-      toast.error("Deal not found");
-      return;
-    }
+    if (!deal) return;
 
     const currentQuantity = cartDeals[dealId] || 0;
     if (deal.quantity && deal.quantity < currentQuantity + quantity) {
-      toast.error(`Only ${deal.quantity} items available for this deal`);
+      toast.error(`Only ${deal.quantity} items available`);
       return;
     }
 
@@ -329,9 +330,7 @@ const ShopContextProvider = ({ children }) => {
         [dealId]: (prev[dealId] || 0) + quantity
       };
       
-      // Auto-save to localStorage
       localStorage.setItem('cartDeals', JSON.stringify(updated));
-      
       return updated;
     });
 
@@ -340,11 +339,13 @@ const ShopContextProvider = ({ children }) => {
         await axios.post(
           `${BACKEND_URL}/api/cart/add-deal`,
           { dealId, quantity },
-          { headers: { token } }
+          { 
+            headers: { token },
+            timeout: 5000
+          }
         );
         toast.success("Deal added to cart!");
       } catch (error) {
-        toast.error(error.response?.data?.message || "Failed to add deal to cart");
         // Rollback on error
         setCartDeals(prev => {
           const updated = { ...prev };
@@ -406,10 +407,8 @@ const ShopContextProvider = ({ children }) => {
     setLoadingState('user', true, "Loading user profile...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/user/data`, {
-        headers: {
-          token: storedToken,
-          'Content-Type': 'application/json'
-        }
+        headers: { token: storedToken },
+        timeout: 5000
       });
 
       if (response.data?.success) {
@@ -419,7 +418,6 @@ const ShopContextProvider = ({ children }) => {
         });
         setToken(storedToken);
       } else {
-        // Fallback to token decode
         const decoded = decodeToken(storedToken);
         if (decoded?.id) {
           setUser({
@@ -436,6 +434,7 @@ const ShopContextProvider = ({ children }) => {
         }
       }
     } catch {
+      // Silent error handling - no user found is normal for guests
       setUser(null);
       setToken('');
       localStorage.removeItem('token');
@@ -445,15 +444,26 @@ const ShopContextProvider = ({ children }) => {
   }, [BACKEND_URL, decodeToken, setLoadingState]);
 
   const fetchDeliverySettings = useCallback(async () => {
+    // Check cache first
+    const now = Date.now();
+    if (dataCache.deliverySettings && now - dataCache.timestamp < dataCache.CACHE_DURATION) {
+      setDeliverySettings(dataCache.deliverySettings);
+      return;
+    }
+
     setDeliverySettingsLoading(true);
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/delivery-settings`);
+      const response = await axios.get(`${BACKEND_URL}/api/delivery-settings`, {
+        timeout: 5000
+      });
       const settings = response.data?.settings || response.data;
       if (settings) {
+        dataCache.deliverySettings = settings;
+        dataCache.timestamp = now;
         setDeliverySettings(settings);
       }
     } catch {
-      toast.error("Failed to load delivery settings");
+      // Silent error handling
     } finally {
       setDeliverySettingsLoading(false);
     }
@@ -462,17 +472,21 @@ const ShopContextProvider = ({ children }) => {
   const updateDeliverySettings = useCallback(async (settings) => {
     setLoadingState('general', true, "Updating delivery settings...");
     try {
-      const response = await axios.post(`${BACKEND_URL}/api/delivery-settings`, settings);
+      const response = await axios.post(`${BACKEND_URL}/api/delivery-settings`, settings, {
+        timeout: 5000
+      });
       const updatedSettings = response.data?.settings || response.data;
       
       if (updatedSettings) {
+        dataCache.deliverySettings = updatedSettings;
+        dataCache.timestamp = Date.now();
         setDeliverySettings(updatedSettings);
         toast.success("Delivery settings updated successfully");
         return true;
       }
       return false;
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to update delivery settings");
+      toast.error("Failed to update delivery settings");
       return false;
     } finally {
       setLoadingState('general', false);
@@ -507,7 +521,9 @@ const ShopContextProvider = ({ children }) => {
 
   const fetchProductReviews = useCallback(async (productId) => {
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/comments?productId=${productId}`);
+      const response = await axios.get(`${BACKEND_URL}/api/comments?productId=${productId}`, {
+        timeout: 5000
+      });
       if (response.data && Array.isArray(response.data)) {
         const reviews = processReviews(response.data);
         setProductReviews(prev => ({ ...prev, [productId]: reviews }));
@@ -521,7 +537,9 @@ const ShopContextProvider = ({ children }) => {
 
   const fetchDealReviews = useCallback(async (dealId) => {
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/comments?dealId=${dealId}`);
+      const response = await axios.get(`${BACKEND_URL}/api/comments?dealId=${dealId}`, {
+        timeout: 5000
+      });
       if (response.data && Array.isArray(response.data)) {
         const reviews = processReviews(response.data);
         setDealReviews(prev => ({ ...prev, [dealId]: reviews }));
@@ -533,16 +551,24 @@ const ShopContextProvider = ({ children }) => {
     }
   }, [BACKEND_URL, processReviews]);
 
-  // Optimized products fetching - WITHOUT reviews to speed up loading
+  // Optimized products fetching with caching
   const fetchProducts = useCallback(async () => {
+    // Check cache first
+    const now = Date.now();
+    if (dataCache.products && now - dataCache.timestamp < dataCache.CACHE_DURATION) {
+      setProducts(dataCache.products);
+      return;
+    }
+
     setIsLoading(true);
     setLoadingState('products', true, "Loading products...");
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/product/list`);
+      const response = await axios.get(`${BACKEND_URL}/api/product/list`, {
+        timeout: 8000
+      });
       const productsData = response.data?.products;
       
       if (productsData) {
-        // Load products without reviews first for faster display
         const productsWithBasicData = productsData.map(product => ({
           ...product,
           rating: 0,
@@ -550,9 +576,12 @@ const ShopContextProvider = ({ children }) => {
           stock: product.stock || 0
         }));
 
+        // Update cache and state
+        dataCache.products = productsWithBasicData;
+        dataCache.timestamp = now;
         setProducts(productsWithBasicData);
 
-        // Load reviews in background without blocking UI
+        // Load reviews in background
         setTimeout(async () => {
           try {
             const productsWithRatings = await Promise.all(
@@ -572,6 +601,8 @@ const ShopContextProvider = ({ children }) => {
                 }
               })
             );
+            dataCache.products = productsWithRatings;
+            dataCache.timestamp = Date.now();
             setProducts(productsWithRatings);
           } catch {
             // Silent fail for background review loading
@@ -579,19 +610,28 @@ const ShopContextProvider = ({ children }) => {
         }, 100);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to fetch products");
+      toast.error("Failed to fetch products");
     } finally {
       setIsLoading(false);
       setLoadingState('products', false);
     }
   }, [BACKEND_URL, fetchProductReviews, calculateAverageRating, setLoadingState]);
 
-  // Optimized deals fetching - WITHOUT reviews to speed up loading
+  // Optimized deals fetching with caching
   const fetchDeals = useCallback(async () => {
+    // Check cache first
+    const now = Date.now();
+    if (dataCache.deals && now - dataCache.timestamp < dataCache.CACHE_DURATION) {
+      setDeals(dataCache.deals);
+      return;
+    }
+
     setDealsLoading(true);
     setLoadingState('deals', true, "Loading deals...");
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/deal/list`);
+      const response = await axios.get(`${BACKEND_URL}/api/deal/list`, {
+        timeout: 8000
+      });
       const dealsData = response.data?.deals || [];
       const currentDate = new Date();
 
@@ -602,7 +642,6 @@ const ShopContextProvider = ({ children }) => {
         return isPublished && isActive;
       });
 
-      // Load deals without reviews first for faster display
       const dealsWithBasicData = activeDeals.map(deal => ({
         ...deal,
         rating: 0,
@@ -610,9 +649,12 @@ const ShopContextProvider = ({ children }) => {
         quantity: deal.quantity || 0
       }));
 
+      // Update cache and state
+      dataCache.deals = dealsWithBasicData;
+      dataCache.timestamp = now;
       setDeals(dealsWithBasicData);
 
-      // Load reviews in background without blocking UI
+      // Load reviews in background
       setTimeout(async () => {
         try {
           const dealsWithRatings = await Promise.all(
@@ -632,6 +674,8 @@ const ShopContextProvider = ({ children }) => {
               }
             })
           );
+          dataCache.deals = dealsWithRatings;
+          dataCache.timestamp = Date.now();
           setDeals(dealsWithRatings);
         } catch {
           // Silent fail for background review loading
@@ -640,7 +684,7 @@ const ShopContextProvider = ({ children }) => {
 
       return dealsWithBasicData;
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to fetch deals");
+      toast.error("Failed to fetch deals");
       return [];
     } finally {
       setDealsLoading(false);
@@ -678,10 +722,14 @@ const ShopContextProvider = ({ children }) => {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
-        }
+        },
+        timeout: 10000
       });
 
       if (response.data) {
+        // Invalidate cache
+        dataCache.timestamp = 0;
+        
         if (isDeal) {
           await fetchDealReviews(reviewData.dealId);
           await fetchDeals();
@@ -694,7 +742,7 @@ const ShopContextProvider = ({ children }) => {
       }
       return false;
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to submit review");
+      toast.error("Failed to submit review");
       return false;
     } finally {
       setLoadingState('general', false);
@@ -743,15 +791,16 @@ const ShopContextProvider = ({ children }) => {
   const getCart = useCallback(async (token) => {
     setLoadingState('cart', true, "Loading cart...");
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/cart/`, { headers: { token } });
+      const response = await axios.get(`${BACKEND_URL}/api/cart`, { 
+        headers: { token },
+        timeout: 5000
+      });
       if (response.data.success) {
         setCartItems(response.data.cartData?.products || {});
         setCartDeals(response.data.cartData?.deals || {});
-      } else {
-        toast.error(response.data.message || "Failed to load cart");
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to fetch cart");
+      // Silent error handling
     } finally {
       setLoadingState('cart', false);
     }
