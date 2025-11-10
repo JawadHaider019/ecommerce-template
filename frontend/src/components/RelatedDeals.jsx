@@ -98,8 +98,8 @@ const RelatedDeals = ({ category, currentDealId }) => {
 
   return (
     <div className="my-24 relative">
-      <div className="py-2 text-center text-3xl">
-        <Title text1={"RELATED"} text2={"DEALS"} />
+      <div className="py-2 text-center text-3xl mb-5">
+        <Title text1={"Related"} text2={"Deals"} />
       </div>
 
       {relatedDeals.length === 0 ? (

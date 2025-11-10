@@ -34,8 +34,8 @@ const RelatedProduct = ({ category }) => {
 
   return (
     <div className="my-24">
-      <div className="py-2 text-center text-3xl">
-        <Title text1={"RELATED"} text2={"PRODUCTS"} />
+      <div className="py-2 text-center text-3xl mb-5">
+        <Title text1={"Related"} text2={"Products"} />
       </div>
 
       {related.length === 0 ? (
