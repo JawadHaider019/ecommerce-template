@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useRef } from 'react';
+import { useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import RelatedProduct from '../components/RelatedProduct';
@@ -27,8 +27,8 @@ const Product = () => {
 
   const addToCartCalledRef = useRef(false);
 
-  // Email masking function
-  const maskEmail = (email) => {
+  // Memoized email masking function
+  const maskEmail = useCallback((email) => {
     if (!email || typeof email !== 'string') return 'Unknown User';
     
     if (email.includes('***@') || !email.includes('@')) return email;
@@ -46,48 +46,10 @@ const Product = () => {
     const maskedLocalPart = firstChar + '***';
     
     return `${maskedLocalPart}@${domain}`;
-  };
+  }, []);
 
-  // Fetch product data and reviews
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    
-    if (!productId) {
-      setError('Product ID not found');
-      setLoading(false);
-      return;
-    }
-
-    if (!products || products.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    const product = products.find((item) => item._id === productId);
-
-    if (product) {
-      setProductData(product);
-      setImage(product.image?.[0] || '');
-      setError(null);
-      fetchProductReviews(productId);
-    } else {
-      setError('Product not found');
-    }
-    setLoading(false);
-  }, [productId, products]);
-
-  const stock = productData ? productData.quantity : 0;
-
-  // Monitor stock and adjust quantity if needed
-  useEffect(() => {
-    if (quantity > stock) {
-      setQuantity(Math.max(1, stock));
-    }
-  }, [stock, quantity]);
-
-  // Fetch reviews from backend for specific product
-  const fetchProductReviews = async (productId) => {
+  // Memoized fetch reviews function
+  const fetchProductReviews = useCallback(async (productId) => {
     if (!productId || !backendUrl) {
       return;
     }
@@ -129,9 +91,48 @@ const Product = () => {
     } finally {
       setLoadingReviews(false);
     }
-  };
+  }, [backendUrl]);
 
-  const renderStockStatus = () => {
+  // Fetch product data and reviews
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    
+    if (!productId) {
+      setError('Product ID not found');
+      setLoading(false);
+      return;
+    }
+
+    if (!products || products.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    const product = products.find((item) => item._id === productId);
+
+    if (product) {
+      setProductData(product);
+      setImage(product.image?.[0] || '');
+      setError(null);
+      fetchProductReviews(productId);
+    } else {
+      setError('Product not found');
+    }
+    setLoading(false);
+  }, [productId, products, fetchProductReviews]);
+
+  const stock = productData ? productData.quantity : 0;
+
+  // Monitor stock and adjust quantity if needed
+  useEffect(() => {
+    if (quantity > stock) {
+      setQuantity(Math.max(1, stock));
+    }
+  }, [stock, quantity]);
+
+  // Memoized stock status renderer
+  const renderStockStatus = useCallback(() => {
     if (stock === 0) {
       return (
         <div className="flex items-center gap-2 text-red-600">
@@ -177,9 +178,9 @@ const Product = () => {
         </div>
       );
     }
-  };
+  }, [stock]);
 
-  const handleQuantityChange = (e) => {
+  const handleQuantityChange = useCallback((e) => {
     let value = Number(e.target.value);
     
     if (isNaN(value) || value < 1) {
@@ -189,21 +190,21 @@ const Product = () => {
     value = Math.min(value, stock);
     
     setQuantity(value);
-  };
+  }, [stock]);
 
-  const incrementQuantity = () => {
+  const incrementQuantity = useCallback(() => {
     if (quantity < stock) {
       setQuantity(prev => prev + 1);
     }
-  };
+  }, [quantity, stock]);
 
-  const decrementQuantity = () => {
+  const decrementQuantity = useCallback(() => {
     if (quantity > 1) {
       setQuantity(prev => prev - 1);
     }
-  };
+  }, [quantity]);
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = useCallback((e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
       const imageData = files.map(file => ({
@@ -212,16 +213,16 @@ const Product = () => {
       }));
       setReviewImages((prevImages) => [...prevImages, ...imageData]);
     }
-  };
+  }, []);
 
-  const removeReviewImage = (index) => {
+  const removeReviewImage = useCallback((index) => {
     if (reviewImages[index]?.url) {
       URL.revokeObjectURL(reviewImages[index].url);
     }
     setReviewImages(prev => prev.filter((_, i) => i !== index));
-  };
+  }, [reviewImages]);
 
-  const handleSubmitReview = async () => {
+  const handleSubmitReview = useCallback(async () => {
     if (!user || !user._id) {
       toast.error('Please login to submit a review');
       return;
@@ -300,18 +301,18 @@ const Product = () => {
     } finally {
       setUploading(false);
     }
-  };
+  }, [user, rating, comment, reviewImages, productId, token, backendUrl]);
 
-  const getUserInteractionStatus = (review) => {
+  const getUserInteractionStatus = useCallback((review) => {
     if (!user || !user._id) return { hasLiked: false, hasDisliked: false };
     
     const hasLiked = review.likedBy?.includes(user._id) || false;
     const hasDisliked = review.dislikedBy?.includes(user._id) || false;
     
     return { hasLiked, hasDisliked };
-  };
+  }, [user]);
 
-  const handleLikeReview = async (reviewId) => {
+  const handleLikeReview = useCallback(async (reviewId) => {
     if (!user || !user._id) {
       toast.error('Please login to like reviews');
       return;
@@ -372,9 +373,9 @@ const Product = () => {
     } catch (error) {
       toast.error('Error updating like');
     }
-  };
+  }, [user, token, backendUrl, reviews, getUserInteractionStatus]);
 
-  const handleDislikeReview = async (reviewId) => {
+  const handleDislikeReview = useCallback(async (reviewId) => {
     if (!user || !user._id) {
       toast.error('Please login to dislike reviews');
       return;
@@ -435,45 +436,54 @@ const Product = () => {
     } catch (error) {
       toast.error('Error updating dislike');
     }
-  };
+  }, [user, token, backendUrl, reviews, getUserInteractionStatus]);
 
-  const handleImageClick = (imageUrl) => {
+  const handleImageClick = useCallback((imageUrl) => {
     setSelectedImage(imageUrl);
-  };
+  }, []);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setSelectedImage(null);
-  };
+  }, []);
 
-  const toggleShowAllReviews = () => {
+  const toggleShowAllReviews = useCallback(() => {
     setShowAllReviews((prev) => !prev);
-  };
+  }, []);
 
-  const filterReviewsByRating = (rating) => {
+  const filterReviewsByRating = useCallback((rating) => {
     if (filterRating === rating) {
       setFilterRating(null);
     } else {
       setFilterRating(rating);
     }
-  };
+  }, [filterRating]);
 
-  const averageRating =
-    reviews.length > 0
+  // Memoized rating calculations
+  const { averageRating, ratingBreakdown } = useMemo(() => {
+    const avgRating = reviews.length > 0
       ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
       : 0;
 
-  const ratingBreakdown = [5, 4, 3, 2, 1].map((star) => ({
-    star,
-    count: reviews.filter((review) => review.rating === star).length,
-  }));
+    const breakdown = [5, 4, 3, 2, 1].map((star) => ({
+      star,
+      count: reviews.filter((review) => review.rating === star).length,
+    }));
 
-  const filteredReviews = filterRating
-    ? reviews.filter((review) => review.rating === filterRating)
-    : reviews;
+    return { averageRating: avgRating, ratingBreakdown: breakdown };
+  }, [reviews]);
 
-  const displayedReviews = showAllReviews ? filteredReviews : filteredReviews.slice(0, 10);
+  const filteredReviews = useMemo(() => 
+    filterRating
+      ? reviews.filter((review) => review.rating === filterRating)
+      : reviews
+  , [reviews, filterRating]);
 
-  const renderRating = (ratingValue = 0) => {
+  const displayedReviews = useMemo(() => 
+    showAllReviews ? filteredReviews : filteredReviews.slice(0, 10)
+  , [showAllReviews, filteredReviews]);
+
+  // Memoized rating renderer
+  const renderRating = useCallback((ratingValue = 0) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       if (i <= ratingValue) {
@@ -497,9 +507,9 @@ const Product = () => {
       }
     }
     return stars;
-  };
+  }, []);
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = useCallback(async () => {
     if (isAddingToCart || addToCartCalledRef.current) {
       return;
     }
@@ -532,9 +542,9 @@ const Product = () => {
         addToCartCalledRef.current = false;
       }, 1000);
     }
-  };
+  }, [isAddingToCart, stock, quantity, productData]);
 
-  const renderClickableStars = (currentRating, setRatingFunc) => {
+  const renderClickableStars = useCallback((currentRating, setRatingFunc) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
@@ -542,61 +552,72 @@ const Product = () => {
           key={i}
           className="cursor-pointer text-yellow-400 text-xl transition-transform hover:scale-110"
           onClick={() => setRatingFunc(i)}
+          aria-label={`Rate ${i} stars`}
         >
           {i <= currentRating ? <FaStar /> : <FaRegStar />}
         </span>
       );
     }
     return stars;
-  };
+  }, []);
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-2">
-        <div className="text-center max-w-lg ">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl text-red-600">⚠️</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button 
-            onClick={() => window.history.back()}
-            className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors w-full"
-          >
-            Go Back
-          </button>
+  // Memoized product calculations
+  const { hasDiscount, actualPrice, originalPrice, discountPercentage } = useMemo(() => {
+    const hasDisc = productData?.discountprice !== undefined && 
+                   productData?.discountprice !== null && 
+                   productData?.discountprice !== productData?.price;
+    
+    const actual = hasDisc ? productData?.discountprice : productData?.price;
+    const original = hasDisc ? productData?.price : null;
+    const discountPct = hasDisc 
+      ? Math.round(((productData?.price - productData?.discountprice) / productData?.price) * 100)
+      : null;
+
+    return {
+      hasDiscount: hasDisc,
+      actualPrice: actual,
+      originalPrice: original,
+      discountPercentage: discountPct
+    };
+  }, [productData]);
+
+  // Memoized error state
+  const ErrorState = useMemo(() => (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-2">
+      <div className="text-center max-w-lg">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl text-red-600">⚠️</span>
         </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h1>
+        <p className="text-gray-600 mb-6">{error}</p>
+        <button 
+          onClick={() => window.history.back()}
+          className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors w-full"
+        >
+          Go Back
+        </button>
       </div>
-    );
-  }
+    </div>
+  ), [error]);
 
-  if (loading || !productData) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading product details...</p>
-        </div>
+  // Memoized loading state
+  const LoadingState = useMemo(() => (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading product details...</p>
       </div>
-    );
-  }
+    </div>
+  ), []);
 
-  const hasDiscount = productData.discountprice !== undefined && 
-                     productData.discountprice !== null && 
-                     productData.discountprice !== productData.price;
-  
-  const actualPrice = hasDiscount ? productData.discountprice : productData.price;
-  const originalPrice = hasDiscount ? productData.price : null;
-  
-  const discountPercentage = hasDiscount 
-    ? Math.round(((productData.price - productData.discountprice) / productData.price) * 100)
-    : null;
+  if (error) return ErrorState;
+  if (loading || !productData) return LoadingState;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-8xl mx-auto px-0   sm:px-2 lg:px-6 py-8 ">
+      <div className="max-w-8xl mx-auto px-0 sm:px-2 lg:px-6 py-8">
         {/* Product Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 rounded-3xl  border border-black/50">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 rounded-3xl border border-black/50">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Image Gallery */}
             <div className="space-y-4">
@@ -607,17 +628,18 @@ const Product = () => {
                     {discountPercentage}% OFF
                   </div>
                 )}
-          <img
-  src={image || productData.image?.[0]}
-  alt={productData.name}
-  className="w-full h-auto max-w-full object-cover rounded-xl 
-             sm:max-h-[400px] 
-             md:max-h-[500px] 
-             lg:max-h-[600px] "
-  onError={(e) => {
-    e.target.src = 'https://via.placeholder.com/500?text=Product+Image';
-  }}
-/>
+                <img
+                  src={image || productData.image?.[0]}
+                  alt={productData.name}
+                  className="w-full h-auto max-w-full object-cover rounded-xl sm:max-h-[400px] md:max-h-[500px] lg:max-h-[600px]"
+                  loading="eager"
+                  decoding="sync"
+                  width={600}
+                  height={600}
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/500?text=Product+Image';
+                  }}
+                />
               </div>
 
               {/* Thumbnails */}
@@ -626,11 +648,15 @@ const Product = () => {
                   <img
                     key={index}
                     src={item}
-                    alt={`Thumbnail ${index + 1}`}
+                    alt={`${productData.name} thumbnail ${index + 1}`}
                     className={`w-20 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all ${
                       image === item ? 'border-black' : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => setImage(item)}
+                    loading="lazy"
+                    decoding="async"
+                    width={80}
+                    height={80}
                     onError={(e) => {
                       e.target.src = 'https://via.placeholder.com/100?text=Image';
                     }}
@@ -682,16 +708,18 @@ const Product = () => {
                       onClick={decrementQuantity}
                       disabled={quantity <= 1 || stock === 0}
                       className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Decrease quantity"
                     >
-                      <FaMinus size={12} />
+                      <FaMinus size={12} aria-hidden="true" />
                     </button>
                     <span className="w-12 text-center font-medium text-lg">{quantity}</span>
                     <button
                       onClick={incrementQuantity}
                       disabled={quantity >= stock || stock === 0}
                       className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Increase quantity"
                     >
-                      <FaPlus size={12} />
+                      <FaPlus size={12} aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -699,11 +727,12 @@ const Product = () => {
                 <button
                   onClick={handleAddToCart}
                   disabled={stock === 0 || isAddingToCart}
-                  className={`w-full py-4  px-6 rounded-xl font-semibold text-lg transition-all ${
+                  className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all ${
                     stock === 0 || isAddingToCart
                       ? 'bg-gray-400 cursor-not-allowed text-white'
                       : 'bg-black text-white hover:bg-gray-800 hover:shadow-lg'
                   }`}
+                  aria-label={stock === 0 ? 'Out of stock' : 'Add to cart'}
                 >
                   {isAddingToCart ? (
                     <div className="flex items-center justify-center gap-2">
@@ -714,21 +743,20 @@ const Product = () => {
                     'Out of Stock'
                   ) : (
                     <div className="flex items-center justify-center gap-2">
-                      <FaShoppingCart />
+                      <FaShoppingCart aria-hidden="true" />
                       Add to Cart 
                     </div>
                   )}
                 </button>
               </div>
-
             </div>
           </div>
         </div>
 
-        {/* Customer Reviews Section - KEPT EXACTLY THE SAME */}
-        <div className="mt-20 ">
-          <h2 className="text-2xl  font-medium">Customer Reviews</h2>
-          <div className="mt-4 flex flex-col items-center gap-6 rounded-3xl  border border-black/50 p-4 sm:p-6 lg:flex-row">
+        {/* Customer Reviews Section */}
+        <div className="mt-20">
+          <h2 className="text-2xl font-medium">Customer Reviews</h2>
+          <div className="mt-4 flex flex-col items-center gap-6 rounded-3xl border border-black/50 p-4 sm:p-6 lg:flex-row">
             {/* Left Side – Average Rating */}
             <div className="flex flex-1 flex-col items-center w-full lg:w-auto">
               <div className="mt-2 flex items-center gap-2">
@@ -766,7 +794,7 @@ const Product = () => {
         </div>
 
         {/* Tabs Section */}
-        <div className="bg-white rounded-2xl shadow-sm rounded-3xl  border border-black/50 overflow-hidden mt-8">
+        <div className="bg-white rounded-2xl shadow-sm rounded-3xl border border-black/50 overflow-hidden mt-8">
           {/* Tab Headers */}
           <div className="border-b border-black/50">
             <div className="flex">
@@ -818,23 +846,7 @@ const Product = () => {
                     </ul>
                   </div>
                   
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-semibold text-gray-900">Benefits</h3>
-                    <ul className="space-y-2 text-gray-600">
-                      <li className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-black rounded-full"></div>
-                        Gentle on skin
-                      </li>
-                      <li className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-black rounded-full"></div>
-                        Environmentally friendly
-                      </li>
-                      <li className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-black rounded-full"></div>
-                        Long-lasting results
-                      </li>
-                    </ul>
-                  </div>
+              
                 </div>
               </div>
             )}
@@ -890,12 +902,17 @@ const Product = () => {
                                 src={imageData.url}
                                 alt={`Preview ${index + 1}`}
                                 className="w-20 h-20 object-cover rounded-lg border border-gray-300"
+                                loading="lazy"
+                                decoding="async"
+                                width={80}
+                                height={80}
                               />
                               <button
                                 onClick={() => removeReviewImage(index)}
                                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                                aria-label="Remove image"
                               >
-                                <FaTimes size={10} />
+                                <FaTimes size={10} aria-hidden="true" />
                               </button>
                             </div>
                           ))}
@@ -974,6 +991,10 @@ const Product = () => {
                                     alt={`Review image ${index + 1}`}
                                     className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity border border-gray-200"
                                     onClick={() => handleImageClick(imageUrl)}
+                                    loading="lazy"
+                                    decoding="async"
+                                    width={64}
+                                    height={64}
                                   />
                                 ))}
                               </div>
@@ -983,7 +1004,7 @@ const Product = () => {
                             {review.hasReply && review.reply && (
                               <div className="ml-12 mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <FaUserShield className="text-blue-600" />
+                                  <FaUserShield className="text-blue-600" aria-hidden="true" />
                                   <span className="font-medium text-blue-900">{review.reply.author}</span>
                                   <span className="text-sm text-blue-600">• {review.reply.date}</span>
                                 </div>
@@ -999,8 +1020,9 @@ const Product = () => {
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
+                                aria-label={hasLiked ? 'Remove like' : 'Like review'}
                               >
-                                <FaThumbsUp size={14} />
+                                <FaThumbsUp size={14} aria-hidden="true" />
                                 <span className="text-sm font-medium">{review.likes}</span>
                               </button>
                               <button
@@ -1010,8 +1032,9 @@ const Product = () => {
                                     ? 'bg-red-100 text-red-700'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
+                                aria-label={hasDisliked ? 'Remove dislike' : 'Dislike review'}
                               >
-                                <FaThumbsDown size={14} />
+                                <FaThumbsDown size={14} aria-hidden="true" />
                                 <span className="text-sm font-medium">{review.dislikes}</span>
                               </button>
                             </div>
@@ -1053,12 +1076,15 @@ const Product = () => {
               src={selectedImage}
               alt="Enlarged view"
               className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              loading="eager"
+              decoding="sync"
             />
             <button
               onClick={closeModal}
               className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors text-2xl"
+              aria-label="Close image modal"
             >
-              <FaTimes size={24} />
+              <FaTimes size={24} aria-hidden="true" />
             </button>
           </div>
         </div>

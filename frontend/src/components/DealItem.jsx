@@ -74,6 +74,7 @@ const DealItem = memo(
     const finalRating = dealRatingInfo.rating || rating;
     const reviewCount = dealRatingInfo.reviewCount || 0;
 
+    // Memoized calculations for better performance
     const {
       dealTypeSlug,
       dealTypeBadge,
@@ -82,6 +83,7 @@ const DealItem = memo(
       discountPercentage,
       savingsAmount,
       isFlashSale,
+      normalizedRating,
     } = useMemo(() => {
       let typeSlug = "deal";
       let typeName = "Deal";
@@ -104,6 +106,14 @@ const DealItem = memo(
       const discountPct = hasDisc ? Math.round(((price - discount) / price) * 100) : 0;
       const savings = hasDisc ? price - discount : 0;
 
+      // Enhanced rating normalization
+      const numRating = Number(finalRating);
+      const normRating = (() => {
+        if (isNaN(numRating) || numRating < 0) return 0;
+        if (numRating > 5) return 5;
+        return numRating;
+      })();
+
       return {
         dealTypeSlug: typeSlug,
         dealTypeBadge: badgeConfig,
@@ -112,8 +122,9 @@ const DealItem = memo(
         discountPercentage: discountPct,
         savingsAmount: savings,
         isFlashSale: typeSlug === "flash-sale",
+        normalizedRating: normRating,
       };
-    }, [dealType, price, discount]);
+    }, [dealType, price, discount, finalRating]);
 
     const handleClick = useCallback(() => onDealClick?.(id), [onDealClick, id]);
 
@@ -121,21 +132,88 @@ const DealItem = memo(
       e.target.src = "/images/fallback-image.jpg";
     }, []);
 
-    // Enhanced rating normalization
-    const normalizedRating = useMemo(() => {
-      const numRating = Number(finalRating);
+    // Memoized badges to prevent re-renders
+    const badges = useMemo(() => (
+      <div className="flex justify-between items-start mb-4">
+        <div className={`rounded-full px-3 py-1 text-xs font-medium ${dealTypeBadge.color}`}>
+          {dealTypeBadge.label}
+        </div>
+        {hasDiscount && (
+          <div className="rounded-full bg-white text-black px-3 py-1 text-xs font-medium">
+            {discountPercentage}% OFF
+          </div>
+        )}
+      </div>
+    ), [dealTypeBadge, hasDiscount, discountPercentage]);
+
+    // Memoized rating display
+    const ratingDisplay = useMemo(() => {
+      if (normalizedRating <= 0) return null;
       
-      // Check if rating is valid number between 0-5
-      if (isNaN(numRating) || numRating < 0) return 0;
-      if (numRating > 5) return 5;
-      
-      return numRating;
-    }, [finalRating]);
+      return (
+        <div className="flex items-center gap-1">
+          <RatingStars rating={normalizedRating} />
+          <span className="text-xs text-gray-300 ml-1">({normalizedRating.toFixed(1)})</span>
+        </div>
+      );
+    }, [normalizedRating]);
+
+    // Memoized price section
+    const priceSection = useMemo(() => (
+      <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center gap-2">
+          <p className="text-2xl font-bold text-white">
+            {currency} {displayPrice.toFixed(2)}
+          </p>
+          {hasDiscount && (
+            <p className="text-sm text-gray-300 line-through">
+              {currency} {price.toFixed(2)}
+            </p>
+          )}
+        </div>
+        
+        {/* Right Arrow Button */}
+        <div 
+          className="w-9 h-9 bg-white hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors duration-200"
+          aria-hidden="true"
+        >
+          <FaArrowRight size={16} className="text-black" />
+        </div>
+      </div>
+    ), [currency, displayPrice, hasDiscount, price]);
+
+    // Memoized additional info
+    const additionalInfo = useMemo(() => (
+      <div className="flex items-center justify-between">
+        {/* Savings Info */}
+        {hasDiscount && (
+          <div className="text-sm text-green-300 font-medium">
+            Save {currency} {savingsAmount.toFixed(2)}
+          </div>
+        )}
+
+        {/* Items Count */}
+        {productsCount > 0 && (
+          <div className="text-xs text-gray-300 font-medium">
+            {productsCount} item{productsCount !== 1 ? 's' : ''} included
+          </div>
+        )}
+      </div>
+    ), [hasDiscount, currency, savingsAmount, productsCount]);
 
     return (
       <div
         onClick={handleClick}
-        className="cursor-pointer relative rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-96" // Fixed height for consistent cards
+        className="cursor-pointer relative rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-96"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            handleClick();
+            e.preventDefault();
+          }
+        }}
+        aria-label={`View ${name} deal details`}
       >
         {/* Background Image */}
         <div className="absolute inset-0">
@@ -146,6 +224,8 @@ const DealItem = memo(
             onError={handleImageError}
             loading="lazy"
             decoding="async"
+            width="400"
+            height="384"
           />
           
           {/* Gradient Overlay */}
@@ -154,18 +234,7 @@ const DealItem = memo(
 
         {/* Content Overlay */}
         <div className="relative z-10 h-full flex flex-col justify-end p-6 text-white">
-          
-          {/* Badges */}
-          <div className="flex justify-between items-start mb-4">
-            <div className={`rounded-full px-3 py-1 text-xs font-medium ${dealTypeBadge.color}`}>
-              {dealTypeBadge.label}
-            </div>
-            {hasDiscount && (
-              <div className="rounded-full bg-white text-black px-3 py-1 text-xs font-medium">
-                {discountPercentage}% OFF
-              </div>
-            )}
-          </div>
+          {badges}
 
           {/* Content */}
           <div className="space-y-3">
@@ -179,54 +248,18 @@ const DealItem = memo(
               {dealTypeBadge.label.toLowerCase()} comes in a variety of options, making it a great choice to complement your home decor at the next level.
             </p>
 
-            {/* Rating */}
-            {normalizedRating > 0 && (
-              <div className="flex items-center gap-1">
-                <RatingStars rating={normalizedRating} />
-                <span className="text-xs text-gray-300 ml-1">({normalizedRating.toFixed(1)})</span>
-              </div>
-            )}
-
-            {/* Price Section */}
-            <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center gap-2">
-                <p className="text-2xl font-bold text-white">
-                  {currency} {displayPrice.toFixed(2)}
-                </p>
-                {hasDiscount && (
-                  <p className="text-sm text-gray-300 line-through">
-                    {currency} {price.toFixed(2)}
-                  </p>
-                )}
-              </div>
-              
-              {/* Right Arrow Button */}
-              <div className="w-9 h-9 bg-white hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors duration-200">
-                <FaArrowRight size={16} className="text-black" />
-              </div>
-            </div>
-                  <div className="flex items-center justify-between">
-
-                 
-            {/* Savings Info */}
-            {hasDiscount && (
-              <div className="text-sm text-green-300 font-medium">
-                Save {currency} {savingsAmount.toFixed(2)}
-              </div>
-            )}
-
-            {/* Items Count */}
-            {productsCount > 0 && (
-              <div className="text-xs text-gray-300 font-medium">
-                {productsCount} item{productsCount !== 1 ? 's' : ''} included
-              </div>
-            )}
-             </div>
+            {ratingDisplay}
+            {priceSection}
+            {additionalInfo}
           </div>
         </div>
       </div>
     );
   }
 );
+
+// Add display name for better debugging
+DealItem.displayName = 'DealItem';
+RatingStars.displayName = 'RatingStars';
 
 export default DealItem;

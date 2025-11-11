@@ -1,10 +1,8 @@
 import { useParams, Link } from "react-router-dom";
-import { useState, useEffect } from "react";
-
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { 
   FaCalendarAlt, 
   FaUser, 
-  FaClock, 
   FaShare, 
   FaArrowLeft, 
   FaSpinner,
@@ -27,59 +25,61 @@ const BlogPost = () => {
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
-  useEffect(() => {
-    const fetchBlogPost = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${backendUrl}/api/blogs/${id}`);
-        
-        if (!response.ok) {
-          throw new Error('Blog post not found');
-        }
-        
+  // Memoized fetch functions
+  const fetchBlogPost = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${backendUrl}/api/blogs/${id}`);
+      
+      if (!response.ok) {
+        throw new Error('Blog post not found');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setBlog(result.data);
+        // Fetch related blogs based on categories
+        fetchRelatedBlogs(result.data.category);
+      } else {
+        throw new Error(result.message || 'Failed to fetch blog post');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, backendUrl]);
+
+  const fetchRelatedBlogs = useCallback(async (categories) => {
+    try {
+      if (!categories || categories.length === 0) return;
+      
+      const response = await fetch(`${backendUrl}/api/blogs?category=${categories[0]}&limit=4`);
+      if (response.ok) {
         const result = await response.json();
-        
         if (result.success) {
-          setBlog(result.data);
-          // Fetch related blogs based on categories
-          fetchRelatedBlogs(result.data.category);
-        } else {
-          throw new Error(result.message || 'Failed to fetch blog post');
+          // Filter out the current blog post
+          const filtered = result.data.filter(blog => blog._id !== id);
+          setRelatedBlogs(filtered.slice(0, 4));
         }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      // Silent fail for related blogs
+    }
+  }, [id, backendUrl]);
 
-    const fetchRelatedBlogs = async (categories) => {
-      try {
-        if (!categories || categories.length === 0) return;
-        
-        const response = await fetch(`${backendUrl}/api/blogs?category=${categories[0]}&limit=4`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            // Filter out the current blog post
-            const filtered = result.data.filter(blog => blog._id !== id);
-            setRelatedBlogs(filtered.slice(0, 4));
-          }
-        }
-      } catch (err) {
-        // Silent fail for related blogs
-      }
-    };
-
+  useEffect(() => {
     if (backendUrl) {
       fetchBlogPost();
     } else {
       setError('Backend URL not configured');
       setLoading(false);
     }
-  }, [id, backendUrl]);
+  }, [backendUrl, fetchBlogPost]);
 
-  const shareBlog = (platform) => {
+  // Memoized share functions
+  const shareBlog = useCallback((platform) => {
     const url = window.location.href;
     const title = blog?.title || '';
 
@@ -98,19 +98,19 @@ const BlogPost = () => {
       default:
         break;
     }
-  };
+  }, [blog]);
 
-  const openShareModal = () => {
+  const openShareModal = useCallback(() => {
     setShowShareModal(true);
-  };
+  }, []);
 
-  const closeShareModal = () => {
+  const closeShareModal = useCallback(() => {
     setShowShareModal(false);
     setCopied(false);
-  };
+  }, []);
 
-  // Function to format blog content with proper styling
-  const formatBlogContent = (content) => {
+  // Memoized content formatting function
+  const formatBlogContent = useCallback((content) => {
     if (!content) return '';
     
     // Replace markdown-style formatting
@@ -139,141 +139,133 @@ const BlogPost = () => {
     formattedContent = formattedContent.replace(/(<li>.*<\/li>)/s, '<ul class="list-disc ml-6 mb-4">$1</ul>');
 
     return `<div class="space-y-4">${formattedContent}</div>`;
-  };
+  }, []);
 
-  if (loading) {
+  // Memoized share modal component
+  const ShareModal = useMemo(() => {
+    if (!showShareModal) return null;
+
+    const handleCopyLink = () => {
+      navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
     return (
-      <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex justify-center items-center py-20">
-            <div className="text-center">
-              <FaSpinner className="animate-spin text-4xl text-gray-600 mx-auto mb-4" />
-              <span className="text-gray-600 text-lg font-medium">Loading article...</span>
-            </div>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-3xl max-w-md w-full p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-900">Share this article</h3>
+            <button 
+              onClick={closeShareModal}
+              className="text-gray-500 hover:text-gray-700 transition-colors rounded-3xl"
+              aria-label="Close share modal"
+            >
+              <FaTimes className="text-lg" aria-hidden="true" />
+            </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !blog) {
-    return (
-      <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center py-20">
-            <div className="bg-white border border-gray-300 rounded-3xl p-8 max-w-md mx-auto">
-              <div className="w-16 h-16 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                <FaEye className="text-gray-600 text-2xl" />
+          
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <button 
+              onClick={() => shareBlog('facebook')}
+              className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-blue-50 transition-colors group"
+              aria-label="Share on Facebook"
+            >
+              <div className="w-12 h-12 bg-blue-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-blue-700 transition-colors">
+                <FaFacebookF className="text-white text-lg" aria-hidden="true" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Article Not Found</h3>
-              <p className="text-gray-600 mb-6">{error || 'The requested article could not be found.'}</p>
-              <Link 
-                to="/blog"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white hover:bg-gray-800 transition-all duration-300 font-medium rounded-3xl"
-              >
-                <FaArrowLeft className="text-sm" />
-                Back to Blog
-              </Link>
-            </div>
+              <span className="text-sm text-gray-700">Facebook</span>
+            </button>
+            
+            <button 
+              onClick={() => shareBlog('whatsapp')}
+              className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-green-50 transition-colors group"
+              aria-label="Share on WhatsApp"
+            >
+              <div className="w-12 h-12 bg-green-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-green-700 transition-colors">
+                <FaWhatsapp className="text-white text-lg" aria-hidden="true" />
+              </div>
+              <span className="text-sm text-gray-700">WhatsApp</span>
+            </button>
+            
+            <button 
+              onClick={handleCopyLink}
+              className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-gray-100 transition-colors group"
+              aria-label="Copy link to clipboard"
+            >
+              <div className="w-12 h-12 bg-gray-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-gray-700 transition-colors">
+                <FaLink className="text-white text-lg" aria-hidden="true" />
+              </div>
+              <span className="text-sm text-gray-700">
+                {copied ? 'Copied!' : 'Copy Link'}
+              </span>
+            </button>
+          </div>
+          
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={window.location.href}
+              readOnly
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-3xl text-sm bg-gray-50"
+              aria-label="Article URL"
+            />
+            <button 
+              onClick={handleCopyLink}
+              className="px-4 py-2 bg-black text-white text-sm hover:bg-gray-800 transition-colors rounded-3xl"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
           </div>
         </div>
       </div>
     );
-  }
+  }, [showShareModal, copied, closeShareModal, shareBlog]);
+
+  // Memoized loading state
+  const LoadingState = useMemo(() => (
+    <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-center items-center py-20">
+          <div className="text-center">
+            <FaSpinner className="animate-spin text-4xl text-gray-600 mx-auto mb-4" aria-hidden="true" />
+            <span className="text-gray-600 text-lg font-medium">Loading article...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  ), []);
+
+  // Memoized error state
+  const ErrorState = useMemo(() => (
+    <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center py-20">
+          <div className="bg-white border border-gray-300 rounded-3xl p-8 max-w-md mx-auto">
+            <div className="w-16 h-16 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <FaEye className="text-gray-600 text-2xl" aria-hidden="true" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Article Not Found</h3>
+            <p className="text-gray-600 mb-6">{error || 'The requested article could not be found.'}</p>
+            <Link 
+              to="/blog"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white hover:bg-gray-800 transition-all duration-300 font-medium rounded-3xl"
+            >
+              <FaArrowLeft className="text-sm" aria-hidden="true" />
+              Back to Blog
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  ), [error]);
+
+  if (loading) return LoadingState;
+  if (error || !blog) return ErrorState;
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Share this article</h3>
-              <button 
-                onClick={closeShareModal}
-                className="text-gray-500 hover:text-gray-700 transition-colors rounded-3xl"
-              >
-                <FaTimes className="text-lg" />
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              <button 
-                onClick={() => shareBlog('facebook')}
-                className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-blue-50 transition-colors group"
-              >
-                <div className="w-12 h-12 bg-blue-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-blue-700 transition-colors">
-                  <FaFacebookF className="text-white text-lg" />
-                </div>
-                <span className="text-sm text-gray-700">Facebook</span>
-              </button>
-              
-              <button 
-                onClick={() => shareBlog('whatsapp')}
-                className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-green-50 transition-colors group"
-              >
-                <div className="w-12 h-12 bg-green-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-green-700 transition-colors">
-                  <FaWhatsapp className="text-white text-lg" />
-                </div>
-                <span className="text-sm text-gray-700">WhatsApp</span>
-              </button>
-              
-              <button 
-                onClick={() => {
-                  const url = window.location.href;
-                  navigator.clipboard.writeText(url);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-                className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-gray-100 transition-colors group"
-              >
-                <div className="w-12 h-12 bg-gray-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-gray-700 transition-colors">
-                  <FaLink className="text-white text-lg" />
-                </div>
-                <span className="text-sm text-gray-700">
-                  {copied ? 'Copied!' : 'Copy Link'}
-                </span>
-              </button>
-              
-              <button 
-                onClick={() => {
-                  const url = window.location.href;
-                  navigator.clipboard.writeText(url);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-                className="flex flex-col items-center p-4 bg-gray-50 rounded-3xl hover:bg-pink-50 transition-colors group"
-              >
-                <div className="w-12 h-12 bg-pink-600 rounded-3xl flex items-center justify-center mb-2 group-hover:bg-pink-700 transition-colors">
-                  <FaLink className="text-white text-lg" />
-                </div>
-                <span className="text-sm text-gray-700">
-                  {copied ? 'Copied!' : 'Copy'}
-                </span>
-              </button>
-            </div>
-            
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={window.location.href}
-                readOnly
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-3xl text-sm bg-gray-50"
-              />
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-                className="px-4 py-2 bg-black text-white text-sm hover:bg-gray-800 transition-colors rounded-3xl"
-              >
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {ShareModal}
 
       {/* Back Button */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
@@ -281,7 +273,7 @@ const BlogPost = () => {
           to="/blog"
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors duration-300 mb-8 group"
         >
-          <FaArrowLeft className="group-hover:-translate-x-1 transition-transform" />
+          <FaArrowLeft className="group-hover:-translate-x-1 transition-transform" aria-hidden="true" />
           Back to Blog
         </Link>
       </div>
@@ -295,10 +287,14 @@ const BlogPost = () => {
               src={blog.imageUrl}
               alt={blog.title}
               className="w-full h-96 object-cover rounded-3xl"
+              loading="eager"
+              decoding="sync"
+              width={1200}
+              height={400}
             />
           ) : (
             <div className="w-full h-96 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-3xl">
-              <FaEye className="text-gray-400 text-4xl" />
+              <FaEye className="text-gray-400 text-4xl" aria-hidden="true" />
             </div>
           )}
         </div>
@@ -330,18 +326,17 @@ const BlogPost = () => {
           {/* Meta Information */}
           <div className="flex flex-wrap items-center gap-6 text-gray-600">
             <div className="flex items-center gap-2">
-              <FaUser className="text-sm" />
+              <FaUser className="text-sm" aria-hidden="true" />
               <span className="font-medium">{blog.author || 'Staff Writer'}</span>
             </div>
             <div className="flex items-center gap-2">
-              <FaCalendarAlt className="text-sm" />
+              <FaCalendarAlt className="text-sm" aria-hidden="true" />
               <span>{new Date(blog.createdAt).toLocaleDateString('en-US', { 
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric' 
               })}</span>
             </div>
-           
           </div>
         </div>
 
@@ -366,8 +361,9 @@ const BlogPost = () => {
                   <button 
                     onClick={openShareModal}
                     className="flex items-center gap-2 px-4 py-2 bg-black text-white transition-colors duration-300 border border-gray-300 rounded-3xl"
+                    aria-label="Share article"
                   >
-                    <FaShare className="text-sm" />
+                    <FaShare className="text-sm" aria-hidden="true" />
                     Share
                   </button>
                 </div>
@@ -445,7 +441,7 @@ const BlogPost = () => {
               {blog.tags && blog.tags.length > 0 && (
                 <div className="mt-12 pt-8 border-t border-gray-200">
                   <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <FaTag className="text-gray-600" />
+                    <FaTag className="text-gray-600" aria-hidden="true" />
                     Tags
                   </h4>
                   <div className="flex flex-wrap gap-2">
@@ -471,7 +467,7 @@ const BlogPost = () => {
               <h3 className="font-semibold text-gray-900 mb-4">About the Author</h3>
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 bg-gray-200 rounded-3xl flex items-center justify-center">
-                  <FaUser className="text-gray-600" />
+                  <FaUser className="text-gray-600" aria-hidden="true" />
                 </div>
                 <div>
                   <h4 className="font-medium text-gray-900">{blog.author || 'Staff Writer'}</h4>
@@ -517,6 +513,10 @@ const RelatedBlogCard = ({ blog }) => {
               src={blog.imageUrl}
               alt={blog.title}
               className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-3xl"
+              loading="lazy"
+              decoding="async"
+              width={300}
+              height={160}
             />
           </div>
         )}
@@ -534,9 +534,6 @@ const RelatedBlogCard = ({ blog }) => {
           
           <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-200">
             <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
-            <span className="flex items-center gap-1">
-             
-            </span>
           </div>
         </div>
       </div>

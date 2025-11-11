@@ -1,11 +1,13 @@
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
-import RelatedProduct from '../components/RelatedProduct';
-import RelatedDeals from '../components/RelatedDeals';
 import { FaStar, FaStarHalf, FaRegStar, FaThumbsUp, FaThumbsDown, FaTimes, FaUserShield, FaShoppingCart, FaPlus, FaMinus, FaClock, FaFire } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from "framer-motion";
+
+// Lazy load components
+const RelatedProduct = lazy(() => import('../components/RelatedProduct'));
+const RelatedDeals = lazy(() => import('../components/RelatedDeals'));
 
 const Deal = () => {
   const { dealId } = useParams();
@@ -16,6 +18,7 @@ const Deal = () => {
     user, 
     token
   } = useContext(ShopContext);
+  
   const [dealData, setDealData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,9 +34,13 @@ const Deal = () => {
   const [filterRating, setFilterRating] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  // Email masking function
-  const maskEmail = (input) => {
+  const addToCartCalledRef = useRef(false);
+  const imageCacheRef = useRef(new Map());
+
+  // Memoized email masking function
+  const maskEmail = useCallback((input) => {
     if (!input || typeof input !== 'string') return 'Unknown User';
     
     if (input.includes('***')) return input;
@@ -49,7 +56,48 @@ const Deal = () => {
     }
     const visiblePart = input.substring(0, 2);
     return `${visiblePart}***`;
-  };
+  }, []);
+
+  // Memoized fetch reviews function
+  const fetchDealReviews = useCallback(async (dealId) => {
+    if (!dealId || !backendUrl) return;
+
+    setLoadingReviews(true);
+    try {
+      const response = await fetch(`${backendUrl}/api/comments?dealId=${dealId}`);
+      
+      if (response.ok) {
+        const comments = await response.json();
+        
+        const dealReviews = comments.map(comment => ({
+          id: comment._id,
+          rating: comment.rating,
+          comment: comment.content,
+          images: comment.reviewImages?.map(img => img.url) || [],
+          date: new Date(comment.date).toLocaleDateString(),
+          author: comment.email,
+          likes: comment.likes || 0,
+          dislikes: comment.dislikes || 0,
+          likedBy: comment.likedBy?.map(user => user._id || user) || [],
+          dislikedBy: comment.dislikedBy?.map(user => user._id || user) || [],
+          hasReply: comment.hasReply || false,
+          reply: comment.reply ? {
+            id: comment.reply._id || 'reply-' + comment._id,
+            content: comment.reply.content,
+            author: comment.reply.author || 'Admin',
+            isAdmin: true,
+            date: new Date(comment.reply.date).toLocaleDateString()
+          } : null
+        }));
+        
+        setReviews(dealReviews);
+      }
+    } catch (error) {
+      // Silent error handling
+    } finally {
+      setLoadingReviews(false);
+    }
+  }, [backendUrl]);
 
   // Fetch deal data and reviews
   useEffect(() => {
@@ -95,69 +143,32 @@ const Deal = () => {
       setError('No deal ID provided');
       setLoading(false);
     }
-  }, [dealId, backendUrl]);
+  }, [dealId, backendUrl, fetchDealReviews]);
 
-  // Fetch reviews from backend for specific deal
-  const fetchDealReviews = async (dealId) => {
-    setLoadingReviews(true);
-    try {
-      const response = await fetch(`${backendUrl}/api/comments?dealId=${dealId}`);
-      
-      if (response.ok) {
-        const comments = await response.json();
-        
-        const dealReviews = comments.map(comment => ({
-          id: comment._id,
-          rating: comment.rating,
-          comment: comment.content,
-          images: comment.reviewImages?.map(img => img.url) || [],
-          date: new Date(comment.date).toLocaleDateString(),
-          author: comment.email,
-          likes: comment.likes || 0,
-          dislikes: comment.dislikes || 0,
-          likedBy: comment.likedBy?.map(user => user._id || user) || [],
-          dislikedBy: comment.dislikedBy?.map(user => user._id || user) || [],
-          hasReply: comment.hasReply || false,
-          reply: comment.reply ? {
-            id: comment.reply._id || 'reply-' + comment._id,
-            content: comment.reply.content,
-            author: comment.reply.author || 'Admin',
-            isAdmin: true,
-            date: new Date(comment.reply.date).toLocaleDateString()
-          } : null
-        }));
-        
-        setReviews(dealReviews);
-      }
-    } catch (error) {
-      // Silent error handling
-    } finally {
-      setLoadingReviews(false);
-    }
-  };
-
-  const handleQuantityChange = (e) => {
+  // Optimized quantity handlers
+  const handleQuantityChange = useCallback((e) => {
     let value = Number(e.target.value);
     if (isNaN(value) || value < 1) {
       value = 1;
     }
     value = Math.min(value, 10);
     setQuantity(value);
-  };
+  }, []);
 
-  const incrementQuantity = () => {
+  const incrementQuantity = useCallback(() => {
     if (quantity < 10) {
       setQuantity(prev => prev + 1);
     }
-  };
+  }, [quantity]);
 
-  const decrementQuantity = () => {
+  const decrementQuantity = useCallback(() => {
     if (quantity > 1) {
       setQuantity(prev => prev - 1);
     }
-  };
+  }, [quantity]);
 
-  const handleImageUpload = (e) => {
+  // Optimized image handlers
+  const handleImageUpload = useCallback((e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
       const imageData = files.map(file => ({
@@ -166,13 +177,21 @@ const Deal = () => {
       }));
       setReviewImages((prevImages) => [...prevImages, ...imageData]);
     }
-  };
+  }, []);
 
-  const removeReviewImage = (index) => {
-    setReviewImages(prev => prev.filter((_, i) => i !== index));
-  };
+  const removeReviewImage = useCallback((index) => {
+    setReviewImages(prev => {
+      const newImages = prev.filter((_, i) => i !== index);
+      // Revoke object URL to prevent memory leaks
+      if (prev[index]?.url.startsWith('blob:')) {
+        URL.revokeObjectURL(prev[index].url);
+      }
+      return newImages;
+    });
+  }, []);
 
-  const handleSubmitReview = async () => {
+  // Optimized review submission
+  const handleSubmitReview = useCallback(async () => {
     if (!user || !user._id) {
       toast.error('Please login to submit a review');
       return;
@@ -234,6 +253,11 @@ const Deal = () => {
         setReviews((prevReviews) => [newReview, ...prevReviews]);
         setRating(0);
         setComment('');
+        reviewImages.forEach(img => {
+          if (img.url.startsWith('blob:')) {
+            URL.revokeObjectURL(img.url);
+          }
+        });
         setReviewImages([]);
         
         toast.success('Review submitted successfully!');
@@ -246,18 +270,20 @@ const Deal = () => {
     } finally {
       setUploading(false);
     }
-  };
+  }, [user, rating, comment, reviewImages, dealId, token, backendUrl, fetchDealReviews]);
 
-  const getUserInteractionStatus = (review) => {
+  // Memoized user interaction status
+  const getUserInteractionStatus = useCallback((review) => {
     if (!user || !user._id) return { hasLiked: false, hasDisliked: false };
     
     const hasLiked = review.likedBy?.includes(user._id) || false;
     const hasDisliked = review.dislikedBy?.includes(user._id) || false;
     
     return { hasLiked, hasDisliked };
-  };
+  }, [user]);
 
-  const handleLikeReview = async (reviewId) => {
+  // Optimized like/dislike handlers
+  const handleLikeReview = useCallback(async (reviewId) => {
     if (!user || !user._id) {
       toast.error('Please login to like reviews');
       return;
@@ -329,9 +355,9 @@ const Deal = () => {
     } catch (error) {
       toast.error('Error updating like');
     }
-  };
+  }, [user, token, backendUrl, reviews, getUserInteractionStatus]);
 
-  const handleDislikeReview = async (reviewId) => {
+  const handleDislikeReview = useCallback(async (reviewId) => {
     if (!user || !user._id) {
       toast.error('Please login to dislike reviews');
       return;
@@ -403,45 +429,56 @@ const Deal = () => {
     } catch (error) {
       toast.error('Error updating dislike');
     }
-  };
+  }, [user, token, backendUrl, reviews, getUserInteractionStatus]);
 
-  const handleImageClick = (imageUrl) => {
+  // Optimized image modal handlers
+  const handleImageClick = useCallback((imageUrl) => {
     setSelectedImage(imageUrl);
-  };
+  }, []);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setSelectedImage(null);
-  };
+  }, []);
 
-  const toggleShowAllReviews = () => {
+  // Optimized review display handlers
+  const toggleShowAllReviews = useCallback(() => {
     setShowAllReviews((prev) => !prev);
-  };
+  }, []);
 
-  const filterReviewsByRating = (rating) => {
+  const filterReviewsByRating = useCallback((rating) => {
     if (filterRating === rating) {
       setFilterRating(null);
     } else {
       setFilterRating(rating);
     }
-  };
+  }, [filterRating]);
 
-  const averageRating =
-    reviews.length > 0
+  // Memoized rating calculations
+  const { averageRating, ratingBreakdown } = useMemo(() => {
+    const avgRating = reviews.length > 0
       ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
       : 0;
 
-  const ratingBreakdown = [5, 4, 3, 2, 1].map((star) => ({
-    star,
-    count: reviews.filter((review) => review.rating === star).length,
-  }));
+    const breakdown = [5, 4, 3, 2, 1].map((star) => ({
+      star,
+      count: reviews.filter((review) => review.rating === star).length,
+    }));
 
-  const filteredReviews = filterRating
-    ? reviews.filter((review) => review.rating === filterRating)
-    : reviews;
+    return { averageRating: avgRating, ratingBreakdown: breakdown };
+  }, [reviews]);
 
-  const displayedReviews = showAllReviews ? filteredReviews : filteredReviews.slice(0, 10);
+  const filteredReviews = useMemo(() => 
+    filterRating
+      ? reviews.filter((review) => review.rating === filterRating)
+      : reviews
+  , [reviews, filterRating]);
 
-  const renderRating = (ratingValue = 0) => {
+  const displayedReviews = useMemo(() => 
+    showAllReviews ? filteredReviews : filteredReviews.slice(0, 10)
+  , [showAllReviews, filteredReviews]);
+
+  // Memoized rating renderer
+  const renderRating = useCallback((ratingValue = 0) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       if (i <= ratingValue) {
@@ -465,19 +502,36 @@ const Deal = () => {
       }
     }
     return stars;
-  };
+  }, []);
 
-  const handleAddToCart = () => {
-    if (addDealToCart) {
-      addDealToCart(dealId, quantity);
-      toast.success('Deal added to cart!');
-      setQuantity(1);
-    } else {
-      toast.error('Unable to add deal to cart');
+  // Optimized add to cart with debouncing
+  const handleAddToCart = useCallback(async () => {
+    if (isAddingToCart || addToCartCalledRef.current) {
+      return;
     }
-  };
 
-  const renderClickableStars = (currentRating, setRatingFunc) => {
+    setIsAddingToCart(true);
+    addToCartCalledRef.current = true;
+
+    try {
+      if (addDealToCart) {
+        addDealToCart(dealId, quantity);
+        toast.success('Deal added to cart!');
+        setQuantity(1);
+      } else {
+        toast.error('Unable to add deal to cart');
+      }
+    } catch (error) {
+      toast.error('Failed to add deal to cart');
+    } finally {
+      setTimeout(() => {
+        setIsAddingToCart(false);
+        addToCartCalledRef.current = false;
+      }, 1000);
+    }
+  }, [isAddingToCart, addDealToCart, dealId, quantity]);
+
+  const renderClickableStars = useCallback((currentRating, setRatingFunc) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
@@ -491,9 +545,10 @@ const Deal = () => {
       );
     }
     return stars;
-  };
+  }, []);
 
-  const getDealTypeBadge = (dealType) => {
+  // Memoized deal type badge
+  const getDealTypeBadge = useCallback((dealType) => {
     let dealTypeSlug = '';
     let dealTypeName = '';
     
@@ -538,8 +593,9 @@ const Deal = () => {
     };
     
     return badge;
-  };
+  }, []);
 
+  // Cleanup effect for blob URLs
   useEffect(() => {
     return () => {
       reviewImages.forEach(img => {
@@ -693,7 +749,7 @@ const Deal = () => {
     );
   };
 
-  const isFlashSale = () => {
+  const isFlashSale = useCallback(() => {
     if (!dealData?.dealType) return false;
     
     const dealType = dealData.dealType;
@@ -703,41 +759,64 @@ const Deal = () => {
       return dealType.slug?.includes('flash') || dealType.name?.toLowerCase().includes('flash');
     }
     return false;
-  };
+  }, [dealData]);
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl text-red-600">⚠️</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Deal Not Found</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button 
-            onClick={() => window.history.back()}
-            className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors w-full"
-          >
-            Go Back
-          </button>
+  // Memoized error state
+  const ErrorState = useMemo(() => (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="text-center max-w-md">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl text-red-600">⚠️</span>
         </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Deal Not Found</h1>
+        <p className="text-gray-600 mb-6">{error}</p>
+        <button 
+          onClick={() => window.history.back()}
+          className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors w-full"
+        >
+          Go Back
+        </button>
       </div>
-    );
-  }
+    </div>
+  ), [error]);
 
-  if (loading || !dealData) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading deal details...</p>
-        </div>
+  // Memoized loading state
+  const LoadingState = useMemo(() => (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading deal details...</p>
       </div>
-    );
-  }
+    </div>
+  ), []);
+
+  if (error) return ErrorState;
+  if (loading || !dealData) return LoadingState;
 
   const dealType = getDealTypeBadge(dealData.dealType);
   const flashSale = isFlashSale();
+
+  // Optimized Image component with lazy loading
+  const LazyImage = ({ src, alt, className, ...props }) => {
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [hasError, setHasError] = useState(false);
+
+    return (
+      <img
+        src={hasError ? 'https://via.placeholder.com/500?text=Deal+Image' : src}
+        alt={alt}
+        className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+        onLoad={() => setIsLoaded(true)}
+        onError={(e) => {
+          setHasError(true);
+          setIsLoaded(true);
+        }}
+        loading="lazy"
+        decoding="async"
+        {...props}
+      />
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -753,27 +832,21 @@ const Deal = () => {
                   <div className={`inline-block text-center px-3 py-1 text-xs font-bold ${dealType.color}`}>
                     {dealType.label}
                   </div>
-                  {/* {flashSale && dealData.dealEndDate && (
-                    <CompactCountdownTimer endDate={new Date(dealData.dealEndDate)} />
-                  )} */}
                 </div>
-                <img
+                <LazyImage
                   src={image || dealData.dealImages?.[0] || 'https://via.placeholder.com/500?text=Deal+Image'}
                   alt={dealData.dealName}
                   className="w-full h-auto max-w-full object-cover rounded-xl 
                              sm:max-h-[400px] 
                              md:max-h-[500px] 
                              lg:max-h-[600px]"
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/500?text=Deal+Image';
-                  }}
                 />
               </div>
 
               {/* Thumbnails */}
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {dealData.dealImages?.map((item, index) => (
-                  <img
+                  <LazyImage
                     key={index}
                     src={item}
                     alt={`Thumbnail ${index + 1}`}
@@ -781,9 +854,6 @@ const Deal = () => {
                       image === item ? 'border-black' : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => setImage(item)}
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/100?text=Image';
-                    }}
                   />
                 ))}
               </div>
@@ -894,14 +964,26 @@ const Deal = () => {
 
                 <button
                   onClick={handleAddToCart}
-                  className="w-full py-4 px-6 bg-black text-white rounded-xl font-semibold text-lg hover:bg-gray-800 hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  disabled={isAddingToCart}
+                  className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
+                    isAddingToCart 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-black text-white hover:bg-gray-800 hover:shadow-lg'
+                  }`}
                 >
-                  <FaShoppingCart />
-                  Add to Cart
+                  {isAddingToCart ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Adding...
+                    </div>
+                  ) : (
+                    <>
+                      <FaShoppingCart />
+                      Add to Cart
+                    </>
+                  )}
                 </button>
               </div>
-
-        
             </div>
           </div>
         </div>
@@ -1053,7 +1135,7 @@ const Deal = () => {
                         <div className="flex flex-wrap gap-3">
                           {reviewImages.map((imageData, index) => (
                             <div key={index} className="relative">
-                              <img
+                              <LazyImage
                                 src={imageData.url}
                                 alt={`Preview ${index + 1}`}
                                 className="w-20 h-20 object-cover rounded-lg border border-gray-300"
@@ -1135,7 +1217,7 @@ const Deal = () => {
                             {review.images.length > 0 && (
                               <div className="flex gap-3 mb-4">
                                 {review.images.map((imageUrl, index) => (
-                                  <img
+                                  <LazyImage
                                     key={index}
                                     src={imageUrl}
                                     alt={`Review image ${index + 1}`}
@@ -1204,14 +1286,18 @@ const Deal = () => {
           </div>
         </div>
 
-        {/* Related Products & Deals */}
+        {/* Related Products & Deals with Lazy Loading */}
         {dealData.category && (
           <div className="mt-12 space-y-12">
-            <RelatedProduct category={dealData.category} />
-            <RelatedDeals 
-              category={dealData.category} 
-              currentDealId={dealId} 
-            />
+            <Suspense fallback={<div className="text-center py-8">Loading related products...</div>}>
+              <RelatedProduct category={dealData.category} />
+            </Suspense>
+            <Suspense fallback={<div className="text-center py-8">Loading related deals...</div>}>
+              <RelatedDeals 
+                category={dealData.category} 
+                currentDealId={dealId} 
+              />
+            </Suspense>
           </div>
         )}
       </div>
@@ -1220,7 +1306,7 @@ const Deal = () => {
       {selectedImage && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4">
           <div className="relative max-w-4xl max-h-full">
-            <img
+            <LazyImage
               src={selectedImage}
               alt="Enlarged view"
               className="max-w-full max-h-[90vh] object-contain rounded-lg"

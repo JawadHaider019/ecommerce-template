@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import Title from "../components/Title";
-import { FaCalendarAlt, FaArrowRight, FaUser, FaClock, FaTag, FaFire } from "react-icons/fa";
-import { useState, useEffect } from "react";
+import { FaCalendarAlt, FaUser, FaFire, FaTag } from "react-icons/fa";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Loader from "../components/Loader";
 
 const Blog = () => {
@@ -12,54 +12,63 @@ const Blog = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   // Fetch blogs from your backend API
-  useEffect(() => {
-    const fetchBlogs = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${backendUrl}/api/blogs?status=published`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch blogs: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          setBlogs(result.data || []);
-        } else {
-          throw new Error(result.message || 'Failed to fetch blogs');
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+  const fetchBlogs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${backendUrl}/api/blogs?status=published`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch blogs: ${response.status}`);
       }
-    };
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setBlogs(result.data || []);
+      } else {
+        throw new Error(result.message || 'Failed to fetch blogs');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [backendUrl]);
 
+  useEffect(() => {
     if (backendUrl) {
       fetchBlogs();
     } else {
       setError('Backend URL not configured');
       setLoading(false);
     }
-  }, [backendUrl]);
+  }, [backendUrl, fetchBlogs]);
+
+  // Memoized blog data processing
+  const { featuredBlogs, regularBlogs, heroFeatured, remainingFeatured, latestBlogs, trendingBlogs, categories } = useMemo(() => {
+    const featured = blogs.filter(blog => blog.featured && blog.status === 'published');
+    const regular = blogs.filter(blog => !blog.featured && blog.status === 'published');
+    const hero = featured.slice(0, 3);
+    const remaining = featured.slice(3);
+    const latest = regular.slice(0, 6);
+    const trending = regular.slice(6, 12);
+    const cats = Array.from(new Set(blogs.flatMap(blog => blog.category || []))).slice(0, 8);
+
+    return {
+      featuredBlogs: featured,
+      regularBlogs: regular,
+      heroFeatured: hero,
+      remainingFeatured: remaining,
+      latestBlogs: latest,
+      trendingBlogs: trending,
+      categories: cats
+    };
+  }, [blogs]);
 
   // Show loader while page is loading
   if (loading) {
     return <Loader />;
   }
-
-  // Separate featured and regular blogs
-  const featuredBlogs = blogs.filter(blog => blog.featured && blog.status === 'published');
-  const regularBlogs = blogs.filter(blog => !blog.featured && blog.status === 'published');
-
-  // Get latest 3 featured blogs for the hero section
-  const heroFeatured = featuredBlogs.slice(0, 3);
-  // Get remaining featured blogs
-  const remainingFeatured = featuredBlogs.slice(3);
-  // Get regular blogs for different sections
-  const latestBlogs = regularBlogs.slice(0, 6);
-  const trendingBlogs = regularBlogs.slice(6, 12);
 
   if (error) {
     return (
@@ -90,7 +99,7 @@ const Blog = () => {
           <div className="text-center text-3xl">
             <Title text1={"Pure Clay"} text2={"Articles"} />
             <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-            Expert tips, natural ingredient insights, and wholesome wellness advice for a healthy, nourished life.
+              Expert tips, natural ingredient insights, and wholesome wellness advice for a healthy, nourished life.
             </p>
           </div>
         </div>
@@ -101,8 +110,7 @@ const Blog = () => {
         <section className="border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold  flex items-center gap-2 text-gray-900 border-l-4 border-black pl-3">
-          
+              <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-900 border-l-4 border-black pl-3">
                 Featured Guides
               </h2>
               <div className="text-sm text-gray-100 bg-black px-3 py-1 rounded-3xl">
@@ -130,7 +138,6 @@ const Blog = () => {
                 <h2 className="text-2xl font-bold text-gray-900 border-l-4 border-black pl-3">
                   Latest Articles
                 </h2>
-              
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -142,7 +149,7 @@ const Blog = () => {
               {latestBlogs.length === 0 && (
                 <div className="text-center py-12 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-300">
                   <h3 className="text-lg font-medium text-gray-600 mb-2">No articles yet</h3>
-                  <p className="text-gray-500">Check back later for new  insights.</p>
+                  <p className="text-gray-500">Check back later for new insights.</p>
                 </div>
               )}
             </section>
@@ -183,7 +190,7 @@ const Blog = () => {
             <div className="bg-white border border-gray-200 rounded-3xl p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Categories</h3>
               <div className="space-y-2">
-                {Array.from(new Set(blogs.flatMap(blog => blog.category || []))).slice(0, 8).map(category => (
+                {categories.map(category => (
                   <div
                     key={category}
                     className="flex items-center justify-between py-2 px-3 rounded-3xl hover:bg-black/10 transition-colors group"
@@ -205,6 +212,14 @@ const Blog = () => {
 
 // Hero Story Component (Large Featured)
 const HeroStory = ({ blog, isMain }) => {
+  const handleImageError = useCallback((e) => {
+    e.target.style.display = 'none';
+    const nextSibling = e.target.nextSibling;
+    if (nextSibling) {
+      nextSibling.style.display = 'block';
+    }
+  }, []);
+
   if (isMain) {
     return (
       <div className="lg:col-span-2 group">
@@ -215,10 +230,15 @@ const HeroStory = ({ blog, isMain }) => {
                 src={blog.imageUrl}
                 alt={blog.title}
                 className="w-full h-80 object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
+                loading="lazy"
+                decoding="async"
+                width={800}
+                height={400}
+                onError={handleImageError}
               />
             ) : (
               <div className="w-full h-80 bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center rounded-3xl">
-                <FaTag className="text-gray-400 text-4xl" />
+                <FaTag className="text-gray-400 text-4xl" aria-hidden="true" />
               </div>
             )}
             
@@ -242,15 +262,14 @@ const HeroStory = ({ blog, isMain }) => {
               <div className="flex items-center justify-between text-sm text-gray-300">
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1">
-                    <FaUser className="text-xs" />
+                    <FaUser className="text-xs" aria-hidden="true" />
                     {blog.author || 'Skincare Expert'}
                   </span>
                   <span className="flex items-center gap-1">
-                    <FaCalendarAlt className="text-xs" />
+                    <FaCalendarAlt className="text-xs" aria-hidden="true" />
                     {new Date(blog.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-               
               </div>
             </div>
           </div>
@@ -268,10 +287,15 @@ const HeroStory = ({ blog, isMain }) => {
               src={blog.imageUrl}
               alt={blog.title}
               className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
+              loading="lazy"
+              decoding="async"
+              width={400}
+              height={192}
+              onError={handleImageError}
             />
           ) : (
             <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-3xl">
-              <FaTag className="text-gray-400 text-xl" />
+              <FaTag className="text-gray-400 text-xl" aria-hidden="true" />
             </div>
           )}
           
@@ -288,7 +312,6 @@ const HeroStory = ({ blog, isMain }) => {
             
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
-              
             </div>
           </div>
         </div>
@@ -299,6 +322,14 @@ const HeroStory = ({ blog, isMain }) => {
 
 // News Card Component
 const NewsCard = ({ blog, featured = false }) => {
+  const handleImageError = useCallback((e) => {
+    e.target.style.display = 'none';
+    const nextSibling = e.target.nextSibling;
+    if (nextSibling) {
+      nextSibling.style.display = 'block';
+    }
+  }, []);
+
   if (featured) {
     return (
       <div className="group">
@@ -310,10 +341,15 @@ const NewsCard = ({ blog, featured = false }) => {
                   src={blog.imageUrl}
                   alt={blog.title}
                   className="w-full h-48 sm:h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
+                  loading="lazy"
+                  decoding="async"
+                  width={300}
+                  height={200}
+                  onError={handleImageError}
                 />
               ) : (
                 <div className="w-full h-48 sm:h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-3xl">
-                  <FaTag className="text-gray-400 text-xl" />
+                  <FaTag className="text-gray-400 text-xl" aria-hidden="true" />
                 </div>
               )}
             </div>
@@ -330,14 +366,11 @@ const NewsCard = ({ blog, featured = false }) => {
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1">
-                    <FaUser className="text-xs" />
+                    <FaUser className="text-xs" aria-hidden="true" />
                     {blog.author || 'Skincare Expert'}
                   </span>
                   <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
                 </div>
-                <span className="flex items-center gap-1">
-                
-                </span>
               </div>
             </div>
           </div>
@@ -356,6 +389,11 @@ const NewsCard = ({ blog, featured = false }) => {
                 src={blog.imageUrl}
                 alt={blog.title}
                 className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
+                loading="lazy"
+                decoding="async"
+                width={400}
+                height={160}
+                onError={handleImageError}
               />
             </div>
           )}
@@ -371,10 +409,6 @@ const NewsCard = ({ blog, featured = false }) => {
             
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
-              <span className="flex items-center gap-1">
-            
-              
-              </span>
             </div>
           </div>
         </div>
@@ -385,6 +419,14 @@ const NewsCard = ({ blog, featured = false }) => {
 
 // Featured Card Component
 const FeaturedCard = ({ blog }) => {
+  const handleImageError = useCallback((e) => {
+    e.target.style.display = 'none';
+    const nextSibling = e.target.nextSibling;
+    if (nextSibling) {
+      nextSibling.style.display = 'block';
+    }
+  }, []);
+
   return (
     <div className="group">
       <Link to={`/blog/${blog._id}`} className="block">
@@ -394,10 +436,15 @@ const FeaturedCard = ({ blog }) => {
               src={blog.imageUrl}
               alt={blog.title}
               className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500 rounded-3xl"
+              loading="lazy"
+              decoding="async"
+              width={300}
+              height={160}
+              onError={handleImageError}
             />
           ) : (
             <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-3xl">
-              <FaTag className="text-gray-400 text-xl" />
+              <FaTag className="text-gray-400 text-xl" aria-hidden="true" />
             </div>
           )}
           
@@ -414,7 +461,6 @@ const FeaturedCard = ({ blog }) => {
             
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
-           
             </div>
           </div>
         </div>
@@ -436,7 +482,6 @@ const TrendingStory = ({ blog, rank }) => {
         </h5>
         <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
           <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
-         
         </div>
       </div>
     </Link>

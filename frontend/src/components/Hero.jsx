@@ -32,6 +32,7 @@ const Hero = () => {
   const sliderRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const mountedRef = useRef(true);
+  const [loadedImages, setLoadedImages] = useState(new Set());
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -144,6 +145,11 @@ const Hero = () => {
     e.stopPropagation();
   }, []);
 
+  // Handle image load
+  const handleImageLoad = useCallback((imageUrl) => {
+    setLoadedImages(prev => new Set(prev).add(imageUrl));
+  }, []);
+
   // Social media platforms configuration
   const socialPlatforms = useMemo(() => [
     { key: 'whatsapp', icon: FaWhatsapp, label: 'WhatsApp' },
@@ -219,6 +225,7 @@ const Hero = () => {
               key={index}
               onClick={() => sliderRef.current?.slickGoTo(index)}
               className="focus:outline-none transition-all duration-300"
+              aria-label={`Go to slide ${index + 1}`}
             >
               <div 
                 className={`transition-all duration-300 rounded-full ${
@@ -256,20 +263,34 @@ const Hero = () => {
     beforeChange: (_, next) => setCurrentSlide(next),
   }), [banners.length]);
 
+  // Optimized Banner Image Component
+  const BannerImage = useCallback(({ banner, index }) => (
+    <img
+      src={banner.imageUrl}
+      alt={banner.headingLine1 || "Premium Banner"}
+      className={`w-full h-full object-cover transition-opacity duration-500 ${
+        loadedImages.has(banner.imageUrl) ? 'opacity-100' : 'opacity-0'
+      }`}
+      loading={index === 0 ? "eager" : "lazy"}
+      decoding="async"
+      width="1920"
+      height="1080"
+      onLoad={() => handleImageLoad(banner.imageUrl)}
+      onError={() => handleImageLoad(banner.imageUrl)} // Fallback if image fails
+    />
+  ), [loadedImages, handleImageLoad]);
+
   // Banner Item Component
   const BannerItem = useCallback(({ banner, index }) => (
     <section className="relative w-full h-full">
       {/* Background Image Container */}
       <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl mx-auto overflow-hidden">
-        <img
-          src={banner.imageUrl}
-          alt={banner.headingLine1 || "Premium Banner"}
-          className="w-full h-full object-cover"
-          loading={index === 0 ? "eager" : "lazy"}
-          decoding="async"
-          width="1920"
-          height="1080"
-        />
+        <BannerImage banner={banner} index={index} />
+        
+        {/* Loading placeholder */}
+        {!loadedImages.has(banner.imageUrl) && (
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse" />
+        )}
       </div>
 
       {/* Overlays */}
@@ -301,6 +322,7 @@ const Hero = () => {
                 to={banner.redirectUrl}
                 onClick={handleButtonClick}
                 className="inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 text-white border border-white/50 rounded-full transition-all duration-300 hover:bg-white/10 hover:border-white/80 group"
+                aria-label={banner.buttonText}
               >
                 <span className="text-xs md:text-sm font-medium tracking-wider uppercase">
                   {banner.buttonText}
@@ -329,7 +351,7 @@ const Hero = () => {
         </div>
       </div>
     </section>
-  ), [handleButtonClick, SocialMediaIcons]);
+  ), [handleButtonClick, SocialMediaIcons, BannerImage, loadedImages]);
 
   // Render slider
   const renderSlider = () => {
@@ -384,6 +406,7 @@ const Hero = () => {
                 <button
                   onClick={fetchBanners}
                   className="px-6 md:px-8 py-2 md:py-3 text-sm md:text-base font-medium text-gray-900 bg-white rounded-full hover:bg-gray-100"
+                  aria-label="Try loading banners again"
                 >
                   Try Again
                 </button>

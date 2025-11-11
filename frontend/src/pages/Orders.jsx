@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState, useMemo, useCallback, memo } from "react";
+import { useContext, useEffect, useState, useMemo, useCallback, memo, lazy, Suspense, useRef } from "react";
 import { ShopContext } from "../context/ShopContext";
 import Title from '../components/Title';
 import axios from "axios";
@@ -19,8 +19,9 @@ import {
   faImage
 } from '@fortawesome/free-solid-svg-icons';
 
-// Global image cache
+// Global image cache with LRU behavior
 const imageCache = new Map();
+const MAX_CACHE_SIZE = 100;
 
 // Ultra-fast image URL resolver
 const resolveImageUrl = (image, backendUrl) => {
@@ -49,19 +50,26 @@ const resolveImageUrl = (image, backendUrl) => {
     }
   }
 
+  // LRU cache management
+  if (imageCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = imageCache.keys().next().value;
+    imageCache.delete(firstKey);
+  }
+  
   imageCache.set(cacheKey, url);
   return url;
 };
 
-// Preload images in batches
+// Optimized image preloader
 const preloadImages = (urls) => {
   if (!urls.length) return;
   
-  // Use requestIdleCallback for non-critical image preloading
+  const validUrls = urls.filter(url => url && url !== assets.placeholder_image);
+  
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
-      urls.forEach(url => {
-        if (url && url !== assets.placeholder_image && !imageCache.get(`loaded-${url}`)) {
+      validUrls.forEach(url => {
+        if (!imageCache.get(`loaded-${url}`)) {
           const img = new Image();
           img.src = url;
           imageCache.set(`loaded-${url}`, true);
@@ -69,25 +77,50 @@ const preloadImages = (urls) => {
       });
     });
   } else {
-    // Fallback for older browsers
     setTimeout(() => {
-      urls.forEach(url => {
-        if (url && url !== assets.placeholder_image && !imageCache.get(`loaded-${url}`)) {
+      validUrls.forEach(url => {
+        if (!imageCache.get(`loaded-${url}`)) {
           const img = new Image();
           img.src = url;
           imageCache.set(`loaded-${url}`, true);
         }
       });
-    }, 0);
+    }, 100);
   }
 };
 
-// Lightning-fast Image component
+// Optimized Image component with intersection observer
 const OrderItemImage = memo(({ imageUrl, alt, className = "" }) => {
   const [loaded, setLoaded] = useState(imageCache.get(`loaded-${imageUrl}`) || false);
   const [error, setError] = useState(false);
+  const [inView, setInView] = useState(false);
+  const imgRef = useRef();
 
   useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.unobserve(entry.target);
+        }
+      },
+      { rootMargin: '50px' }
+    );
+
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
+
+    return () => {
+      if (imgRef.current) {
+        observer.unobserve(imgRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!inView) return;
+
     if (imageCache.get(`loaded-${imageUrl}`)) {
       setLoaded(true);
       return;
@@ -116,12 +149,15 @@ const OrderItemImage = memo(({ imageUrl, alt, className = "" }) => {
     return () => {
       mounted = false;
     };
-  }, [imageUrl]);
+  }, [imageUrl, inView]);
 
   const displayUrl = error ? assets.placeholder_image : imageUrl;
 
   return (
-    <div className={`flex items-center justify-center overflow-hidden bg-gray-50 ${className}`}>
+    <div 
+      ref={imgRef}
+      className={`flex items-center justify-center overflow-hidden bg-gray-50 ${className}`}
+    >
       {!loaded ? (
         <div className="flex items-center justify-center w-full h-full bg-gray-100 animate-pulse">
           <FontAwesomeIcon icon={faImage} className="text-gray-300" />
@@ -136,7 +172,7 @@ const OrderItemImage = memo(({ imageUrl, alt, className = "" }) => {
           className="w-full h-full object-cover"
           src={displayUrl}
           alt={alt}
-          loading="eager"
+          loading="lazy"
           decoding="async"
         />
       )}
@@ -144,7 +180,7 @@ const OrderItemImage = memo(({ imageUrl, alt, className = "" }) => {
   );
 });
 
-// Ultra-fast Order Item
+// Ultra-fast Order Item with memoized calculations
 const OrderItem = memo(({ item, currency, backendUrl }) => {
   const itemData = useMemo(() => {
     const isDeal = item.isFromDeal === true;
@@ -230,27 +266,36 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
   );
 });
 
-// Blazing-fast Order Card
+// Status configuration outside component to prevent recreation
+const STATUS_CONFIG = {
+  'Order Placed': { icon: faClock, color: 'text-yellow-700 bg-yellow-50' },
+  'Packing': { icon: faBox, color: 'text-blue-700 bg-blue-50' },
+  'Shipped': { icon: faShippingFast, color: 'text-purple-700 bg-purple-50' },
+  'Out for delivery': { icon: faMotorcycle, color: 'text-orange-700 bg-orange-50' },
+  'Delivered': { icon: faCheckCircle, color: 'text-green-700 bg-green-50' }
+};
+
+// Blazing-fast Order Card with optimized calculations
 const OrderCard = memo(({ order, currency, backendUrl, isCancellable, onCancelOrder }) => {
   const { subtotal, total, formattedDate, statusIcon, statusColor } = useMemo(() => {
-    const subtotal = order.items.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
+    const subtotal = order.items.reduce((sum, item) => 
+      sum + ((item.price || 0) * item.quantity), 0
+    );
     const total = subtotal + (order.deliveryCharges || 0);
     const formattedDate = new Date(parseInt(order.date)).toLocaleDateString();
     
-    const statusMap = {
-      'Order Placed': { icon: faClock, color: 'text-yellow-700 bg-yellow-50' },
-      'Packing': { icon: faBox, color: 'text-blue-700 bg-blue-50' },
-      'Shipped': { icon: faShippingFast, color: 'text-purple-700 bg-purple-50' },
-      'Out for delivery': { icon: faMotorcycle, color: 'text-orange-700 bg-orange-50' },
-      'Delivered': { icon: faCheckCircle, color: 'text-green-700 bg-green-50' }
+    const status = STATUS_CONFIG[order.status] || STATUS_CONFIG['Order Placed'];
+
+    return { 
+      subtotal, 
+      total, 
+      formattedDate, 
+      statusIcon: status.icon, 
+      statusColor: status.color 
     };
-
-    const status = statusMap[order.status] || statusMap['Order Placed'];
-
-    return { subtotal, total, formattedDate, ...status };
   }, [order]);
 
-  // Preload images for this order
+  // Preload images for this order only when in viewport
   useEffect(() => {
     const imageUrls = order.items.map(item => {
       const imageSource = item.isFromDeal ? (item.dealImage || item.image) : item.image;
@@ -259,6 +304,10 @@ const OrderCard = memo(({ order, currency, backendUrl, isCancellable, onCancelOr
     
     preloadImages(imageUrls);
   }, [order.items, backendUrl]);
+
+  const handleCancelClick = useCallback(() => {
+    onCancelOrder(order._id);
+  }, [order._id, onCancelOrder]);
 
   return (
     <div className="mb-6 bg-white rounded-2xl shadow-sm border border-black/50 overflow-hidden">
@@ -269,7 +318,7 @@ const OrderCard = memo(({ order, currency, backendUrl, isCancellable, onCancelOr
             <p className="font-medium text-gray-900">Order #{order._id?.substring(0, 8)}</p>
             <p className="text-sm text-gray-500">{formattedDate}</p>
           </div>
-          <div className={`inline-flex  border rounded-lg border-black/50 items-center px-3 py-2 text-sm font-medium  ${statusColor}`}>
+          <div className={`inline-flex border rounded-lg border-black/50 items-center px-3 py-2 text-sm font-medium ${statusColor}`}>
             <FontAwesomeIcon icon={statusIcon} className="mr-2" />
             <span>{order.status}</span>
           </div>
@@ -322,13 +371,100 @@ const OrderCard = memo(({ order, currency, backendUrl, isCancellable, onCancelOr
 
             {isCancellable && (
               <button
-                onClick={() => onCancelOrder(order._id)}
+                onClick={handleCancelClick}
                 className="w-full px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
               >
                 Cancel Order
               </button>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// Cancellation Modal Component
+const CancellationModal = memo(({ 
+  cancellingOrder, 
+  setCancellingOrder, 
+  selectedReason, 
+  setSelectedReason, 
+  cancellationReason, 
+  setCancellationReason, 
+  cancellationReasons, 
+  cancelOrder 
+}) => {
+  const handleConfirm = useCallback(() => {
+    cancelOrder(cancellingOrder);
+  }, [cancelOrder, cancellingOrder]);
+
+  const handleClose = useCallback(() => {
+    setCancellingOrder(null);
+  }, [setCancellingOrder]);
+
+  const isConfirmDisabled = !selectedReason || (selectedReason === 'Other' && !cancellationReason.trim());
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white max-w-md w-full rounded-2xl shadow-lg overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-black/50">
+          <div className="flex items-center gap-3">
+            <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500" />
+            <h3 className="font-medium text-gray-900">Cancel Order</h3>
+          </div>
+          <button
+            onClick={handleClose}
+            className="text-gray-900 hover:text-gray-900"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="p-4">
+          <p className="text-sm text-gray-900 mb-4">Please tell us why you want to cancel this order:</p>
+
+          <div className="space-y-3">
+            <select
+              value={selectedReason}
+              onChange={(e) => setSelectedReason(e.target.value)}
+              className="w-full p-2 border border-black/50 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+            >
+              <option value="">Select a reason</option>
+              {cancellationReasons.map(reason => (
+                <option key={reason} value={reason}>{reason}</option>
+              ))}
+            </select>
+
+            {selectedReason === 'Other' && (
+              <textarea
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                placeholder="Please provide details..."
+                rows="3"
+                className="w-full p-2 border border-black/50 rounded text-sm resize-none focus:outline-none focus:ring-1 focus:ring-gray-400"
+                maxLength={200}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-3 p-4 border-t border-black/50">
+          <button
+            onClick={handleClose}
+            className="flex-1 px-4 py-2 text-gray-700 border border-black/50 rounded text-sm hover:bg-gray-50 transition-colors"
+          >
+            Keep Order
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={isConfirmDisabled}
+            className={`flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded transition-colors ${
+              isConfirmDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'
+            }`}
+          >
+            Confirm Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -353,9 +489,10 @@ const Orders = () => {
     "Other"
   ], []);
 
-  // Single effect for data loading
+  // Single optimized effect for data loading
   useEffect(() => {
     let mounted = true;
+    let controller = new AbortController();
 
     const loadData = async () => {
       if (!token) {
@@ -369,7 +506,8 @@ const Orders = () => {
           {},
           { 
             headers: { token },
-            timeout: 5000
+            timeout: 5000,
+            signal: controller.signal
           }
         );
 
@@ -391,7 +529,7 @@ const Orders = () => {
           preloadImages(allImageUrls);
         }
       } catch (error) {
-        if (mounted && error.code !== 'ECONNABORTED') {
+        if (mounted && error.code !== 'ECONNABORTED' && error.name !== 'CanceledError') {
           toast.error("Failed to load orders");
         }
       } finally {
@@ -403,6 +541,7 @@ const Orders = () => {
 
     return () => {
       mounted = false;
+      controller.abort();
     };
   }, [backendUrl, token]);
 
@@ -441,6 +580,36 @@ const Orders = () => {
     return (Date.now() - orderTime) < (15 * 60 * 1000);
   }, []);
 
+  const handleCancelOrder = useCallback((orderId) => {
+    setCancellingOrder(orderId);
+  }, []);
+
+  // Memoized orders list
+  const ordersList = useMemo(() => {
+    if (orders.length === 0) {
+      return (
+        <div className="text-center py-12 bg-gray-50 rounded-2xl">
+          <div className="mx-auto h-12 w-12 text-gray-900 mb-4">
+            <img src={assets.parcel_icon} alt="No orders" className="opacity-50" />
+          </div>
+          <p className="text-gray-900">No active orders found</p>
+          <p className="text-gray-900 text-sm mt-1">Your orders will appear here once placed</p>
+        </div>
+      );
+    }
+
+    return orders.map((order) => (
+      <OrderCard
+        key={order._id}
+        order={order}
+        currency={currency}
+        backendUrl={backendUrl}
+        isCancellable={canCancelOrder(order)}
+        onCancelOrder={handleCancelOrder}
+      />
+    ));
+  }, [orders, currency, backendUrl, canCancelOrder, handleCancelOrder]);
+
   if (loading) {
     return (
       <div className="pt-16">
@@ -456,98 +625,26 @@ const Orders = () => {
 
   return (
     <div className="pt-16">
-     <div className="text-3xl mb-8 text-center">
-          <Title text1={"My"} text2={"Orders"} />
-        </div>
+      <div className="text-3xl mb-8 text-center">
+        <Title text1={"My"} text2={"Orders"} />
+      </div>
 
       {/* Cancellation Modal */}
       {cancellingOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-md w-full rounded-2xl shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-black/50">
-              <div className="flex items-center gap-3">
-                <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500" />
-                <h3 className="font-medium text-gray-900">Cancel Order</h3>
-              </div>
-              <button
-                onClick={() => setCancellingOrder(null)}
-                className="text-gray-900 hover:text-gray-900"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-4">
-              <p className="text-sm text-gray-900 mb-4">Please tell us why you want to cancel this order:</p>
-
-              <div className="space-y-3">
-                <select
-                  value={selectedReason}
-                  onChange={(e) => setSelectedReason(e.target.value)}
-                  className="w-full p-2 border border-black/50 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
-                >
-                  <option value="">Select a reason</option>
-                  {cancellationReasons.map(reason => (
-                    <option key={reason} value={reason}>{reason}</option>
-                  ))}
-                </select>
-
-                {selectedReason === 'Other' && (
-                  <textarea
-                    value={cancellationReason}
-                    onChange={(e) => setCancellationReason(e.target.value)}
-                    placeholder="Please provide details..."
-                    rows="3"
-                    className="w-full p-2 border border-black/50 rounded text-sm resize-none focus:outline-none focus:ring-1 focus:ring-gray-400"
-                    maxLength={200}
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 p-4 border-t border-black/50">
-              <button
-                onClick={() => setCancellingOrder(null)}
-                className="flex-1 px-4 py-2 text-gray-700 border border-black/50 rounded text-sm hover:bg-gray-50 transition-colors"
-              >
-                Keep Order
-              </button>
-              <button
-                onClick={() => cancelOrder(cancellingOrder)}
-                disabled={!selectedReason || (selectedReason === 'Other' && !cancellationReason.trim())}
-                className={`flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded transition-colors ${
-                  (!selectedReason || (selectedReason === 'Other' && !cancellationReason.trim()))
-                    ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'
-                }`}
-              >
-                Confirm Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <CancellationModal
+          cancellingOrder={cancellingOrder}
+          setCancellingOrder={setCancellingOrder}
+          selectedReason={selectedReason}
+          setSelectedReason={setSelectedReason}
+          cancellationReason={cancellationReason}
+          setCancellationReason={setCancellationReason}
+          cancellationReasons={cancellationReasons}
+          cancelOrder={cancelOrder}
+        />
       )}
 
       <div>
-        {orders.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50 rounded-2xl">
-            <div className="mx-auto h-12 w-12 text-gray-900 mb-4">
-              <img src={assets.parcel_icon} alt="No orders" className="opacity-50" />
-            </div>
-            <p className="text-gray-900">No active orders found</p>
-            <p className="text-gray-900 text-sm mt-1">Your orders will appear here once placed</p>
-          </div>
-        ) : (
-          orders.map((order) => (
-            <OrderCard
-              key={order._id}
-              order={order}
-              currency={currency}
-              backendUrl={backendUrl}
-              isCancellable={canCancelOrder(order)}
-              onCancelOrder={setCancellingOrder}
-            />
-          ))
-        )}
+        {ordersList}
       </div>
     </div>
   );
