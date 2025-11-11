@@ -20,14 +20,17 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
   // Memoized rating calculation
   const renderRating = useCallback((ratingValue = 0) => {
     const stars = [];
+    const fullStars = Math.floor(ratingValue);
+    const hasHalfStar = ratingValue % 1 >= 0.5;
+
     for (let i = 1; i <= 5; i++) {
-      if (i <= ratingValue) {
+      if (i <= fullStars) {
         stars.push(
           <span key={i} className="text-yellow-400">
             <FaStar size={14} />
           </span>
         );
-      } else if (i - 0.5 <= ratingValue) {
+      } else if (i === fullStars + 1 && hasHalfStar) {
         stars.push(
           <span key={i} className="text-yellow-400">
             <FaStarHalf size={14} />
@@ -70,8 +73,8 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
     if (!showDiscount) return null;
     
     return (
-      <div className="absolute right-2 top-2 rounded-full bg-black px-3 py-1 text-xs font-medium text-white z-10">
-        {discountPercentage}% OFF
+      <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold z-10">
+        -{discountPercentage}%
       </div>
     );
   }, [showDiscount, discountPercentage]);
@@ -79,7 +82,7 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
   return (
     <div 
       onClick={handleClick} 
-      className="cursor-pointer bg-white rounded-2xl border border-black/80 p-2 hover:shadow-lg transition-all duration-300 hover:-translate-y-2"
+      className="cursor-pointer bg-white rounded-2xl border border-black/50 p-2 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col h-[420px] w-full max-w-[320px] mx-auto group"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -90,42 +93,54 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
       }}
       aria-label={`View ${name} product details`}
     >
-      <div className="relative overflow-hidden rounded-xl mb-4">
+      {/* Image Section */}
+      <div className="relative overflow-hidden rounded-xl mb-4 flex-shrink-0">
         {discountBadge}
-        <img
-          className="w-full h-48 object-cover rounded-xl transition-transform duration-500 hover:scale-105"
-          src={image}
-          alt={name}
-          loading="lazy"
-          width="300"
-          height="192"
-          decoding="async"
-        />
+        <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden group-hover:shadow-md transition-shadow duration-300">
+          <img
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            src={image}
+            alt={name}
+            loading="lazy"
+            width={280}
+            height={280}
+            decoding="async"
+          />
+        </div>
       </div>
       
-      <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 h-12">
-        {name}
-      </h3>
-      
-      {ratingDisplay}
-      
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <p className="text-lg font-bold text-gray-900">
-            {currency} {actualPrice}
-          </p>
-          {showDiscount && (
-            <p className="text-sm text-gray-500 line-through">
-              {currency} {price}
-            </p>
-          )}
-        </div>
+      {/* Content Section */}
+      <div className="flex flex-col flex-1">
+        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 text-base leading-tight flex-1 group-hover:text-gray-700 transition-colors">
+          {name}
+        </h3>
         
-        <div 
-          className="w-9 h-9 bg-black rounded-full flex items-center justify-center transition-colors duration-200"
-          aria-hidden="true"
-        >
-          <FaArrowRight size={16} className="text-white" />
+        {ratingDisplay}
+        
+        <div className="flex items-center justify-between mt-auto pt-2">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <p className="text-lg font-bold text-gray-900">
+                {currency} {actualPrice}
+              </p>
+              {showDiscount && (
+                <p className="text-sm text-gray-500 line-through">
+                  {currency} {price}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <button 
+            className="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center transition-all duration-300 group-hover:bg-black group-hover:scale-110 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 flex-shrink-0"
+            aria-label="View product details"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClick();
+            }}
+          >
+            <FaArrowRight size={14} className="text-white transition-transform group-hover:translate-x-0.5" />
+          </button>
         </div>
       </div>
     </div>
