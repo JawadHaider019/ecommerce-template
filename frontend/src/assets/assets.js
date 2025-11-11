@@ -1,7 +1,7 @@
 
-import banner1 from './banner1.jpeg';
-import banner2 from './banner2.jpeg';
-import banner3 from './banner3.jpeg';
+import banner1 from './banner1.webp';
+import banner2 from './banner2.webp';
+import banner3 from './banner3.webp';
 import whyus from './whyus.webp';
 import Newsletter from './Newsletter.webp';
 import logo from './logo.webp';
