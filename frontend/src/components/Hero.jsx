@@ -17,6 +17,31 @@ const createCache = (duration = 5 * 60 * 1000) => ({
 const bannerCache = createCache(5 * 60 * 1000);
 const businessCache = createCache(10 * 60 * 1000);
 
+// ✅ Image optimization utility
+const optimizeImageUrl = (imageUrl, options = {}) => {
+  if (!imageUrl) return null;
+  
+  const {
+    width = 1200, // ✅ Optimized for LCP - reduced from 1920px
+    height = 630,  // ✅ Optimized aspect ratio
+    quality = 80,  // ✅ Good quality with compression
+    format = 'webp' // ✅ Next-gen format
+  } = options;
+
+  // If using Cloudinary or similar CDN
+  if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary')) {
+    return imageUrl.replace(/upload\//, `upload/w_${width},h_${height},q_${quality},f_${format}/`);
+  }
+  
+  // If using your own backend with image optimization
+  if (imageUrl.includes('/uploads/')) {
+    return `${imageUrl}?w=${width}&h=${height}&q=${quality}&format=${format}`;
+  }
+  
+  // Fallback - return original (consider implementing server-side optimization)
+  return imageUrl;
+};
+
 const Hero = () => {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,49 +58,44 @@ const Hero = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const mountedRef = useRef(true);
   const [loadedImages, setLoadedImages] = useState(new Set());
-  const [isAboveFold, setIsAboveFold] = useState(true);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
-  // ✅ Critical: Mark as LCP candidate and preload
+  // ✅ CRITICAL: Preload first banner image with high priority
   useEffect(() => {
-    // Add LCP priority hints
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = banners[0]?.imageUrl;
-    if (banners[0]?.imageUrl) {
-      document.head.appendChild(link);
-    }
+    if (banners.length > 0 && banners[0].imageUrl) {
+      const optimizedUrl = optimizeImageUrl(banners[0].imageUrl, {
+        width: 1200,
+        height: 630,
+        quality: 85,
+        format: 'webp'
+      });
 
-    // Set LCP element attributes
-    const lcpElement = document.querySelector('[data-lcp="true"]');
-    if (lcpElement) {
-      lcpElement.setAttribute('fetchpriority', 'high');
+      // Remove any existing preloads
+      const existingPreloads = document.querySelectorAll('link[rel="preload"][as="image"]');
+      existingPreloads.forEach(link => link.remove());
+
+      // Create new preload for optimized image
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = optimizedUrl;
+      link.setAttribute('fetchpriority', 'high');
+      link.setAttribute('imagesrcset', optimizedUrl);
+      document.head.appendChild(link);
+
+      console.log('🔄 Preloaded LCP image:', optimizedUrl);
     }
   }, [banners]);
-
-  // ✅ Critical: Check if component is above the fold
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsAboveFold(entry.isIntersecting);
-      },
-      { threshold: 0.5 }
-    );
-
-    const heroElement = document.getElementById('hero-section');
-    if (heroElement) {
-      observer.observe(heroElement);
-    }
-
-    return () => observer.disconnect();
-  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
+      
+      // Cleanup preloads on unmount
+      const preloads = document.querySelectorAll('link[rel="preload"][as="image"]');
+      preloads.forEach(link => link.remove());
     };
   }, []);
 
@@ -158,7 +178,6 @@ const Hero = () => {
     } catch (err) {
       if (mountedRef.current) {
         setError(err.name === 'AbortError' ? 'Request timeout' : 'Failed to load banners');
-        // Ensure we have empty array on error
         setBanners([]);
       }
     } finally {
@@ -299,28 +318,53 @@ const Hero = () => {
     beforeChange: (_, next) => setCurrentSlide(next),
   }), [banners.length]);
 
-  // ✅ CRITICAL: Optimized Banner Image Component for LCP
+  // ✅ OPTIMIZED: Banner Image Component with WebP and proper sizing
   const BannerImage = useCallback(({ banner, index }) => {
     const isFirstImage = index === 0;
     
+    // ✅ Generate optimized image URLs
+    const optimizedUrl = optimizeImageUrl(banner.imageUrl, {
+      width: isFirstImage ? 1200 : 800, // Higher priority for first image
+      height: isFirstImage ? 630 : 420,
+      quality: isFirstImage ? 85 : 75,
+      format: 'webp'
+    });
+
+    const fallbackUrl = optimizeImageUrl(banner.imageUrl, {
+      width: isFirstImage ? 1200 : 800,
+      quality: isFirstImage ? 90 : 80,
+      format: 'jpg' // Fallback for browsers that don't support WebP
+    });
+
     return (
-      <img
-        src={banner.imageUrl}
-        alt={banner.headingLine1 || "Premium Banner"}
-        className={`w-full h-full object-cover transition-opacity duration-500 ${
-          loadedImages.has(banner.imageUrl) ? 'opacity-100' : 'opacity-0'
-        }`}
-        // ✅ LCP Optimization: Critical attributes for first image
-        loading={isFirstImage ? "eager" : "lazy"}
-        decoding={isFirstImage ? "sync" : "async"}
-        fetchpriority={isFirstImage ? "high" : "auto"}
-        width="1920"
-        height="1080"
-        // ✅ Mark as LCP candidate for first image
-        data-lcp={isFirstImage ? "true" : "false"}
-        onLoad={() => handleImageLoad(banner.imageUrl)}
-        onError={() => handleImageLoad(banner.imageUrl)}
-      />
+      <picture>
+        {/* ✅ WebP with fallback */}
+        <source 
+          srcSet={optimizedUrl} 
+          type="image/webp" 
+        />
+        <source 
+          srcSet={fallbackUrl} 
+          type="image/jpeg" 
+        />
+        <img
+          src={fallbackUrl}
+          alt={banner.headingLine1 || "Pure Clay - Premium Organic Products"}
+          className={`w-full h-full object-cover transition-opacity duration-500 ${
+            loadedImages.has(banner.imageUrl) ? 'opacity-100' : 'opacity-0'
+          }`}
+          // ✅ LCP Optimization for first image
+          loading={isFirstImage ? "eager" : "lazy"}
+          decoding={isFirstImage ? "sync" : "async"}
+          fetchpriority={isFirstImage ? "high" : "auto"}
+          width="1200"
+          height="630"
+          // ✅ Mark as LCP candidate
+          data-lcp={isFirstImage ? "true" : "false"}
+          onLoad={() => handleImageLoad(banner.imageUrl)}
+          onError={() => handleImageLoad(banner.imageUrl)}
+        />
+      </picture>
     );
   }, [loadedImages, handleImageLoad]);
 
@@ -397,18 +441,6 @@ const Hero = () => {
     </section>
   ), [handleButtonClick, SocialMediaIcons, BannerImage, loadedImages]);
 
-  // ✅ CRITICAL: Preload first banner image in HTML head
-  useEffect(() => {
-    if (banners.length > 0 && banners[0].imageUrl) {
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'image';
-      link.href = banners[0].imageUrl;
-      link.setAttribute('fetchpriority', 'high');
-      document.head.appendChild(link);
-    }
-  }, [banners]);
-
   // Render slider
   const renderSlider = () => {
     if (banners.length === 0 && !loading) return null;
@@ -477,7 +509,6 @@ const Hero = () => {
     );
   }
 
-  // Main return - always render something
   return (
     <div 
       id="hero-section"
@@ -491,7 +522,7 @@ const Hero = () => {
           border-radius: 1.5rem;
         }
         
-        /* ✅ Critical: Ensure LCP image loads with priority */
+        /* ✅ Ensure LCP image loads with maximum priority */
         img[data-lcp="true"] {
           content-visibility: auto;
         }
