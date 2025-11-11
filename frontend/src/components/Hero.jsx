@@ -17,31 +17,6 @@ const createCache = (duration = 5 * 60 * 1000) => ({
 const bannerCache = createCache(5 * 60 * 1000);
 const businessCache = createCache(10 * 60 * 1000);
 
-// ✅ Image optimization utility
-const optimizeImageUrl = (imageUrl, options = {}) => {
-  if (!imageUrl) return null;
-  
-  const {
-    width = 1200, // ✅ Optimized for LCP - reduced from 1920px
-    height = 630,  // ✅ Optimized aspect ratio
-    quality = 80,  // ✅ Good quality with compression
-    format = 'webp' // ✅ Next-gen format
-  } = options;
-
-  // If using Cloudinary or similar CDN
-  if (imageUrl.includes('cloudinary') || imageUrl.includes('res.cloudinary')) {
-    return imageUrl.replace(/upload\//, `upload/w_${width},h_${height},q_${quality},f_${format}/`);
-  }
-  
-  // If using your own backend with image optimization
-  if (imageUrl.includes('/uploads/')) {
-    return `${imageUrl}?w=${width}&h=${height}&q=${quality}&format=${format}`;
-  }
-  
-  // Fallback - return original (consider implementing server-side optimization)
-  return imageUrl;
-};
-
 const Hero = () => {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,45 +32,13 @@ const Hero = () => {
   const sliderRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const mountedRef = useRef(true);
-  const [loadedImages, setLoadedImages] = useState(new Set());
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-
-  // ✅ CRITICAL: Preload first banner image with high priority
-  useEffect(() => {
-    if (banners.length > 0 && banners[0].imageUrl) {
-      const optimizedUrl = optimizeImageUrl(banners[0].imageUrl, {
-        width: 1200,
-        height: 630,
-        quality: 85,
-        format: 'webp'
-      });
-
-      // Remove any existing preloads
-      const existingPreloads = document.querySelectorAll('link[rel="preload"][as="image"]');
-      existingPreloads.forEach(link => link.remove());
-
-      // Create new preload for optimized image
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'image';
-      link.href = optimizedUrl;
-      link.setAttribute('fetchpriority', 'high');
-      link.setAttribute('imagesrcset', optimizedUrl);
-      document.head.appendChild(link);
-
-      console.log('🔄 Preloaded LCP image:', optimizedUrl);
-    }
-  }, [banners]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      
-      // Cleanup preloads on unmount
-      const preloads = document.querySelectorAll('link[rel="preload"][as="image"]');
-      preloads.forEach(link => link.remove());
     };
   }, []);
 
@@ -178,6 +121,7 @@ const Hero = () => {
     } catch (err) {
       if (mountedRef.current) {
         setError(err.name === 'AbortError' ? 'Request timeout' : 'Failed to load banners');
+        // Ensure we have empty array on error
         setBanners([]);
       }
     } finally {
@@ -198,11 +142,6 @@ const Hero = () => {
   // Handle button click
   const handleButtonClick = useCallback((e) => {
     e.stopPropagation();
-  }, []);
-
-  // Handle image load
-  const handleImageLoad = useCallback((imageUrl) => {
-    setLoadedImages(prev => new Set(prev).add(imageUrl));
   }, []);
 
   // Social media platforms configuration
@@ -280,7 +219,6 @@ const Hero = () => {
               key={index}
               onClick={() => sliderRef.current?.slickGoTo(index)}
               className="focus:outline-none transition-all duration-300"
-              aria-label={`Go to slide ${index + 1}`}
             >
               <div 
                 className={`transition-all duration-300 rounded-full ${
@@ -318,67 +256,20 @@ const Hero = () => {
     beforeChange: (_, next) => setCurrentSlide(next),
   }), [banners.length]);
 
-  // ✅ OPTIMIZED: Banner Image Component with WebP and proper sizing
-  const BannerImage = useCallback(({ banner, index }) => {
-    const isFirstImage = index === 0;
-    
-    // ✅ Generate optimized image URLs
-    const optimizedUrl = optimizeImageUrl(banner.imageUrl, {
-      width: isFirstImage ? 1200 : 800, // Higher priority for first image
-      height: isFirstImage ? 630 : 420,
-      quality: isFirstImage ? 85 : 75,
-      format: 'webp'
-    });
-
-    const fallbackUrl = optimizeImageUrl(banner.imageUrl, {
-      width: isFirstImage ? 1200 : 800,
-      quality: isFirstImage ? 90 : 80,
-      format: 'jpg' // Fallback for browsers that don't support WebP
-    });
-
-    return (
-      <picture>
-        {/* ✅ WebP with fallback */}
-        <source 
-          srcSet={optimizedUrl} 
-          type="image/webp" 
-        />
-        <source 
-          srcSet={fallbackUrl} 
-          type="image/jpeg" 
-        />
-        <img
-          src={fallbackUrl}
-          alt={banner.headingLine1 || "Pure Clay - Premium Organic Products"}
-          className={`w-full h-full object-cover transition-opacity duration-500 ${
-            loadedImages.has(banner.imageUrl) ? 'opacity-100' : 'opacity-0'
-          }`}
-          // ✅ LCP Optimization for first image
-          loading={isFirstImage ? "eager" : "lazy"}
-          decoding={isFirstImage ? "sync" : "async"}
-          fetchpriority={isFirstImage ? "high" : "auto"}
-          width="1200"
-          height="630"
-          // ✅ Mark as LCP candidate
-          data-lcp={isFirstImage ? "true" : "false"}
-          onLoad={() => handleImageLoad(banner.imageUrl)}
-          onError={() => handleImageLoad(banner.imageUrl)}
-        />
-      </picture>
-    );
-  }, [loadedImages, handleImageLoad]);
-
   // Banner Item Component
   const BannerItem = useCallback(({ banner, index }) => (
     <section className="relative w-full h-full">
       {/* Background Image Container */}
       <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl mx-auto overflow-hidden">
-        <BannerImage banner={banner} index={index} />
-        
-        {/* Loading placeholder */}
-        {!loadedImages.has(banner.imageUrl) && (
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse" />
-        )}
+        <img
+          src={banner.imageUrl}
+          alt={banner.headingLine1 || "Premium Banner"}
+          className="w-full h-full object-cover"
+          loading={index === 0 ? "eager" : "lazy"}
+          decoding="async"
+          width="1920"
+          height="1080"
+        />
       </div>
 
       {/* Overlays */}
@@ -410,7 +301,6 @@ const Hero = () => {
                 to={banner.redirectUrl}
                 onClick={handleButtonClick}
                 className="inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 text-white border border-white/50 rounded-full transition-all duration-300 hover:bg-white/10 hover:border-white/80 group"
-                aria-label={banner.buttonText}
               >
                 <span className="text-xs md:text-sm font-medium tracking-wider uppercase">
                   {banner.buttonText}
@@ -439,7 +329,7 @@ const Hero = () => {
         </div>
       </div>
     </section>
-  ), [handleButtonClick, SocialMediaIcons, BannerImage, loadedImages]);
+  ), [handleButtonClick, SocialMediaIcons]);
 
   // Render slider
   const renderSlider = () => {
@@ -462,10 +352,7 @@ const Hero = () => {
   // Loading state
   if (loading) {
     return (
-      <section 
-        id="hero-section"
-        className="relative w-full h-[100vh] md:h-screen transform -translate-y-9 md:-translate-y-[2.7rem]"
-      >
+      <section className="relative w-full h-[100vh] md:h-screen transform -translate-y-9 md:-translate-y-[2.7rem]">
         <div className="absolute inset-0 flex items-center justify-center px-4">
           <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse overflow-hidden">
             <div className="absolute inset-0 bg-black/40 z-2 rounded-3xl md:rounded-4xl"></div>
@@ -497,7 +384,6 @@ const Hero = () => {
                 <button
                   onClick={fetchBanners}
                   className="px-6 md:px-8 py-2 md:py-3 text-sm md:text-base font-medium text-gray-900 bg-white rounded-full hover:bg-gray-100"
-                  aria-label="Try loading banners again"
                 >
                   Try Again
                 </button>
@@ -509,22 +395,15 @@ const Hero = () => {
     );
   }
 
+  // Main return - always render something
   return (
-    <div 
-      id="hero-section"
-      className="relative w-full transform -translate-y-9 md:-translate-y-[2.7rem]"
-    >
+    <div className="relative w-full transform -translate-y-9 md:-translate-y-[2.7rem]">
       <style>{`
         .slick-slide > div {
           border-radius: 1.5rem;
         }
         .slick-list {
           border-radius: 1.5rem;
-        }
-        
-        /* ✅ Ensure LCP image loads with maximum priority */
-        img[data-lcp="true"] {
-          content-visibility: auto;
         }
       `}</style>
       
