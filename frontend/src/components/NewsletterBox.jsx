@@ -97,7 +97,7 @@ const NewsletterBox = () => {
         <p className="mt-3 text-lg text-gray-300">
           {isUnsubscribing 
             ? "We're sorry to see you go. Enter your email to unsubscribe from our newsletter."
-            : "Get exclusive deals, skincare tips, and early access to new natural products."
+            : "Get exclusive deals, Organic Living tips, and early access to new natural products."
           }
         </p>
 

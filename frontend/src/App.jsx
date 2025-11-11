@@ -13,12 +13,32 @@ import Orders from './pages/Orders'
 import PlaceOrder from './pages/PlaceOrder'
 import Blog from './pages/Blog'
 import BlogPost from './pages/BlogPost'
-import FaqBot from './components/FaqBot' // Add this import
-
+import FaqBot from './components/FaqBot'
 import { ToastContainer } from 'react-toastify'
 import Footer from './components/Footer'
 import 'react-toastify/dist/ReactToastify.css'
 import Favicon from './components/Favicon' 
+import { assets } from './assets/assets' // Import your assets
+
+// Logo Component for SEO
+const LogoSEO = () => {
+  return (
+    <div style={{ 
+      position: 'absolute', 
+      left: '-9999px', 
+      top: '-9999px',
+      width: '112px',
+      height: '112px'
+    }}>
+      <img 
+        src={assets.logo} 
+        alt="Pure Clay - Pakistan's Organic Foods Brand" 
+        width="112" 
+        height="112" 
+      />
+    </div>
+  );
+};
 
 const App = () => {
   return (
@@ -36,13 +56,10 @@ const App = () => {
         pauseOnHover
         theme="colored"
         style={{
-          // Success toast - black background with white text
           '--toastify-color-success': '#000000',
           '--toastify-text-color-success': '#ffffff',
-          // Error toast - red background with white text
           '--toastify-color-error': '#dc2626', 
           '--toastify-text-color-error': '#ffffff',
-          // Progress bar colors
           '--toastify-color-progress-success': '#10b981',
           '--toastify-color-progress-error': '#fca5a5',
         }}
@@ -68,9 +85,12 @@ const App = () => {
         <Route path="/blog/:id" element={<BlogPost />} />
         <Route path='/orders' element={<Orders/>}/>
         <Route path='/place-order' element={<PlaceOrder/>}/>
+        
+        {/* ✅ ADD LOGO ROUTE FOR SEO */}
+        <Route path='/images/logo.png' element={<LogoSEO />} />
       </Routes>
       <Footer/>
-      <FaqBot /> {/* Add FAQ Bot here */}
+      <FaqBot />
     </div>
   )
 }
