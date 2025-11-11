@@ -3,19 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     
-    <!-- ✅ CRITICAL: Basic favicon for Google crawler -->
+    <!-- ✅ CRITICAL: Favicon Setup -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="theme-color" content="#000000">
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- ✅ CRITICAL: SEO Meta Tags for Indexing -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <link rel="canonical" href="https://pureclay.org/">
     
     <!-- ✅ Google Search Console Meta Tag Verification -->
     <meta name="google-site-verification" content="c0876b0e7a2b01c2" />
     
     <!-- Meta Description -->
     <meta name="description" content="Pure Clay - Pakistan's No. 1 organic brand for premium olive oil, peanuts, dates & natural foods. 100% pure, chemical-free products trusted nationwide." />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Pure Clay - Pakistan's Leading Organic Foods Brand | Olive Oil & Natural Products">
+    <meta property="og:description" content="Pakistan's No. 1 organic brand for premium olive oil, peanuts, dates & natural foods. 100% pure, chemical-free products trusted nationwide.">
+    <meta property="og:url" content="https://pureclay.org">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://pureclay.org/logo.png">
+    <meta property="og:site_name" content="Pure Clay">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Pure Clay - Pakistan's Leading Organic Foods Brand">
+    <meta name="twitter:description" content="Pakistan's No. 1 organic brand for premium olive oil, peanuts, dates & natural foods">
+    <meta name="twitter:image" content="https://pureclay.org/logo.png">
     
     <title>Pure Clay - Pakistan's Leading Organic Foods Brand | Olive Oil & Natural Products</title>
 
@@ -62,19 +82,29 @@
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
 
-    <!-- ✅ Logo Structured Data -->
+    <!-- ✅ Enhanced Structured Data -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Organization",
       "name": "Pure Clay",
       "url": "https://pureclay.org",
-      "logo": "https://pureclay.org/images/logo.png",
+      "logo": "https://pureclay.org/logo.png",
       "description": "Pakistan's leading organic brand for premium olive oil, peanuts, dates and natural foods",
       "address": {
         "@type": "PostalAddress",
         "addressCountry": "PK"
-      }
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "availableLanguage": ["en", "ur"]
+      },
+      "sameAs": [
+        "https://www.facebook.com/pureclay",
+        "https://www.instagram.com/pureclay",
+        "https://www.tiktok.com/@pureclay"
+      ]
     }
     </script>
   </head>
