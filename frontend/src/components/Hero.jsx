@@ -33,8 +33,44 @@ const Hero = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const mountedRef = useRef(true);
   const [loadedImages, setLoadedImages] = useState(new Set());
+  const [isAboveFold, setIsAboveFold] = useState(true);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+  // ✅ Critical: Mark as LCP candidate and preload
+  useEffect(() => {
+    // Add LCP priority hints
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = banners[0]?.imageUrl;
+    if (banners[0]?.imageUrl) {
+      document.head.appendChild(link);
+    }
+
+    // Set LCP element attributes
+    const lcpElement = document.querySelector('[data-lcp="true"]');
+    if (lcpElement) {
+      lcpElement.setAttribute('fetchpriority', 'high');
+    }
+  }, [banners]);
+
+  // ✅ Critical: Check if component is above the fold
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsAboveFold(entry.isIntersecting);
+      },
+      { threshold: 0.5 }
+    );
+
+    const heroElement = document.getElementById('hero-section');
+    if (heroElement) {
+      observer.observe(heroElement);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -263,22 +299,30 @@ const Hero = () => {
     beforeChange: (_, next) => setCurrentSlide(next),
   }), [banners.length]);
 
-  // Optimized Banner Image Component
-  const BannerImage = useCallback(({ banner, index }) => (
-    <img
-      src={banner.imageUrl}
-      alt={banner.headingLine1 || "Premium Banner"}
-      className={`w-full h-full object-cover transition-opacity duration-500 ${
-        loadedImages.has(banner.imageUrl) ? 'opacity-100' : 'opacity-0'
-      }`}
-      loading={index === 0 ? "eager" : "lazy"}
-      decoding="async"
-      width="1920"
-      height="1080"
-      onLoad={() => handleImageLoad(banner.imageUrl)}
-      onError={() => handleImageLoad(banner.imageUrl)} // Fallback if image fails
-    />
-  ), [loadedImages, handleImageLoad]);
+  // ✅ CRITICAL: Optimized Banner Image Component for LCP
+  const BannerImage = useCallback(({ banner, index }) => {
+    const isFirstImage = index === 0;
+    
+    return (
+      <img
+        src={banner.imageUrl}
+        alt={banner.headingLine1 || "Premium Banner"}
+        className={`w-full h-full object-cover transition-opacity duration-500 ${
+          loadedImages.has(banner.imageUrl) ? 'opacity-100' : 'opacity-0'
+        }`}
+        // ✅ LCP Optimization: Critical attributes for first image
+        loading={isFirstImage ? "eager" : "lazy"}
+        decoding={isFirstImage ? "sync" : "async"}
+        fetchpriority={isFirstImage ? "high" : "auto"}
+        width="1920"
+        height="1080"
+        // ✅ Mark as LCP candidate for first image
+        data-lcp={isFirstImage ? "true" : "false"}
+        onLoad={() => handleImageLoad(banner.imageUrl)}
+        onError={() => handleImageLoad(banner.imageUrl)}
+      />
+    );
+  }, [loadedImages, handleImageLoad]);
 
   // Banner Item Component
   const BannerItem = useCallback(({ banner, index }) => (
@@ -353,6 +397,18 @@ const Hero = () => {
     </section>
   ), [handleButtonClick, SocialMediaIcons, BannerImage, loadedImages]);
 
+  // ✅ CRITICAL: Preload first banner image in HTML head
+  useEffect(() => {
+    if (banners.length > 0 && banners[0].imageUrl) {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = banners[0].imageUrl;
+      link.setAttribute('fetchpriority', 'high');
+      document.head.appendChild(link);
+    }
+  }, [banners]);
+
   // Render slider
   const renderSlider = () => {
     if (banners.length === 0 && !loading) return null;
@@ -374,7 +430,10 @@ const Hero = () => {
   // Loading state
   if (loading) {
     return (
-      <section className="relative w-full h-[100vh] md:h-screen transform -translate-y-9 md:-translate-y-[2.7rem]">
+      <section 
+        id="hero-section"
+        className="relative w-full h-[100vh] md:h-screen transform -translate-y-9 md:-translate-y-[2.7rem]"
+      >
         <div className="absolute inset-0 flex items-center justify-center px-4">
           <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse overflow-hidden">
             <div className="absolute inset-0 bg-black/40 z-2 rounded-3xl md:rounded-4xl"></div>
@@ -420,13 +479,21 @@ const Hero = () => {
 
   // Main return - always render something
   return (
-    <div className="relative w-full transform -translate-y-9 md:-translate-y-[2.7rem]">
+    <div 
+      id="hero-section"
+      className="relative w-full transform -translate-y-9 md:-translate-y-[2.7rem]"
+    >
       <style>{`
         .slick-slide > div {
           border-radius: 1.5rem;
         }
         .slick-list {
           border-radius: 1.5rem;
+        }
+        
+        /* ✅ Critical: Ensure LCP image loads with priority */
+        img[data-lcp="true"] {
+          content-visibility: auto;
         }
       `}</style>
       
