@@ -207,7 +207,7 @@ const MarkdownRenderer = ({ content }) => {
 };
 
 // API Service Functions
-const API_BASE_URL = 'http://localhost:4000/api/blogs';
+const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api/blogs`;
 
 const apiRequest = async (endpoint, options = {}) => {
   try {
