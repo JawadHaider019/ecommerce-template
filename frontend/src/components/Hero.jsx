@@ -20,7 +20,6 @@ const businessCache = createCache(10 * 60 * 1000);
 const Hero = () => {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [businessInfo, setBusinessInfo] = useState({
     socialMedia: {
       facebook: "",
@@ -64,7 +63,7 @@ const Hero = () => {
     const fetchBusinessDetails = async () => {
       try {
         const response = await axios.get(`${backendUrl}/api/business-details`, {
-          timeout: 3000
+          timeout: 5000
         });
         if (response.data.success && response.data.data) {
           businessCache.data = response.data.data;
@@ -74,6 +73,7 @@ const Hero = () => {
           }
         }
       } catch (error) {
+        // Silently fail - use cached data or default values
         console.log('Business details fetch failed, using cached data if available');
       }
     };
@@ -92,10 +92,9 @@ const Hero = () => {
 
     try {
       setLoading(true);
-      setError(null);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(`${backendUrl}/api/banners/active`, {
         signal: controller.signal,
@@ -106,7 +105,9 @@ const Hero = () => {
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       const data = await response.json();
 
@@ -120,9 +121,9 @@ const Hero = () => {
         throw new Error('Invalid response format');
       }
     } catch (err) {
+      // Silently handle all errors - don't set error state
       if (mountedRef.current) {
-        setError(err.name === 'AbortError' ? 'Request timeout' : 'Failed to load banners');
-        // Ensure we have empty array on error
+        // Ensure we have empty array on error to show fallback UI
         setBanners([]);
       }
     } finally {
@@ -276,7 +277,7 @@ const Hero = () => {
       width="1920"
       height="1080"
       onLoad={() => handleImageLoad(banner.imageUrl)}
-      onError={() => handleImageLoad(banner.imageUrl)} // Fallback if image fails
+      onError={() => handleImageLoad(banner.imageUrl)}
     />
   ), [loadedImages, handleImageLoad]);
 
@@ -353,20 +354,31 @@ const Hero = () => {
     </section>
   ), [handleButtonClick, SocialMediaIcons, BannerImage, loadedImages]);
 
+  // Fallback banner content when no banners are available
+  const fallbackBanners = useMemo(() => [{
+    _id: 'fallback',
+    imageUrl: '',
+    headingLine1: 'Premium',
+    headingLine2: 'Experience',
+    subtext: 'Discover our exclusive collection and services',
+    buttonText: 'Explore Now',
+    redirectUrl: '/services'
+  }], []);
+
   // Render slider
   const renderSlider = () => {
-    if (banners.length === 0 && !loading) return null;
+    const bannersToShow = banners.length > 0 ? banners : fallbackBanners;
 
     return (
       <div className="transform -translate-y-9 md:-translate-y-[2.7rem] relative">
         <Slider ref={sliderRef} {...settings}>
-          {banners.map((banner, index) => (
-            <div key={banner._id || banner.imageUrl} className="px-0 mx-0">
+          {bannersToShow.map((banner, index) => (
+            <div key={banner._id || `banner-${index}`} className="px-0 mx-0">
               <BannerItem banner={banner} index={index} />
             </div>
           ))}
         </Slider>
-        <CustomDots />
+        {bannersToShow.length > 1 && <CustomDots />}
       </div>
     );
   };
@@ -384,32 +396,6 @@ const Hero = () => {
               <div className="text-center px-4 md:px-6 max-w-7xl md:max-w-8xl">
                 <div className="h-16 md:h-20 bg-white/10 animate-pulse rounded-full mb-4 md:mb-6 w-64 md:w-96 mx-auto"></div>
                 <div className="h-10 md:h-12 bg-white/10 animate-pulse rounded-full w-32 md:w-40 mx-auto mt-6 md:mt-10"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <section className="relative w-full h-[100vh] md:h-screen transform -translate-y-9 md:-translate-y-[2.7rem]">
-        <div className="absolute inset-0 flex items-center justify-center px-4">
-          <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
-            <div className="absolute inset-0 bg-black/40 z-2 rounded-3xl md:rounded-4xl"></div>
-            
-            <div className="relative z-10 h-full flex items-center justify-center text-center text-white px-4 md:px-6">
-              <div>
-                <p className="text-lg md:text-xl mb-4 md:mb-6 font-light">{error}</p>
-                <button
-                  onClick={fetchBanners}
-                  className="px-6 md:px-8 py-2 md:py-3 text-sm md:text-base font-medium text-gray-900 bg-white rounded-full hover:bg-gray-100"
-                  aria-label="Try loading banners again"
-                >
-                  Try Again
-                </button>
               </div>
             </div>
           </div>
