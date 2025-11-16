@@ -73,8 +73,8 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
     if (!showDiscount) return null;
     
     return (
-      <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold z-10">
-        -{discountPercentage}%
+      <div className="absolute top-3 right-3 bg-black text-white px-2 py-1 rounded-full text-xs font-bold z-10">
+        {discountPercentage}% OFF
       </div>
     );
   }, [showDiscount, discountPercentage]);
