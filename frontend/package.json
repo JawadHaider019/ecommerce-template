@@ -1,5 +1,5 @@
 {
-  "name": "pureclat",
+  "name": "pureclay",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -45,6 +45,7 @@
     "prettier": "^3.3.3",
     "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^3.4.14",
+    "terser": "^5.44.1",
     "vite": "^5.4.14",
     "vite-plugin-imagemin": "^0.6.1"
   }
