@@ -53,7 +53,7 @@ const CartTotal = () => {
                     <div>
                         <p>Shipping Fee</p>
                         {!isFreeDelivery && amountNeeded > 0 && (
-                            <p className="text-xs text-green-600 mt-1">
+                            <p className="text-md font-bold text-red-600 mt-1">
                                 Add {currency} {amountNeeded.toFixed(2)} more for FREE delivery!
                             </p>
                         )}

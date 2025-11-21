@@ -132,7 +132,7 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
           </div>
           
           <button 
-            className="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center transition-all duration-300 group-hover:bg-black group-hover:scale-110 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 flex-shrink-0"
+            className="w-9 h-9 bg-black rounded-full flex items-center justify-center transition-all duration-300 group-hover:bg-black group-hover:scale-110 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 flex-shrink-0"
             aria-label="View product details"
             onClick={(e) => {
               e.stopPropagation();

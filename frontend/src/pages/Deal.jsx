@@ -11,13 +11,16 @@ const RelatedDeals = lazy(() => import('../components/RelatedDeals'));
 
 const Deal = () => {
   const { dealId } = useParams();
-  const { 
-    backendUrl, 
-    currency, 
-    addDealToCart,
-    user, 
-    token
-  } = useContext(ShopContext);
+ const { 
+  backendUrl, 
+  currency, 
+  addDealToCart,
+  user, 
+  token,
+  getCartAmount,
+  isFreeDeliveryAvailable,
+  getAmountForFreeDelivery
+} = useContext(ShopContext);
   
   const [dealData, setDealData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -504,32 +507,108 @@ const Deal = () => {
     return stars;
   }, []);
 
-  // Optimized add to cart with debouncing
-  const handleAddToCart = useCallback(async () => {
-    if (isAddingToCart || addToCartCalledRef.current) {
-      return;
-    }
 
-    setIsAddingToCart(true);
-    addToCartCalledRef.current = true;
 
-    try {
-      if (addDealToCart) {
-        addDealToCart(dealId, quantity);
-        toast.success('Deal added to cart!');
-        setQuantity(1);
+// Optimized add to cart with debouncing and delivery messaging
+const handleAddToCart = useCallback(async () => {
+  if (isAddingToCart || addToCartCalledRef.current) {
+    return;
+  }
+
+  setIsAddingToCart(true);
+  addToCartCalledRef.current = true;
+
+  try {
+    // Get current cart amount BEFORE adding the deal
+    const currentCartAmount = getCartAmount?.() || 0;
+    
+    // Calculate the amount this deal will add
+    const dealAmount = dealData.dealFinalPrice * quantity;
+    
+    // Calculate total amount after adding this deal
+    const totalAmountAfterAdd = currentCartAmount + dealAmount;
+    
+    if (addDealToCart) {
+      addDealToCart(dealId, quantity);
+      
+      // Use our calculated amount instead of calling getCartAmount again
+      const isFreeDelivery = isFreeDeliveryAvailable?.(totalAmountAfterAdd) || false;
+      const amountNeeded = getAmountForFreeDelivery?.(totalAmountAfterAdd) || 0;
+      
+      // Show professional delivery message
+      if (isFreeDelivery) {
+        // Free delivery achieved
+        toast.success(
+          <div className="flex items-center gap-2">
+            <div className="flex-shrink-0">
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">✓</span>
+              </div>
+            </div>
+            <div>
+              <div className="font-semibold text-green-800">Your FREE delivery! 🎉</div>
+            </div>
+          </div>,
+          {
+            autoClose: 4000,
+            className: 'bg-green-50 border border-green-200',
+            progressClassName: 'bg-green-500'
+          }
+        );
+      } else if (amountNeeded > 0) {
+        // Need more for free delivery
+        toast.success(
+          <div className="flex items-center gap-2">
+            <div className="flex-shrink-0">
+              <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">!</span>
+              </div>
+            </div>
+            <div>
+              <div className="font-semibold">Deal added to cart</div>
+              <div className="text-red-600 font-medium text-sm mt-1">
+                Add <strong>{currency} {amountNeeded.toFixed(2)}</strong> more for FREE delivery
+              </div>
+            </div>
+          </div>,
+          {
+            autoClose: 5000,
+            className: 'bg-white border border-red-200',
+            progressClassName: 'bg-red-500'
+          }
+        );
       } else {
-        toast.error('Unable to add deal to cart');
+        // Regular success message
+        toast.success(
+          <div className="flex items-center gap-2">
+            <div className="flex-shrink-0">
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">✓</span>
+              </div>
+            </div>
+            <div className="font-semibold">Deal added to cart</div>
+          </div>,
+          {
+            autoClose: 3000,
+            className: 'bg-green-50 border border-green-200',
+            progressClassName: 'bg-green-500'
+          }
+        );
       }
-    } catch (error) {
-      toast.error('Failed to add deal to cart');
-    } finally {
-      setTimeout(() => {
-        setIsAddingToCart(false);
-        addToCartCalledRef.current = false;
-      }, 1000);
+      
+      setQuantity(1);
+    } else {
+      toast.error('Unable to add deal to cart');
     }
-  }, [isAddingToCart, addDealToCart, dealId, quantity]);
+  } catch (error) {
+    toast.error('Failed to add deal to cart');
+  } finally {
+    setTimeout(() => {
+      setIsAddingToCart(false);
+      addToCartCalledRef.current = false;
+    }, 1000);
+  }
+}, [isAddingToCart, addDealToCart, dealId, quantity, dealData, getCartAmount, getAmountForFreeDelivery, isFreeDeliveryAvailable, currency]);
 
   const renderClickableStars = useCallback((currentRating, setRatingFunc) => {
     const stars = [];

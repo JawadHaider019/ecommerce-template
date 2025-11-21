@@ -15,7 +15,7 @@ const LatestCollection = () => {
   const sliderRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Use useMemo to filter and process products
+  // Use useMemo to filter and process products - MAX 4 PRODUCTS
   const processedProducts = useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
 
@@ -26,12 +26,13 @@ const LatestCollection = () => {
         return isPublished;
       });
 
-      // Remove duplicate products by ID and get latest 10 from published products
+      // Remove duplicate products by ID and get latest 4 from published products
       const uniqueProducts = publishedProducts.filter((product, index, self) =>
         index === self.findIndex(p => p._id === product._id)
       );
       
-      const latestUniqueProducts = uniqueProducts.slice(0, 10);
+      // MAX 4 PRODUCTS
+      const latestUniqueProducts = uniqueProducts.slice(0, 20);
 
       return latestUniqueProducts;
 
@@ -80,7 +81,7 @@ const LatestCollection = () => {
     return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5";
   };
 
-  // Enhanced Slick Slider settings for better mobile experience
+  // Enhanced Slick Slider settings for better mobile experience - SAME AS BEFORE
   const sliderSettings = {
     dots: true, 
     infinite: latestProducts.length > 1,
@@ -198,7 +199,7 @@ const LatestCollection = () => {
     )
   };
 
-  // Add inline styles to override slick dots
+  // Add inline styles to override slick dots - SAME AS BEFORE
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
@@ -232,7 +233,7 @@ const LatestCollection = () => {
     };
   }, []);
 
-  // NEW: Always show slider when we have multiple products
+  // NEW: Always show slider when we have multiple products - SAME LOGIC
   const shouldShowSlider = () => {
     // Always show slider if we have more than 1 product
     // This ensures dots are visible on all devices
@@ -241,7 +242,7 @@ const LatestCollection = () => {
 
   const [showSlider, setShowSlider] = useState(false);
 
-  // Update slider visibility on mount and resize
+  // Update slider visibility on mount and resize - SAME LOGIC
   useEffect(() => {
     const updateSliderVisibility = () => {
       setShowSlider(shouldShowSlider());
@@ -302,7 +303,7 @@ const LatestCollection = () => {
           No products available at the moment.
         </div>
       ) : showSlider ? (
-        // Show slider when we have more products than can be shown on screen
+        // Show slider when we have more products than can be shown on screen - SAME SLIDER
         <div className="relative px-1 sm:px-2">
           <Slider ref={sliderRef} {...sliderSettings}>
             {latestProducts.map((item) => (
@@ -322,8 +323,8 @@ const LatestCollection = () => {
             ))}
           </Slider>
           
-          {/* Add custom arrows outside the slider - hidden on mobile */}
-          {latestProducts.length > Math.min(4, latestProducts.length) && (
+          {/* Add custom arrows outside the slider - hidden on mobile - SAME LOGIC */}
+          {latestProducts.length > Math.min(3, latestProducts.length) && (
             <>
               <PrevArrow onClick={() => sliderRef.current?.slickPrev()} />
               <NextArrow onClick={() => sliderRef.current?.slickNext()} />
@@ -331,7 +332,7 @@ const LatestCollection = () => {
           )}
         </div>
       ) : (
-        // Show regular grid only when we have exactly 1 product
+        // Show regular grid only when we have exactly 1 product - SAME GRID
         <div className={`grid ${getGridColumns()} gap-2 sm:gap-3 gap-y-6 px-1 sm:px-2`}>
           {latestProducts.map((item) => (
             <ProductItem

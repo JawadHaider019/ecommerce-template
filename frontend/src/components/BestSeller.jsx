@@ -15,7 +15,7 @@ const BestSeller = () => {
   const sliderRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Use useMemo to filter and process bestseller products
+  // Use useMemo to filter and process bestseller products - MAX 4 PRODUCTS
   const processedBestSellers = useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
 
@@ -44,8 +44,8 @@ const BestSeller = () => {
         return [];
       }
 
-      // Limit to 10 bestseller products
-      const finalBestSellers = bestProducts.slice(0, 10);
+      // Limit to 4 bestseller products
+      const finalBestSellers = bestProducts.slice(0, 4);
 
       return finalBestSellers;
 
@@ -84,19 +84,9 @@ const BestSeller = () => {
     );
   };
 
-  // Calculate grid columns for non-slider view (when less than 4 products)
-  const getGridColumns = () => {
-    const count = bestSeller.length;
-    if (count === 1) return "grid-cols-1 max-w-md mx-auto";
-    if (count === 2) return "grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto";
-    if (count === 3) return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 max-w-4xl mx-auto";
-    if (count === 4) return "grid-cols-2 sm:grid-cols-2 md:grid-cols-4 max-w-6xl mx-auto";
-    return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5";
-  };
-
-  // Enhanced Slick Slider settings for better mobile experience
+  // Enhanced Slick Slider settings with proper spacing for fewer products - SAME AS BEFORE
   const sliderSettings = {
-    dots: true, // Dots enabled by default for all devices
+    dots: true,
     infinite: bestSeller.length > 1,
     speed: 500,
     slidesToShow: Math.min(4, bestSeller.length),
@@ -108,70 +98,64 @@ const BestSeller = () => {
     swipeToSlide: true,
     touchThreshold: 10,
     arrows: false,
+    centerMode: bestSeller.length <= 3, // Only center when we have few products
+    centerPadding: bestSeller.length <= 3 ? "40px" : "0px", // Small padding only for few products
+    focusOnSelect: false,
     beforeChange: (current, next) => setCurrentSlide(next),
     responsive: [
       {
-        breakpoint: 1280, // Desktop
+        breakpoint: 1280,
+        settings: {
+          slidesToShow: Math.min(4, bestSeller.length),
+          slidesToScroll: 1,
+          infinite: bestSeller.length > 4,
+          autoplay: bestSeller.length > 4,
+          centerMode: bestSeller.length <= 3,
+          centerPadding: bestSeller.length <= 3 ? "40px" : "0px"
+        }
+      },
+      {
+        breakpoint: 1024,
         settings: {
           slidesToShow: Math.min(3, bestSeller.length),
           slidesToScroll: 1,
           infinite: bestSeller.length > 3,
           autoplay: bestSeller.length > 3,
-          dots: true // Ensure dots are enabled
+          centerMode: bestSeller.length <= 2,
+          centerPadding: bestSeller.length <= 2 ? "40px" : "0px"
         }
       },
       {
-        breakpoint: 1024, // Small desktop/Tablet landscape
-        settings: {
-          slidesToShow: Math.min(3, bestSeller.length),
-          slidesToScroll: 1,
-          infinite: bestSeller.length > 3,
-          autoplay: bestSeller.length > 3,
-          dots: true // Ensure dots are enabled
-        }
-      },
-      {
-        breakpoint: 768, // Tablet
+        breakpoint: 768,
         settings: {
           slidesToShow: Math.min(2, bestSeller.length),
           slidesToScroll: 1,
           infinite: bestSeller.length > 2,
           autoplay: bestSeller.length > 2,
-          dots: true // Ensure dots are enabled
+          dots: true,
+          centerMode: bestSeller.length <= 2,
+          centerPadding: bestSeller.length <= 2 ? "20px" : "0px"
         }
       },
       {
-        breakpoint: 640, // Mobile
+        breakpoint: 640,
         settings: {
           slidesToShow: 1,
           slidesToScroll: 1,
           infinite: bestSeller.length > 1,
           autoplay: bestSeller.length > 1,
-          dots: true, // Ensure dots are enabled
+          dots: bestSeller.length > 1,
           arrows: false,
           swipe: true,
           touchMove: true,
-          adaptiveHeight: true
-        }
-      },
-      {
-        breakpoint: 480, // Small mobile
-        settings: {
-          slidesToShow: 1,
-          slidesToScroll: 1,
-          infinite: bestSeller.length > 1,
-          autoplay: bestSeller.length > 1,
-          dots: true, // Ensure dots are enabled
-          arrows: false,
+          adaptiveHeight: false,
           centerMode: false,
-          swipe: true,
-          touchMove: true,
-          adaptiveHeight: true
+          centerPadding: "0px"
         }
       }
     ],
     appendDots: dots => (
-      <div className="mt-8 md:mt-10"> {/* Increased margin top */}
+      <div className="mt-8 md:mt-10"> 
         <ul style={{ 
           display: 'flex', 
           justifyContent: 'center', 
@@ -212,7 +196,7 @@ const BestSeller = () => {
     )
   };
 
-  // Add inline styles to override slick dots
+  // Add inline styles to override slick dots and reduce spacing - SAME AS BEFORE
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
@@ -238,6 +222,25 @@ const BestSeller = () => {
       .slick-dots li button:focus {
         background: transparent !important;
       }
+      /* Minimal spacing between slides */
+      .slick-slide {
+        padding: 0 4px !important;
+      }
+      .slick-list {
+        margin: 0 -4px !important;
+      }
+      /* Ensure proper slide alignment */
+      .slick-track {
+        display: flex !important;
+        align-items: stretch !important;
+      }
+      .slick-slide {
+        height: auto !important;
+        float: none !important;
+      }
+      .slick-slide > div {
+        height: 100%;
+      }
     `;
     document.head.appendChild(style);
     
@@ -246,28 +249,45 @@ const BestSeller = () => {
     };
   }, []);
 
-  // NEW: Always show slider when we have multiple products
+  // Better approach: Use grid for 2-4 products, slider for 5+ products
   const shouldShowSlider = () => {
-    // Always show slider if we have more than 1 product
-    // This ensures dots are visible on all devices
-    return bestSeller.length > 1;
+    return bestSeller.length >= 5; // Only use slider when we have 5 or more products
   };
 
-  const [showSlider, setShowSlider] = useState(false);
+  const shouldUseGrid = () => {
+    return bestSeller.length >= 2 && bestSeller.length <= 4;
+  };
 
-  // Update slider visibility on mount and resize
+  const [layoutType, setLayoutType] = useState('grid');
+
   useEffect(() => {
-    const updateSliderVisibility = () => {
-      setShowSlider(shouldShowSlider());
+    const updateLayout = () => {
+      if (bestSeller.length === 1) {
+        setLayoutType('single');
+      } else if (bestSeller.length >= 2 && bestSeller.length <= 4) {
+        setLayoutType('grid');
+      } else {
+        setLayoutType('slider');
+      }
     };
 
-    updateSliderVisibility();
-    window.addEventListener('resize', updateSliderVisibility);
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
     
     return () => {
-      window.removeEventListener('resize', updateSliderVisibility);
+      window.removeEventListener('resize', updateLayout);
     };
   }, [bestSeller.length]);
+
+  // Calculate grid columns for optimal display - SAME AS BEFORE
+  const getGridColumns = () => {
+    const count = bestSeller.length;
+    if (count === 1) return "grid-cols-1 max-w-md mx-auto";
+    if (count === 2) return "grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto";
+    if (count === 3) return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 max-w-5xl mx-auto";
+    if (count === 4) return "grid-cols-2 sm:grid-cols-2 md:grid-cols-4 max-w-7xl mx-auto";
+    return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5";
+  };
 
   if (loading) {
     return (
@@ -315,8 +335,8 @@ const BestSeller = () => {
         <div className="text-center text-gray-500 py-8 px-4">
           No best sellers available at the moment. Check back soon!
         </div>
-      ) : showSlider ? (
-        // Show slider when we have more products than can be shown on screen
+      ) : layoutType === 'slider' ? (
+        // Show slider only when we have 5+ products - SAME AS BEFORE
         <div className="relative px-1 sm:px-2">
           <Slider ref={sliderRef} {...sliderSettings}>
             {bestSeller.map((item) => (
@@ -336,7 +356,7 @@ const BestSeller = () => {
             ))}
           </Slider>
           
-          {/* Add custom arrows outside the slider - hidden on mobile */}
+          {/* Add custom arrows outside the slider - hidden on mobile - SAME AS BEFORE */}
           {bestSeller.length > Math.min(4, bestSeller.length) && (
             <>
               <PrevArrow onClick={() => sliderRef.current?.slickPrev()} />
@@ -344,9 +364,9 @@ const BestSeller = () => {
             </>
           )}
         </div>
-      ) : (
-        // Show regular grid only when we have exactly 1 product
-        <div className={`grid ${getGridColumns()} gap-2 sm:gap-3 gap-y-6 px-2 sm:px-4`}>
+      ) : layoutType === 'grid' ? (
+        // Show grid for 2-4 products (better spacing control) - SAME AS BEFORE
+        <div className={`grid ${getGridColumns()} gap-4 sm:gap-6 px-4 sm:px-6 mx-auto`}>
           {bestSeller.map((item) => (
             <ProductItem
               key={item._id || item.id}
@@ -359,6 +379,24 @@ const BestSeller = () => {
               status={item.status}
             />
           ))}
+        </div>
+      ) : (
+        // Show single product centered - SAME AS BEFORE
+        <div className="flex justify-center px-4">
+          <div className="grid grid-cols-1 max-w-md mx-auto">
+            {bestSeller.map((item) => (
+              <ProductItem
+                key={item._id || item.id}
+                id={item._id || item.id}
+                image={item.image && item.image.length > 0 ? item.image[0] : "/images/fallback-image.jpg"}
+                name={item.name || "Unnamed Product"}
+                price={item.price || 0}
+                discount={item.discountprice || item.discountPrice || 0}
+                rating={item.rating || 0}
+                status={item.status}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

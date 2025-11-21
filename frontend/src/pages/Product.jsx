@@ -7,7 +7,9 @@ import { toast } from 'react-toastify';
 
 const Product = () => {
   const { productId } = useParams();
-  const { products, currency, addToCart, user, token, backendUrl } = useContext(ShopContext);
+  const { products, currency, addToCart, user, token, backendUrl,   getCartAmount, 
+        isFreeDeliveryAvailable,
+        getAmountForFreeDelivery, } = useContext(ShopContext);
   const [productData, setProductData] = useState(null);
   const [image, setImage] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -510,40 +512,101 @@ const Product = () => {
   }, []);
 
   const handleAddToCart = useCallback(async () => {
-    if (isAddingToCart || addToCartCalledRef.current) {
-      return;
-    }
+  if (isAddingToCart || addToCartCalledRef.current) {
+    return;
+  }
 
-    if (stock === 0) {
-      toast.error('This product is out of stock');
-      return;
-    }
-    
-    const finalQuantity = Math.min(quantity, stock);
-    
-    if (finalQuantity !== quantity) {
-      setQuantity(finalQuantity);
-      toast.info(`Quantity adjusted to available stock: ${finalQuantity}`);
-    }
-    
-    setIsAddingToCart(true);
-    addToCartCalledRef.current = true;
+  if (stock === 0) {
+    toast.error('This product is out of stock');
+    return;
+  }
+  
+  const finalQuantity = Math.min(quantity, stock);
+  
+  if (finalQuantity !== quantity) {
+    setQuantity(finalQuantity);
+    toast.info(`Quantity adjusted to available stock: ${finalQuantity}`);
+  }
+  
+  setIsAddingToCart(true);
+  addToCartCalledRef.current = true;
 
-    try {
-      addToCart(productData._id, finalQuantity);
-      toast.success('Product added to cart!');
-      setQuantity(1);
+  try {
+    // Get current cart amount BEFORE adding the product
+    const currentCartAmount = getCartAmount?.() || 0;
     
-    } catch (error) {
-      toast.error('Failed to add product to cart');
-    } finally {
-      setTimeout(() => {
-        setIsAddingToCart(false);
-        addToCartCalledRef.current = false;
-      }, 1000);
+    // Calculate the amount this product will add
+    const productAmount = (productData.discountprice || productData.price) * finalQuantity;
+    
+    // Calculate total amount after adding this product
+    const totalAmountAfterAdd = currentCartAmount + productAmount;
+    
+    addToCart(productData._id, finalQuantity);
+    
+    // Use our calculated amount instead of calling getCartAmount again
+    const isFreeDelivery = isFreeDeliveryAvailable?.(totalAmountAfterAdd) || false;
+    const amountNeeded = getAmountForFreeDelivery?.(totalAmountAfterAdd) || 0;
+    
+    // Show professional delivery message
+    if (isFreeDelivery) {
+      // Free delivery achieved
+      toast.success(
+        <div className="flex items-center gap-2">
+       
+            <div className="font-semibold text-green-800">Your FREE delivery! 🎉</div>
+          </div>
+      ,
+        {
+          autoClose: 4000,
+          className: 'bg-green-50 border border-green-200',
+          progressClassName: 'bg-green-500'
+        }
+      );
+    } else if (amountNeeded > 0) {
+      // Need more for free delivery
+      toast.success(
+        <div>
+            <div className="text-red-600 font-medium text-sm mt-1">
+              Add <strong>{currency} {amountNeeded.toFixed(2)}</strong> more for FREE delivery
+            </div>
+          </div>
+      ,
+        {
+          autoClose: 5000,
+          className: 'bg-white border border-red-200',
+          progressClassName: 'bg-red-500'
+        }
+      );
+    } else {
+      // Regular success message
+      toast.success(
+        <div className="flex items-center gap-2">
+          <div className="flex-shrink-0">
+            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-bold">✓</span>
+            </div>
+          </div>
+          <div className="font-semibold">Product added to cart</div>
+        </div>,
+        {
+          autoClose: 3000,
+          className: 'bg-green-50 border border-green-200',
+          progressClassName: 'bg-green-500'
+        }
+      );
     }
-  }, [isAddingToCart, stock, quantity, productData]);
-
+    
+    setQuantity(1);
+  
+  } catch (error) {
+    toast.error('Failed to add product to cart');
+  } finally {
+    setTimeout(() => {
+      setIsAddingToCart(false);
+      addToCartCalledRef.current = false;
+    }, 1000);
+  }
+}, [isAddingToCart, stock, quantity, productData, getCartAmount, getAmountForFreeDelivery, isFreeDeliveryAvailable, currency]);
   const renderClickableStars = useCallback((currentRating, setRatingFunc) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
