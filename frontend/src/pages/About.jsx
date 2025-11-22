@@ -179,7 +179,7 @@ const About = () => {
               key={index}
               className="bg-white p-8 rounded-3xl text-center group hover:shadow-xl transition-all duration-500 border border-black/50 hover:scale-105"
             >
-              <div className="w-20 h-20 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500 group-hover:bg-black/50">
+              <div className="w-20 h-20 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500 ">
                 <item.icon className="text-black-600 text-3xl" aria-hidden="true" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-4 font-serif">{item.title}</h3>
