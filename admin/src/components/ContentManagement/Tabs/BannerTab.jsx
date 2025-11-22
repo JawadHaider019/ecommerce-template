@@ -920,66 +920,54 @@ const BannerCard = ({
             </div>
           </>
         ) : (
-          /* View Mode */
+          /* View Mode - Updated with HeroSection styling */
           <div className="flex flex-col gap-4">
-            {/* Banner Preview */}
-            <div className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] overflow-hidden bg-black border border-gray-300 rounded-lg">
-              {(banner.imagePreview || banner.imageUrl) ? (
-                <img
-                  src={banner.imagePreview || banner.imageUrl}
-                  alt="Banner Preview"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
-                  <div className="text-center text-gray-400">
-                    <i className="fas fa-image text-xl sm:text-2xl mb-2"></i>
-                    <p className="text-sm">Banner Image</p>
-                  </div>
-                </div>
-              )}
+            {/* Banner Preview with HeroSection styling */}
+            <div className="relative">
+              {/* Dark overlay */}
+              <div className=" absolute inset-0 bg-black bg-opacity-40 z-10 rounded-3xl"></div>
               
-              {/* Dark Overlay */}
-              <div className="absolute inset-0 bg-black/50 z-10"></div>
+              {/* Main Image */}
+              <img
+                src={banner.imagePreview || banner.imageUrl}
+                alt="Banner Preview"
+                className=" w-full h-[90vh] object-cover rounded-3xl"
+                loading="eager"
+                decoding="sync"
+                width={1920}
+                height={1080}
+              />
               
-              {/* Content overlay - Responsive positioning */}
-              <div className="absolute inset-0 z-20 flex flex-col justify-between p-4 sm:p-6">
-                {/* Top heading section */}
-                <div className="flex-1 flex items-start pt-8 sm:pt-10 md:pt-25">
-                  <h1 className="text-oswald text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-8xl font-extrabold text-white uppercase leading-tight sm:leading-none tracking-tighter">
+              {/* Content */}
+              <div className="absolute inset-0 z-20 flex flex-col items-center -translate-y-10 justify-center text-center text-white px-4">
+                <div>
+                  {/* Headline */}
+                  <h1 className="lg:text-8xl text-7xl font-bold mb-6 uppercase">
                     {banner.headingLine1 || "Your Banner Heading"}
                     {banner.headingLine2 && (
-                      <>
-                        <br />
-                        <span className="md:pl-10 pl-0 text-holo">{banner.headingLine2}</span>
-                      </>
+                      <> <span className="font-bold">{banner.headingLine2}</span></>
                     )}
                   </h1>
-                </div>
-
-                {/* Bottom content section */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                
                   {/* Subtext */}
                   {banner.subtext && (
-                    <div className="flex-1">
-                      <p className="font-mono text-xs sm:text-sm uppercase max-w-full sm:max-w-60 md:max-w-80 border-y border-white/70 py-2 text-white/90">
-                        {banner.subtext}
-                      </p>
-                    </div>
+                    <p className="text-xl md:text-2xl font-light max-w-3xl leading-relaxed">
+                      {banner.subtext}
+                    </p>
                   )}
 
                   {/* Button */}
                   {banner.buttonText && banner.redirectUrl && (
-                    <div className="text-right w-full sm:w-auto">
+                    <div className="mt-8">
                       <Link
                         to={banner.redirectUrl}
-                        className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm md:text-base font-semibold text-white lowercase transition-all duration-300 hover:text-gray-100 hover:scale-105 bg-black bg-opacity-50 rounded-md"
-                        aria-label={`${banner.buttonText} - ${banner.headingLine1}`}
+                        className="inline-flex items-center gap-3 px-8 py-4 text-white border border-white/50 rounded-full transition-all duration-300 hover:bg-white/10 hover:border-white/80 group"
+                        aria-label={banner.buttonText}
                       >
-                        {banner.buttonText}
-                        <span className="inline-flex items-center justify-center w-4 h-4 bg-white text-black rounded-full">
-                          <IoIosArrowForward size={12} className="sm:w-4 sm:h-4" />
+                        <span className="text-sm font-medium tracking-wider uppercase">
+                          {banner.buttonText}
                         </span>
+                        <IoIosArrowForward size={14} className="transition-transform group-hover:translate-x-1" />
                       </Link>
                     </div>
                   )}
@@ -1044,7 +1032,7 @@ const BannerCard = ({
   );
 };
 
-// Main Banner Display Component for Website
+// Main Banner Display Component for Website - Updated with HeroSection styling
 export const BannerDisplay = ({ banners = [] }) => {
   const [activeBanners, setActiveBanners] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1089,23 +1077,31 @@ export const BannerDisplay = ({ banners = [] }) => {
 
   if (loading) {
     return (
-      <section className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] overflow-hidden bg-black">
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse"></div>
-        <div className="absolute inset-0 bg-black/50"></div>
-      </section>
+      <div className="relative">
+        <div className=" absolute inset-0 bg-black bg-opacity-40 z-10 rounded-3xl"></div>
+        <div className=" w-full h-[90vh] object-cover rounded-3xl bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse"></div>
+        
+        <div className="absolute inset-0 z-20 flex flex-col items-center -translate-y-10 justify-center text-center text-white px-4">
+          <div className="h-20 bg-white/10 animate-pulse rounded-full mb-6 w-96 mx-auto"></div>
+          <div className="h-6 bg-white/10 animate-pulse rounded-full w-80 mx-auto mt-4"></div>
+          <div className="h-12 bg-white/10 animate-pulse rounded-full w-40 mx-auto mt-8"></div>
+        </div>
+      </div>
     );
   }
 
   if (activeBanners.length === 0) {
     return (
-      <section className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] overflow-hidden bg-black">
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-100 to-gray-200"></div>
-        <div className="h-full flex items-center justify-center text-center text-gray-600 px-6">
+      <div className="relative">
+        <div className=" absolute inset-0 bg-black bg-opacity-40 z-10 rounded-3xl"></div>
+        <div className=" w-full h-[90vh] object-cover rounded-3xl bg-gradient-to-r from-gray-100 to-gray-200"></div>
+        
+        <div className="absolute inset-0 z-20 flex flex-col items-center -translate-y-10 justify-center text-center text-gray-600 px-4">
           <div>
             <p className="text-xl font-medium mb-4">No active banners available</p>
           </div>
         </div>
-      </section>
+      </div>
     );
   }
 
@@ -1113,70 +1109,62 @@ export const BannerDisplay = ({ banners = [] }) => {
 
   return (
     <div className="relative w-full overflow-hidden" aria-label="Featured banners">
-      {/* Single Banner Display */}
-      <section className="relative w-full h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[90vh] overflow-hidden bg-black">
+      {/* Single Banner Display with HeroSection styling */}
+      <div className="relative">
+        {/* Dark overlay */}
+        <div className=" absolute inset-0 bg-black bg-opacity-40 z-10 rounded-3xl"></div>
+        
         {/* Background Image */}
         <img
           src={currentBanner.imageUrl}
           alt={currentBanner.headingLine1 || "Banner"}
-          className="w-full h-full object-cover"
+          className=" w-full h-[90vh] object-cover rounded-3xl"
           loading="eager"
-          decoding="async"
-          width="1920"
-          height="1080"
+          decoding="sync"
+          width={1920}
+          height={1080}
         />
 
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-black/50 z-10"></div>
-
-        {/* Content overlay - Responsive positioning */}
-        <div className="absolute inset-0 z-20 flex flex-col justify-between p-4 sm:p-6">
-          {/* Top heading section */}
-          <div className="flex-1 flex items-start pt-8 sm:pt-10 md:pt-25">
-            <h1 className="text-oswald text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-8xl font-extrabold text-white uppercase leading-tight sm:leading-none tracking-tighter">
+        {/* Content */}
+        <div className="absolute inset-0 z-20 flex flex-col items-center -translate-y-10 justify-center text-center text-white px-4">
+          <div>
+            {/* Headline */}
+            <h1 className="lg:text-8xl text-7xl font-bold mb-6 uppercase">
               {currentBanner.headingLine1}
               {currentBanner.headingLine2 && (
-                <>
-                  <br />
-                  <span className="md:pl-10 pl-0 text-holo">{currentBanner.headingLine2}</span>
-                </>
+                <> <span className="font-bold">{currentBanner.headingLine2}</span></>
               )}
             </h1>
-          </div>
-
-          {/* Bottom content section */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+          
             {/* Subtext */}
             {currentBanner.subtext && (
-              <div className="flex-1">
-                <p className="font-mono text-xs sm:text-sm uppercase max-w-full sm:max-w-60 md:max-w-80 border-y border-white/70 py-2 text-white/90">
-                  {currentBanner.subtext}
-                </p>
-              </div>
+              <p className="text-xl md:text-2xl font-light max-w-3xl leading-relaxed">
+                {currentBanner.subtext}
+              </p>
             )}
 
             {/* Button */}
             {currentBanner.buttonText && currentBanner.redirectUrl && (
-              <div className="text-right w-full sm:w-auto">
+              <div className="mt-8">
                 <Link
                   to={currentBanner.redirectUrl}
-                  className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm md:text-base font-semibold text-white lowercase transition-all duration-300 hover:text-gray-100 hover:scale-105 bg-black bg-opacity-50 rounded-md"
+                  className="inline-flex items-center gap-3 px-8 py-4 text-white border border-white/50 rounded-full transition-all duration-300 hover:bg-white/10 hover:border-white/80 group"
                   aria-label={`${currentBanner.buttonText} - ${currentBanner.headingLine1}`}
                 >
-                  {currentBanner.buttonText}
-                  <span className="inline-flex items-center justify-center w-4 h-4 bg-white text-black rounded-full">
-                    <IoIosArrowForward size={12} className="sm:w-4 sm:h-4" />
+                  <span className="text-sm font-medium tracking-wider uppercase">
+                    {currentBanner.buttonText}
                   </span>
+                  <IoIosArrowForward size={14} className="transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
             )}
           </div>
         </div>
-      </section>
+      </div>
 
       {/* Navigation Dots for multiple banners */}
       {activeBanners.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-30">
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2 z-30">
           {activeBanners.map((_, index) => (
             <button
               key={index}

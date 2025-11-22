@@ -91,9 +91,9 @@ export const createBanner = async (req, res) => {
     } else {
       const result = await cloudinary.uploader.upload(req.file.path, {
         folder: "banners",
-        transformation: [
-          { width: 1920, height: 600, crop: "fill", quality: "auto" },
-        ],
+           transformation: [
+    { quality: "auto:best" }, // Only optimize quality, don't resize
+  ],  
       });
       imageUrl = result.secure_url;
       imagePublicId = result.public_id;
@@ -168,9 +168,9 @@ export const updateBanner = async (req, res) => {
       } else {
         const result = await cloudinary.uploader.upload(req.file.path, {
           folder: "banners",
-          transformation: [
-            { width: 1920, height: 600, crop: "fill", quality: "auto" },
-          ],
+             transformation: [
+    { quality: "auto:best" }, // Only optimize quality, don't resize
+  ],
         });
         banner.imageUrl = result.secure_url;
         banner.imagePublicId = result.public_id;

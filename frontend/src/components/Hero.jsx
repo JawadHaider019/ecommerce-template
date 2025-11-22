@@ -274,8 +274,8 @@ const Hero = () => {
       }`}
       loading={index === 0 ? "eager" : "lazy"}
       decoding="async"
-      width="1920"
-      height="1080"
+     width={1920}
+        height={1080}
       onLoad={() => handleImageLoad(banner.imageUrl)}
       onError={() => handleImageLoad(banner.imageUrl)}
     />
@@ -295,7 +295,7 @@ const Hero = () => {
       </div>
 
       {/* Overlays */}
-      <div className="absolute inset-0 bg-black/50 z-2 rounded-3xl md:rounded-4xl"></div>
+      <div className="absolute inset-0 bg-black/30 z-2 rounded-3xl md:rounded-4xl"></div>
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30 z-3 rounded-3xl md:rounded-4xl"></div>
 
       {/* Content */}
@@ -362,7 +362,7 @@ const Hero = () => {
     headingLine2: 'Experience',
     subtext: 'Discover our exclusive collection and services',
     buttonText: 'Explore Now',
-    redirectUrl: '/services'
+    redirectUrl: '/collection'
   }], []);
 
   // Render slider
