@@ -85,7 +85,7 @@ const Navbar = () => {
   return (
     <>
       {/* Mobile Header with Logo + Settings + Hamburger */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50 p-3 shadow-sm">
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50  shadow-sm">
         <div className="flex justify-between items-center">
           {/* Logo links to dashboard */}
           <Link to="/" className="p-1">
