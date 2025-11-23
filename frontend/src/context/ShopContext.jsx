@@ -32,6 +32,8 @@ const ShopContextProvider = ({ children }) => {
   const [dealReviews, setDealReviews] = useState({});
   const [deliverySettings, setDeliverySettings] = useState(null);
   const [deliverySettingsLoading, setDeliverySettingsLoading] = useState(false);
+  const [isBackendAvailable, setIsBackendAvailable] = useState(true);
+  const [hasLoadedCart, setHasLoadedCart] = useState(false);
 
   const [loading, setLoading] = useState({
     products: { status: false, message: "Loading products..." },
@@ -42,6 +44,17 @@ const ShopContextProvider = ({ children }) => {
     reviews: { status: false, message: "Loading reviews..." },
     user: { status: false, message: "Loading user data..." }
   });
+
+  // ==================== BACKEND AVAILABILITY CHECK ====================
+
+  const checkBackendAvailability = useCallback(async () => {
+    try {
+      await axios.get(`${BACKEND_URL}/`, { timeout: 3000 });
+      setIsBackendAvailable(true);
+    } catch (error) {
+      setIsBackendAvailable(false);
+    }
+  }, [BACKEND_URL]);
 
   // ==================== OPTIMIZED LOADING MANAGEMENT ====================
 
@@ -66,14 +79,17 @@ const ShopContextProvider = ({ children }) => {
 
   // ==================== CART PERSISTENCE & LOGIN HANDLING ====================
 
-  // Load cart from localStorage on initial load
+  // Load cart from localStorage on initial load ONLY
   useEffect(() => {
-    const savedCartItems = localStorage.getItem('cartItems');
-    const savedCartDeals = localStorage.getItem('cartDeals');
-    
-    if (savedCartItems) setCartItems(JSON.parse(savedCartItems));
-    if (savedCartDeals) setCartDeals(JSON.parse(savedCartDeals));
-  }, []);
+    if (!hasLoadedCart) {
+      const savedCartItems = localStorage.getItem('cartItems');
+      const savedCartDeals = localStorage.getItem('cartDeals');
+      
+      if (savedCartItems) setCartItems(JSON.parse(savedCartItems));
+      if (savedCartDeals) setCartDeals(JSON.parse(savedCartDeals));
+      setHasLoadedCart(true);
+    }
+  }, [hasLoadedCart]);
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
@@ -86,18 +102,21 @@ const ShopContextProvider = ({ children }) => {
     }
   }, [cartItems, cartDeals]);
 
-  // Load user cart when logged in and merge with guest cart
+  // Load user cart when logged in
   useEffect(() => {
-    if (token && user) {
+    // Only merge carts once when user logs in and we have backend
+    if (token && user && isBackendAvailable && hasLoadedCart) {
       loadUserCartAndMerge();
     }
-  }, [token, user]);
+  }, [token, user, isBackendAvailable, hasLoadedCart]);
 
   const loadUserCartAndMerge = async () => {
     try {
-      const guestCartItems = localStorage.getItem('cartItems');
-      const guestCartDeals = localStorage.getItem('cartDeals');
+      // Get current local cart BEFORE making API call
+      const currentLocalItems = { ...cartItems };
+      const currentLocalDeals = { ...cartDeals };
       
+      // Fetch server cart
       const response = await axios.get(`${BACKEND_URL}/api/cart`, {
         headers: { token },
         timeout: 5000
@@ -107,42 +126,46 @@ const ShopContextProvider = ({ children }) => {
         const serverCartItems = response.data.cartData?.products || {};
         const serverCartDeals = response.data.cartData?.deals || {};
         
-        if (guestCartItems || guestCartDeals) {
-          const mergedCartItems = { ...serverCartItems };
-          const mergedCartDeals = { ...serverCartDeals };
-          
-          if (guestCartItems) {
-            const guestItems = JSON.parse(guestCartItems);
-            Object.entries(guestItems).forEach(([itemId, quantity]) => {
-              if (quantity > 0) {
-                mergedCartItems[itemId] = (mergedCartItems[itemId] || 0) + quantity;
-              }
-            });
+        // SMART MERGE: Only add items that don't exist in server cart
+        const mergedCartItems = { ...serverCartItems };
+        const mergedCartDeals = { ...serverCartDeals };
+        
+        let itemsMerged = 0;
+        let dealsMerged = 0;
+        
+        // Merge local items into server cart (only if not already in server)
+        Object.entries(currentLocalItems).forEach(([itemId, quantity]) => {
+          if (quantity > 0 && !serverCartItems[itemId]) {
+            mergedCartItems[itemId] = quantity;
+            itemsMerged++;
           }
-          
-          if (guestCartDeals) {
-            const guestDeals = JSON.parse(guestCartDeals);
-            Object.entries(guestDeals).forEach(([dealId, quantity]) => {
-              if (quantity > 0) {
-                mergedCartDeals[dealId] = (mergedCartDeals[dealId] || 0) + quantity;
-              }
-            });
+        });
+        
+        // Merge local deals into server cart (only if not already in server)
+        Object.entries(currentLocalDeals).forEach(([dealId, quantity]) => {
+          if (quantity > 0 && !serverCartDeals[dealId]) {
+            mergedCartDeals[dealId] = quantity;
+            dealsMerged++;
           }
-          
-          setCartItems(mergedCartItems);
-          setCartDeals(mergedCartDeals);
-          
+        });
+        
+        // Update state with merged cart
+        setCartItems(mergedCartItems);
+        setCartDeals(mergedCartDeals);
+        
+        // Sync merged cart to server
+        if (itemsMerged > 0 || dealsMerged > 0) {
           await syncMergedCartToServer(mergedCartItems, mergedCartDeals);
-          
-          localStorage.removeItem('cartItems');
-          localStorage.removeItem('cartDeals');
-        } else {
-          setCartItems(serverCartItems);
-          setCartDeals(serverCartDeals);
         }
+        
+        // Clear localStorage since we've merged to server
+        localStorage.removeItem('cartItems');
+        localStorage.removeItem('cartDeals');
       }
     } catch (error) {
-      // Silent error handling
+      if (error.response?.status === 404) {
+        setIsBackendAvailable(false);
+      }
     }
   };
 
@@ -168,7 +191,7 @@ const ShopContextProvider = ({ children }) => {
     localStorage.removeItem('cartItems');
     localStorage.removeItem('cartDeals');
     
-    if (token) {
+    if (token && isBackendAvailable) {
       try {
         await axios.post(`${BACKEND_URL}/api/cart/clear`, {}, {
           headers: { token },
@@ -207,7 +230,7 @@ const ShopContextProvider = ({ children }) => {
         return updated;
       });
 
-      if (token) {
+      if (token && isBackendAvailable) {
         try {
           await axios.post(
             `${BACKEND_URL}/api/cart/update`,
@@ -217,12 +240,12 @@ const ShopContextProvider = ({ children }) => {
               timeout: 5000
             }
           );
-        } catch {
-          // Silent fail for cart updates
+        } catch (error) {
+          // Silent error handling
         }
       }
     }
-  }, [token, BACKEND_URL, products]);
+  }, [token, BACKEND_URL, products, isBackendAvailable]);
 
   const updateDealQuantity = useCallback(async (dealId, quantity) => {
     if (!dealId || quantity < 0) return;
@@ -246,7 +269,7 @@ const ShopContextProvider = ({ children }) => {
       return updated;
     });
 
-    if (token) {
+    if (token && isBackendAvailable) {
       try {
         await axios.post(
           `${BACKEND_URL}/api/cart/update-deal`,
@@ -260,7 +283,7 @@ const ShopContextProvider = ({ children }) => {
         // Silent error handling
       }
     }
-  }, [token, BACKEND_URL, deals]);
+  }, [token, BACKEND_URL, deals, isBackendAvailable]);
 
   const addToCart = useCallback(async (itemId, quantity = 1, itemType = 'product') => {
     if (itemType === 'deal') {
@@ -286,7 +309,7 @@ const ShopContextProvider = ({ children }) => {
         return updated;
       });
 
-      if (token) {
+      if (token && isBackendAvailable) {
         try {
           await axios.post(
             `${BACKEND_URL}/api/cart/add`,
@@ -310,7 +333,7 @@ const ShopContextProvider = ({ children }) => {
         toast.success("Product added to cart!");
       }
     }
-  }, [token, BACKEND_URL, cartItems, products]);
+  }, [token, BACKEND_URL, cartItems, products, isBackendAvailable]);
 
   const addDealToCart = useCallback(async (dealId, quantity = 1) => {
     if (!dealId || quantity < 1) return;
@@ -334,7 +357,7 @@ const ShopContextProvider = ({ children }) => {
       return updated;
     });
 
-    if (token) {
+    if (token && isBackendAvailable) {
       try {
         await axios.post(
           `${BACKEND_URL}/api/cart/add-deal`,
@@ -357,7 +380,7 @@ const ShopContextProvider = ({ children }) => {
     } else {
       toast.success("Deal added to cart!");
     }
-  }, [token, BACKEND_URL, deals, cartDeals]);
+  }, [token, BACKEND_URL, deals, cartDeals, isBackendAvailable]);
 
   const removeDealFromCart = useCallback(async (dealId) => {
     await updateDealQuantity(dealId, 0);
@@ -434,7 +457,6 @@ const ShopContextProvider = ({ children }) => {
         }
       }
     } catch {
-      // Silent error handling - no user found is normal for guests
       setUser(null);
       setToken('');
       localStorage.removeItem('token');
@@ -789,6 +811,15 @@ const ShopContextProvider = ({ children }) => {
   }, [deliverySettings]);
 
   const getCart = useCallback(async (token) => {
+    if (!isBackendAvailable) {
+      return;
+    }
+
+    // Don't fetch cart if we're about to merge or already have cart data
+    if (hasLoadedCart && (Object.keys(cartItems).length > 0 || Object.keys(cartDeals).length > 0)) {
+      return;
+    }
+
     setLoadingState('cart', true, "Loading cart...");
     try {
       const response = await axios.get(`${BACKEND_URL}/api/cart`, { 
@@ -796,15 +827,19 @@ const ShopContextProvider = ({ children }) => {
         timeout: 5000
       });
       if (response.data.success) {
-        setCartItems(response.data.cartData?.products || {});
-        setCartDeals(response.data.cartData?.deals || {});
+        const serverCartItems = response.data.cartData?.products || {};
+        const serverCartDeals = response.data.cartData?.deals || {};
+        
+        setCartItems(serverCartItems);
+        setCartDeals(serverCartDeals);
+        setHasLoadedCart(true);
       }
     } catch (error) {
       // Silent error handling
     } finally {
       setLoadingState('cart', false);
     }
-  }, [BACKEND_URL, setLoadingState]);
+  }, [BACKEND_URL, setLoadingState, isBackendAvailable, hasLoadedCart, cartItems, cartDeals]);
 
   // Optimized cart calculations
   const getCartItemCount = useCallback(() => {
@@ -869,7 +904,10 @@ const ShopContextProvider = ({ children }) => {
     if (storedToken) {
       setToken(storedToken);
     }
-  }, []);
+    
+    // Check backend availability on mount
+    checkBackendAvailability();
+  }, [checkBackendAvailability]);
 
   useEffect(() => {
     fetchUserData();
@@ -882,10 +920,10 @@ const ShopContextProvider = ({ children }) => {
   }, [fetchProducts, fetchDeals, fetchDeliverySettings]);
 
   useEffect(() => {
-    if (token) {
+    if (token && isBackendAvailable && !hasLoadedCart) {
       getCart(token);
     }
-  }, [token]);
+  }, [token, isBackendAvailable, hasLoadedCart]);
 
   // ==================== CONTEXT VALUE ====================
 
@@ -907,6 +945,8 @@ const ShopContextProvider = ({ children }) => {
     dealReviews,
     token,
     loading,
+    isBackendAvailable,
+    hasLoadedCart,
     
     // Loading functions
     isLoadingAny,
@@ -962,7 +1002,10 @@ const ShopContextProvider = ({ children }) => {
     
     // Stock functions
     checkProductStock,
-    checkDealStock
+    checkDealStock,
+
+    // Backend status
+    checkBackendAvailability
   }), [
     products,
     deals,
@@ -978,6 +1021,8 @@ const ShopContextProvider = ({ children }) => {
     dealReviews,
     token,
     loading,
+    isBackendAvailable,
+    hasLoadedCart,
     isLoadingAny,
     setLoadingState,
     addToCart,
@@ -1009,7 +1054,8 @@ const ShopContextProvider = ({ children }) => {
     getCart,
     clearCart,
     checkProductStock,
-    checkDealStock
+    checkDealStock,
+    checkBackendAvailability
   ]);
 
   return (
