@@ -1140,23 +1140,23 @@ const PlaceOrder = () => {
                 )}
               </button>
                </div>
-              {/* Validation Summary */}
-              {Object.keys(validationErrors).length > 0 && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-3xl">
-                  <p className="text-red-700 text-sm font-medium">
-                    Please fix the following errors before placing your order:
-                  </p>
-                  <ul className="text-red-600 text-sm mt-2 space-y-1">
-                    {Object.entries(validationErrors).map(([field, error]) => (
-                      field !== 'zipcode' && (
-                        <li key={field} className="flex items-center gap-2">
-                          <span>•</span> {error}
-                        </li>
-                      )
-                    ))}
-                  </ul>
-                </div>
-              )}
+           {/* Validation Summary */}
+{Object.keys(validationErrors).length > 0 && (
+  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-3xl">
+    <p className="text-red-700 text-sm font-medium">
+      Please fix the following errors before placing your order:
+    </p>
+    <ul className="text-red-600 text-sm mt-2 space-y-1">
+      {Object.entries(validationErrors).map(([field, error]) => (
+        field !== 'zipcode' && (
+          <li key={field} className="flex items-center gap-2">
+            <span>•</span> {error}
+          </li>
+        )
+      ))}
+    </ul>
+  </div>
+)}
             </div>
           </div>
         </div>
