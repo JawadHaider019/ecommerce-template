@@ -6,6 +6,7 @@ import { FaWhatsapp, FaTiktok, FaFacebookF, FaInstagram } from "react-icons/fa";
 import { Link } from 'react-router-dom';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
+import { assets } from "../assets/assets";  
 
 // Simple cache implementation
 const createCache = (duration = 5 * 60 * 1000) => ({
@@ -357,7 +358,7 @@ const Hero = () => {
   // Fallback banner content when no banners are available
   const fallbackBanners = useMemo(() => [{
     _id: 'fallback',
-    imageUrl: '',
+    imageUrl: assets.hero_img,
     headingLine1: 'Premium',
     headingLine2: 'Experience',
     subtext: 'Discover our exclusive collection and services',

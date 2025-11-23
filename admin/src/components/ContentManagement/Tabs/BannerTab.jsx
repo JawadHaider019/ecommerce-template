@@ -151,7 +151,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, banner }) => {
                   <img 
                     src={banner.imageUrl} 
                     alt="Banner preview" 
-                    className="h-16 sm:h-20 w-24 sm:w-32 object-cover border rounded"
+                    className="h-16 sm:h-20 w-24 sm:w-32 object-contain border rounded"
                   />
                 </div>
               )}

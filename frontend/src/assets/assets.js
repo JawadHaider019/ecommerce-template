@@ -1,11 +1,9 @@
 
-import banner1 from './banner1.webp';
-import banner2 from './banner2.webp';
-import banner3 from './banner3.webp';
+
 import whyus from './whyus.webp';
 import Newsletter from './Newsletter.webp';
 import logo from './logo.webp';
-import hero_img from './hero_img.png';
+import hero_img from './hero_img.webp';
 import cart_icon from './cart_icon.png';
 import bin_icon from './bin_icon.png';
 import dropdown_icon from './dropdown_icon.png';
@@ -20,9 +18,7 @@ import menu_icon from './menu_icon.png';
 import about_img from './about_img.webp';
 import about_img2 from './about_img2.webp';
 import about_img3 from './about_img2.webp';
-import contact_img from './contact_img.png';
-import cross_icon from './cross_icon.png';
-import fav from './fav.png'
+
 
 export const assets = {
   logo,
@@ -41,10 +37,7 @@ export const assets = {
   about_img,
   about_img2,
   about_img3,
-  contact_img,
-  cross_icon,
   whyus,
   Newsletter,
-  fav,
 };
 
