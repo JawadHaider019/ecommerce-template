@@ -1,9 +1,12 @@
 import express from "express"
 import { 
   placeOrder, 
-  placeOrderWithPayment, // 🆕 NEW
-  verifyPayment, // 🆕 NEW
-  getPendingPaymentOrders, // 🆕 NEW
+  placeOrderWithPayment,
+  placeGuestOrderWithPayment,
+  trackGuestOrder,
+  convertGuestOrderToUser,
+  verifyPayment,
+  getPendingPaymentOrders,
   allOrders, 
   userOrders, 
   updateStatus, 
@@ -18,26 +21,29 @@ import {
 } from "../controllers/orderController.js"
 import { authUser } from "../middleware/auth.js"
 import adminAuth from "../middleware/adminAuth.js"
-import upload from "../middleware/multer.js" // 🆕 Make sure you have file upload middleware
+import upload from "../middleware/multer.js"
 
 const orderRoutes = express.Router()
+
+// 🆕 GUEST ROUTES (No authentication required)
+orderRoutes.post("/guest/place-with-payment", upload.single('payment_screenshot'), placeGuestOrderWithPayment)
+orderRoutes.post("/guest/track", trackGuestOrder)
+
+// 🆕 USER ROUTES (Authentication required)
+orderRoutes.post("/place", authUser, placeOrder)
+orderRoutes.post("/place-with-payment", authUser, upload.single('payment_screenshot'), placeOrderWithPayment)
+orderRoutes.post("/guest/convert", authUser, convertGuestOrderToUser)
 
 // Admin routes
 orderRoutes.get("/list", adminAuth, allOrders)
 orderRoutes.post("/status", adminAuth, updateStatus)
-
-// 🆕 PAYMENT VERIFICATION ROUTES (Admin)
-orderRoutes.get("/pending-payments", adminAuth, getPendingPaymentOrders) // Get orders with pending payments
-orderRoutes.post("/verify-payment", adminAuth, verifyPayment) // Verify/reject payment
-
-// Payment routes
-orderRoutes.post("/place", authUser, placeOrder)
-orderRoutes.post("/place-with-payment", authUser, upload.single('payment_screenshot'), placeOrderWithPayment)
+orderRoutes.get("/pending-payments", adminAuth, getPendingPaymentOrders)
+orderRoutes.post("/verify-payment", adminAuth, verifyPayment)
 
 // User orders
-orderRoutes.post("/userorders", authUser, userOrders)
+orderRoutes.get("/user", authUser, userOrders)
 orderRoutes.post("/cancel", authUser, cancelOrder)
-orderRoutes.get("/:orderId", authUser, getOrderDetails)
+orderRoutes.get("/:orderId", getOrderDetails) // Allow both guest and user access
 
 // Cancellation reasons
 orderRoutes.get("/cancellation-reasons", getCancellationReasons)
@@ -45,7 +51,7 @@ orderRoutes.get("/cancellation-reasons", getCancellationReasons)
 // Stock check
 orderRoutes.post("/check-stock", authUser, checkStock)
 
-// 🆕 NOTIFICATION ROUTES
+// Notification routes
 orderRoutes.get("/notifications", authUser, getUserNotifications)
 orderRoutes.get("/admin/notifications", adminAuth, getAdminNotifications)
 orderRoutes.post("/notifications/mark-read", authUser, markNotificationAsRead)

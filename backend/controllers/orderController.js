@@ -27,264 +27,330 @@ const createNotification = async (notificationData) => {
     return notification;
   } catch (error) {
     console.error('❌ Error creating notification:', error);
+    // Don't throw error - notifications shouldn't break order flow
+    return null;
   }
 };
 
 // 🆕 Send Payment Verified Notification
 const sendPaymentVerifiedNotification = async (order) => {
-  const shortOrderId = order._id.toString().slice(-6);
-  const customerName = order.customerDetails?.name || 'Customer';
+  try {
+    const shortOrderId = order._id.toString().slice(-6);
+    const customerName = order.customerDetails?.name || 'Customer';
 
-  // User notification
-  await createNotification({
-    userId: order.userId,
-    type: NOTIFICATION_TYPES.PAYMENT_VERIFIED,
-    title: '✅ Payment Verified!',
-    message: `Your payment for order #${shortOrderId} has been verified. Order is now confirmed.`,
-    relatedId: order._id.toString(),
-    relatedType: 'order',
-    actionUrl: `/orders/${order._id}`,
-    metadata: {
-      orderId: order._id.toString(),
-      amount: order.paymentAmount,
-      customerName: customerName
+    // User notification
+    if (order.userId) {
+      await createNotification({
+        userId: order.userId.toString(),
+        type: NOTIFICATION_TYPES.PAYMENT_VERIFIED,
+        title: '✅ Payment Verified!',
+        message: `Your payment for order #${shortOrderId} has been verified. Order is now confirmed.`,
+        relatedId: order._id.toString(),
+        relatedType: 'order',
+        actionUrl: `/orders/${order._id}`,
+        metadata: {
+          orderId: order._id.toString(),
+          amount: order.paymentAmount,
+          customerName: customerName
+        }
+      });
     }
-  });
 
-  console.log(`🔔 Payment verified notification sent for order ${order._id}`);
+    console.log(`🔔 Payment verified notification sent for order ${order._id}`);
+  } catch (error) {
+    console.error('❌ Error sending payment verified notification:', error);
+  }
 };
 
 // 🆕 Send Payment Rejected Notification
 const sendPaymentRejectedNotification = async (order, reason) => {
-  const shortOrderId = order._id.toString().slice(-6);
-  const customerName = order.customerDetails?.name || 'Customer';
+  try {
+    const shortOrderId = order._id.toString().slice(-6);
+    const customerName = order.customerDetails?.name || 'Customer';
 
-  // User notification
-  await createNotification({
-    userId: order.userId,
-    type: NOTIFICATION_TYPES.PAYMENT_REJECTED,
-    title: '❌ Payment Rejected',
-    message: `Your payment for order #${shortOrderId} was rejected.${reason ? ` Reason: ${reason}` : ''}`,
-    relatedId: order._id.toString(),
-    relatedType: 'order',
-    actionUrl: `/orders/${order._id}`,
-    metadata: {
-      orderId: order._id.toString(),
-      amount: order.paymentAmount,
-      reason: reason,
-      customerName: customerName
+    // User notification
+    if (order.userId) {
+      await createNotification({
+        userId: order.userId.toString(),
+        type: NOTIFICATION_TYPES.PAYMENT_REJECTED,
+        title: '❌ Payment Rejected',
+        message: `Your payment for order #${shortOrderId} was rejected.${reason ? ` Reason: ${reason}` : ''}`,
+        relatedId: order._id.toString(),
+        relatedType: 'order',
+        actionUrl: `/orders/${order._id}`,
+        metadata: {
+          orderId: order._id.toString(),
+          amount: order.paymentAmount,
+          reason: reason,
+          customerName: customerName
+        }
+      });
     }
-  });
 
-  console.log(`🔔 Payment rejected notification sent for order ${order._id}`);
+    console.log(`🔔 Payment rejected notification sent for order ${order._id}`);
+  } catch (error) {
+    console.error('❌ Error sending payment rejected notification:', error);
+  }
 };
 
 // 🆕 UPDATED: Send Order Placed Notification with Customer Details
 const sendOrderPlacedNotification = async (order) => {
-  const userDetails = await userModel.findById(order.userId);
-  const shortOrderId = order._id.toString().slice(-6);
-  
-  // Use customer details from order (which may be edited) or fallback to user profile
-  const customerName = order.customerDetails?.name || userDetails?.name || 'Customer';
-  const customerEmail = order.customerDetails?.email || userDetails?.email || '';
-  
-  // User notification
-  await createNotification({
-    userId: order.userId,
-    type: NOTIFICATION_TYPES.ORDER_PLACED,
-    title: order.paymentStatus === 'pending' ? '⏳ Order Placed - Payment Pending' : '🎉 Order Placed Successfully!',
-    message: order.paymentStatus === 'pending' 
-      ? `Your order #${shortOrderId} has been placed. Waiting for payment verification.` 
-      : `Your order #${shortOrderId} has been placed. Total: $${order.amount}`,
-    relatedId: order._id.toString(),
-    relatedType: 'order',
-    actionUrl: `/orders/${order._id}`,
-    metadata: {
-      orderId: order._id.toString(),
-      amount: order.amount,
-      itemsCount: order.items.length,
-      customerName: customerName,
-      customerEmail: customerEmail,
-      paymentStatus: order.paymentStatus
+  try {
+    const userDetails = order.userId ? await userModel.findById(order.userId) : null;
+    const shortOrderId = order._id.toString().slice(-6);
+    
+    // Use customer details from order (which may be edited) or fallback to user profile
+    const customerName = order.customerDetails?.name || userDetails?.name || 'Customer';
+    const customerEmail = order.customerDetails?.email || userDetails?.email || '';
+    
+    // User notification (only for registered users)
+    if (order.userId && order.orderType === 'user') {
+      await createNotification({
+        userId: order.userId.toString(),
+        type: NOTIFICATION_TYPES.ORDER_PLACED,
+        title: order.paymentStatus === 'pending' ? '⏳ Order Placed - Payment Pending' : '🎉 Order Placed Successfully!',
+        message: order.paymentStatus === 'pending' 
+          ? `Your order #${shortOrderId} has been placed. Waiting for payment verification.` 
+          : `Your order #${shortOrderId} has been placed. Total: $${order.amount}`,
+        relatedId: order._id.toString(),
+        relatedType: 'order',
+        actionUrl: `/orders/${order._id}`,
+        metadata: {
+          orderId: order._id.toString(),
+          amount: order.amount,
+          itemsCount: order.items.length,
+          customerName: customerName,
+          customerEmail: customerEmail,
+          paymentStatus: order.paymentStatus
+        }
+      });
     }
-  });
 
-  // Admin notification - using order customer details
-  await createNotification({
-    userId: 'admin',
-    type: NOTIFICATION_TYPES.ORDER_PLACED,
-    title: order.paymentStatus === 'pending' ? '⏳ New Order - Payment Pending' : '🛒 New Order Received',
-    message: order.paymentStatus === 'pending'
-      ? `New order #${shortOrderId} from ${customerName}. Payment verification required.`
-      : `New order #${shortOrderId} from ${customerName}. Amount: $${order.amount}`,
-    relatedId: order._id.toString(),
-    relatedType: 'order',
-    isAdmin: true,
-    actionUrl: `/admin/orders/${order._id}`,
-    priority: order.paymentStatus === 'pending' ? 'high' : 'medium',
-    metadata: {
-      orderId: order._id.toString(),
-      customerName: customerName,
-      customerEmail: customerEmail,
-      amount: order.amount,
-      itemsCount: order.items.length,
-      paymentStatus: order.paymentStatus
-    }
-  });
-
-  console.log(`🔔 Order placed notifications sent for order ${order._id} from customer ${customerName}`);
-};
-
-// 🆕 UPDATED: Send Order Cancelled Notification with Customer Details
-const sendOrderCancelledNotification = async (order, cancelledBy, reason = '') => {
-  const userDetails = await userModel.findById(order.userId);
-  const shortOrderId = order._id.toString().slice(-6);
-  const cancelledByText = cancelledBy === 'user' ? 'You have' : 'Admin has';
-  
-  // Use customer details from order
-  const customerName = order.customerDetails?.name || userDetails?.name || 'Customer';
-  
-  // User notification
-  await createNotification({
-    userId: order.userId,
-    type: NOTIFICATION_TYPES.ORDER_CANCELLED,
-    title: '❌ Order Cancelled',
-    message: `${cancelledByText} cancelled order #${shortOrderId}.${reason ? ` Reason: ${reason}` : ''}`,
-    relatedId: order._id.toString(),
-    relatedType: 'order',
-    actionUrl: `/orders/${order._id}`,
-    metadata: {
-      orderId: order._id.toString(),
-      cancelledBy,
-      reason,
-      amount: order.amount,
-      customerName: customerName
-    }
-  });
-
-  // Admin notification (if cancelled by user)
-  if (cancelledBy === 'user') {
+    // Admin notification - using order customer details
     await createNotification({
       userId: 'admin',
-      type: NOTIFICATION_TYPES.ORDER_CANCELLED,
-      title: '❌ Order Cancelled by Customer',
-      message: `Order #${shortOrderId} cancelled by ${customerName}.${reason ? ` Reason: ${reason}` : ''}`,
+      type: NOTIFICATION_TYPES.ORDER_PLACED,
+      title: order.orderType === 'guest' 
+        ? (order.paymentStatus === 'pending' ? '👤 Guest Order - Payment Pending' : '👤 New Guest Order')
+        : (order.paymentStatus === 'pending' ? '⏳ New Order - Payment Pending' : '🛒 New Order Received'),
+      message: order.orderType === 'guest'
+        ? `New GUEST order #${shortOrderId} from ${customerName} (${customerEmail}). ${order.paymentStatus === 'pending' ? 'Payment verification required.' : ''}`
+        : `New order #${shortOrderId} from ${customerName}. Amount: $${order.amount}`,
       relatedId: order._id.toString(),
       relatedType: 'order',
       isAdmin: true,
       actionUrl: `/admin/orders/${order._id}`,
+      priority: order.paymentStatus === 'pending' ? 'high' : 'medium',
       metadata: {
         orderId: order._id.toString(),
         customerName: customerName,
-        reason,
-        amount: order.amount
+        customerEmail: customerEmail,
+        amount: order.amount,
+        itemsCount: order.items.length,
+        paymentStatus: order.paymentStatus,
+        isGuestOrder: order.orderType === 'guest'
       }
     });
-  }
 
-  console.log(`🔔 Order cancelled notifications sent for order ${order._id}`);
+    console.log(`🔔 Order placed notifications sent for order ${order._id} from customer ${customerName}`);
+  } catch (error) {
+    console.error('❌ Error sending order placed notification:', error);
+  }
+};
+
+// 🆕 UPDATED: Send Order Cancelled Notification with Customer Details
+const sendOrderCancelledNotification = async (order, cancelledBy, reason = '') => {
+  try {
+    const userDetails = order.userId ? await userModel.findById(order.userId) : null;
+    const shortOrderId = order._id.toString().slice(-6);
+    const cancelledByText = cancelledBy === 'user' ? 'You have' : 'Admin has';
+    
+    // Use customer details from order
+    const customerName = order.customerDetails?.name || userDetails?.name || 'Customer';
+    
+    // User notification (only for registered users)
+    if (order.userId && order.orderType === 'user') {
+      await createNotification({
+        userId: order.userId.toString(),
+        type: NOTIFICATION_TYPES.ORDER_CANCELLED,
+        title: '❌ Order Cancelled',
+        message: `${cancelledByText} cancelled order #${shortOrderId}.${reason ? ` Reason: ${reason}` : ''}`,
+        relatedId: order._id.toString(),
+        relatedType: 'order',
+        actionUrl: `/orders/${order._id}`,
+        metadata: {
+          orderId: order._id.toString(),
+          cancelledBy,
+          reason,
+          amount: order.amount,
+          customerName: customerName
+        }
+      });
+    }
+
+    // Admin notification (if cancelled by user or it's a guest order)
+    if (cancelledBy === 'user' || order.orderType === 'guest') {
+      await createNotification({
+        userId: 'admin',
+        type: NOTIFICATION_TYPES.ORDER_CANCELLED,
+        title: order.orderType === 'guest' ? '❌ Guest Order Cancelled' : '❌ Order Cancelled by Customer',
+        message: `Order #${shortOrderId} cancelled by ${customerName}.${reason ? ` Reason: ${reason}` : ''}`,
+        relatedId: order._id.toString(),
+        relatedType: 'order',
+        isAdmin: true,
+        actionUrl: `/admin/orders/${order._id}`,
+        metadata: {
+          orderId: order._id.toString(),
+          customerName: customerName,
+          reason,
+          amount: order.amount,
+          cancelledBy,
+          isGuestOrder: order.orderType === 'guest'
+        }
+      });
+    }
+
+    console.log(`🔔 Order cancelled notifications sent for order ${order._id}`);
+  } catch (error) {
+    console.error('❌ Error sending order cancelled notification:', error);
+  }
 };
 
 // 🆕 Send Order Status Update Notification
 const sendOrderStatusUpdateNotification = async (order, oldStatus, newStatus) => {
-  const statusMessages = {
-    'Processing': 'is being processed',
-    'Shipped': 'has been shipped',
-    'Out for delivery': 'is out for delivery',
-    'Delivered': 'has been delivered successfully! 🎉',
-    'Cancelled': 'has been cancelled'
-  };
+  try {
+    const statusMessages = {
+      'Processing': 'is being processed',
+      'Shipped': 'has been shipped',
+      'Out for delivery': 'is out for delivery',
+      'Delivered': 'has been delivered successfully! 🎉',
+      'Cancelled': 'has been cancelled'
+    };
 
-  const message = statusMessages[newStatus] || `status changed to ${newStatus}`;
-  const shortOrderId = order._id.toString().slice(-6);
+    const message = statusMessages[newStatus] || `status changed to ${newStatus}`;
+    const shortOrderId = order._id.toString().slice(-6);
 
-  await createNotification({
-    userId: order.userId,
-    type: NOTIFICATION_TYPES.ORDER_STATUS_UPDATED,
-    title: '📦 Order Status Updated',
-    message: `Your order #${shortOrderId} ${message}.`,
-    relatedId: order._id.toString(),
-    relatedType: 'order',
-    actionUrl: `/orders/${order._id}`,
-    metadata: {
-      orderId: order._id.toString(),
-      oldStatus,
-      newStatus,
-      amount: order.amount
+    // Only send to registered users
+    if (order.userId && order.orderType === 'user') {
+      await createNotification({
+        userId: order.userId.toString(),
+        type: NOTIFICATION_TYPES.ORDER_STATUS_UPDATED,
+        title: '📦 Order Status Updated',
+        message: `Your order #${shortOrderId} ${message}.`,
+        relatedId: order._id.toString(),
+        relatedType: 'order',
+        actionUrl: `/orders/${order._id}`,
+        metadata: {
+          orderId: order._id.toString(),
+          oldStatus,
+          newStatus,
+          amount: order.amount
+        }
+      });
     }
-  });
 
-  console.log(`🔔 Order status update notification sent for order ${order._id}`);
+    console.log(`🔔 Order status update notification sent for order ${order._id}`);
+  } catch (error) {
+    console.error('❌ Error sending order status update notification:', error);
+  }
 };
 
-// 🆕 UPDATED: placeOrder function with PAYMENT VERIFICATION SUPPORT
+// 🆕 MASTER ORDER PLACEMENT FUNCTION (handles both guest and user)
 const placeOrder = async (req, res) => {
   try {
-    console.log("🛒 ========== BACKEND ORDER PLACEMENT ==========");
+    console.log("🛒 ========== ORDER PLACEMENT ==========");
     
-    const { items, amount, address, deliveryCharges, customerDetails, paymentMethod, paymentStatus, paymentAmount, paymentScreenshot } = req.body;
-    const userId = req.userId;
+    const { 
+      items, 
+      amount, 
+      address, 
+      deliveryCharges, 
+      customerDetails, 
+      paymentMethod, 
+      paymentStatus, 
+      paymentAmount, 
+      paymentScreenshot 
+    } = req.body;
+
+    // Get user ID (might be null for guests)
+    const userId = req.userId || null;
+    const isGuest = !userId;
+    
+    console.log(`Order type: ${isGuest ? 'GUEST' : 'USER'}, User ID: ${userId || 'N/A'}`);
 
     // Validate required fields
     if (!items || items.length === 0) {
-      return res.json({ success: false, message: "No items in order" });
+      return res.status(400).json({ success: false, message: "No items in order" });
     }
 
     if (!amount || amount <= 0) {
-      return res.json({ success: false, message: "Invalid order amount" });
+      return res.status(400).json({ success: false, message: "Invalid order amount" });
     }
 
     if (!address) {
-      return res.json({ success: false, message: "Address is required" });
+      return res.status(400).json({ success: false, message: "Address is required" });
     }
 
-    // 🆕 Validate payment method
+    // Validate payment method
     if (!paymentMethod || !['COD', 'online'].includes(paymentMethod)) {
-      return res.json({ success: false, message: "Invalid payment method" });
+      return res.status(400).json({ success: false, message: "Invalid payment method" });
     }
 
-    // 🆕 GET USER PROFILE DATA FOR DEFAULTS
-    const userProfile = await userModel.findById(userId);
-    if (!userProfile) {
-      return res.json({ success: false, message: "User not found" });
-    }
-
-    // 🆕 VALIDATE AND SET CUSTOMER DETAILS
-    let finalCustomerDetails = {
-      name: userProfile.name, // Default from profile
-      email: userProfile.email, // Default from profile
-      phone: userProfile.phone || '' // Default from profile
-    };
-
-    // Override with provided customer details if available
-    if (customerDetails) {
-      if (customerDetails.name && customerDetails.name.trim() !== '') {
-        finalCustomerDetails.name = customerDetails.name.trim();
+    // 🆕 Validate customer details
+    let finalCustomerDetails = {};
+    
+    if (isGuest) {
+      // For guests, customer details are mandatory
+      if (!customerDetails || !customerDetails.email || !customerDetails.name) {
+        return res.status(400).json({ success: false, message: "Name and email are required for guest checkout" });
       }
       
-      if (customerDetails.email && customerDetails.email.trim() !== '') {
-        // Basic email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(customerDetails.email.trim())) {
-          return res.json({ success: false, message: "Invalid email format" });
-        }
-        finalCustomerDetails.email = customerDetails.email.trim();
+      // Validate email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customerDetails.email.trim())) {
+        return res.status(400).json({ success: false, message: "Invalid email format" });
       }
       
-      if (customerDetails.phone) {
-        finalCustomerDetails.phone = customerDetails.phone;
+      finalCustomerDetails = {
+        name: customerDetails.name.trim(),
+        email: customerDetails.email.trim(),
+        phone: customerDetails.phone || ''
+      };
+    } else {
+      // For logged-in users, get from profile with optional override
+      const userProfile = await userModel.findById(userId);
+      if (!userProfile) {
+        return res.status(404).json({ success: false, message: "User not found" });
       }
-    }
 
-    console.log("👤 CUSTOMER DETAILS FOR ORDER:", {
-      defaultFromProfile: {
+      // Default from profile
+      finalCustomerDetails = {
         name: userProfile.name,
         email: userProfile.email,
-        phone: userProfile.phone
-      },
-      providedDetails: customerDetails,
-      finalDetails: finalCustomerDetails
-    });
+        phone: userProfile.phone || ''
+      };
+
+      // Override with provided details if available
+      if (customerDetails) {
+        if (customerDetails.name && customerDetails.name.trim() !== '') {
+          finalCustomerDetails.name = customerDetails.name.trim();
+        }
+        
+        if (customerDetails.email && customerDetails.email.trim() !== '') {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(customerDetails.email.trim())) {
+            return res.status(400).json({ success: false, message: "Invalid email format" });
+          }
+          finalCustomerDetails.email = customerDetails.email.trim();
+        }
+        
+        if (customerDetails.phone) {
+          finalCustomerDetails.phone = customerDetails.phone;
+        }
+      }
+    }
+
+    console.log("👤 CUSTOMER DETAILS:", finalCustomerDetails);
 
     // Check stock availability
     console.log("📦 Checking stock availability...");
@@ -293,93 +359,64 @@ const placeOrder = async (req, res) => {
     for (const item of items) {
       let product;
       
-      // ✅ IMPROVED PRODUCT LOOKUP - Handle both direct products and deal products
-      console.log(`🔍 Processing item:`, {
-        id: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        isFromDeal: item.isFromDeal || false,
-        dealName: item.dealName,
-        dealImage: item.dealImage,
-        dealDescription: item.dealDescription
-      });
-
-      // Try multiple ID fields for product lookup
       if (item.id) {
         product = await productModel.findById(item.id);
-        console.log(`🔍 Lookup by item.id (${item.id}):`, product ? `Found: ${product.name}` : 'Not found');
       }
       
       if (!product && item._id) {
         product = await productModel.findById(item._id);
-        console.log(`🔍 Lookup by item._id (${item._id}):`, product ? `Found: ${product.name}` : 'Not found');
       }
       
       if (!product && item.productId) {
         product = await productModel.findById(item.productId);
-        console.log(`🔍 Lookup by item.productId (${item.productId}):`, product ? `Found: ${product.name}` : 'Not found');
       }
       
-      // If still no product found by ID, try name lookup as fallback
       if (!product && item.name) {
         product = await productModel.findOne({ 
           name: item.name, 
           status: 'published' 
         });
-        console.log(`🔍 Lookup by name (${item.name}):`, product ? `Found: ${product.name}` : 'Not found');
       }
 
-      // If product is still not found and it's from a deal, be more lenient
       if (!product && item.isFromDeal) {
         console.log(`⚠️ Deal product "${item.name}" not found, but continuing order`);
-        // Continue with order but use the item data as-is
         validatedItems.push({
           ...item,
-          id: item.id || item._id, // Use the original ID
+          id: item.id || item._id,
           name: item.name
         });
         continue;
       }
 
-      // If product is not found and not from deal, return error
       if (!product) {
         console.log(`❌ Product not found: ${item.name}`, item);
-        return res.json({ success: false, message: `Product "${item.name}" not found` });
+        return res.status(404).json({ success: false, message: `Product "${item.name}" not found` });
       }
 
-      // Validate product status
       if (product.status !== 'published') {
-        console.log(`❌ Product not available: ${product.name} (status: ${product.status})`);
-        return res.json({ success: false, message: `Product "${product.name}" is not available` });
+        return res.status(400).json({ success: false, message: `Product "${product.name}" is not available` });
       }
 
-      // Validate stock
       if (product.quantity < item.quantity) {
-        console.log(`❌ Insufficient stock: ${product.name} (available: ${product.quantity}, requested: ${item.quantity})`);
-        return res.json({ success: false, message: `Insufficient stock for "${product.name}". Available: ${product.quantity}, Requested: ${item.quantity}` });
+        return res.status(400).json({ 
+          success: false, 
+          message: `Insufficient stock for "${product.name}". Available: ${product.quantity}, Requested: ${item.quantity}` 
+        });
       }
-
-      console.log(`✅ Validated product: ${product.name}, Qty: ${item.quantity}, Stock: ${product.quantity}`);
 
       validatedItems.push({
         ...item,
-        id: product._id.toString(), // Ensure consistent ID field
-        name: product.name, // Use actual product name from database
+        id: product._id.toString(),
+        name: product.name,
         actualProduct: product
       });
     }
 
-    console.log(`📦 Validated ${validatedItems.length} items for order`);
-
-    // 🆕 Only reduce inventory if payment is verified or it's online payment
+    // Reduce inventory if payment verified or online payment
     if (paymentStatus === 'verified' || paymentMethod === 'online') {
       console.log("📦 Reducing inventory quantity...");
       for (const validatedItem of validatedItems) {
-        // Skip inventory reduction for items that weren't found in database (deal items)
-        if (!validatedItem.actualProduct) {
-          console.log(`⚠️ Skipping inventory reduction for: ${validatedItem.name} (no product found in DB)`);
-          continue;
-        }
+        if (!validatedItem.actualProduct) continue;
 
         const updateResult = await productModel.findByIdAndUpdate(
           validatedItem.id,
@@ -393,9 +430,9 @@ const placeOrder = async (req, res) => {
         );
         
         if (updateResult) {
-          console.log(`✅ Reduced stock for ${updateResult.name} by ${validatedItem.quantity}. New stock: ${updateResult.quantity}`);
+          console.log(`✅ Reduced stock for ${updateResult.name} by ${validatedItem.quantity}`);
           
-          // Check for low stock and send notification
+          // Low stock notification (admin only)
           if (updateResult.quantity <= 10 && updateResult.quantity > 0) {
             await createNotification({
               userId: 'admin',
@@ -410,27 +447,7 @@ const placeOrder = async (req, res) => {
               metadata: {
                 productId: updateResult._id.toString(),
                 productName: updateResult.name,
-                currentStock: updateResult.quantity,
-                idealStock: updateResult.idealStock || 20
-              }
-            });
-          }
-          
-          // Check for out of stock
-          if (updateResult.quantity === 0) {
-            await createNotification({
-              userId: 'admin',
-              type: NOTIFICATION_TYPES.OUT_OF_STOCK,
-              title: '🛑 Out of Stock Alert',
-              message: `Product "${updateResult.name}" is now out of stock.`,
-              relatedId: updateResult._id.toString(),
-              relatedType: 'product',
-              isAdmin: true,
-              actionUrl: `/admin/products`,
-              priority: 'urgent',
-              metadata: {
-                productId: updateResult._id.toString(),
-                productName: updateResult.name
+                currentStock: updateResult.quantity
               }
             });
           }
@@ -440,15 +457,22 @@ const placeOrder = async (req, res) => {
       console.log("⚠️ Skipping inventory reduction - payment pending verification");
     }
 
-    // 🆕 ENHANCED: Create order with PAYMENT VERIFICATION SUPPORT
+    // 🆕 Generate IDs for guest orders
+    const generateGuestId = () => {
+      return 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    };
+    
+    // Create order data
     const orderData = {
-      userId,
+      userId: isGuest ? null : userId,
+      orderType: isGuest ? 'guest' : 'user',
+      guestId: isGuest ? generateGuestId() : null,
       items: validatedItems.map(item => ({
         id: item.id,
         name: item.name,
         quantity: item.quantity,
         price: item.price,
-        image: item.image || item.actualProduct?.image?.[0], // Product image
+        image: item.image || item.actualProduct?.image?.[0],
         category: item.category || item.actualProduct?.category,
         isFromDeal: item.isFromDeal || false,
         dealName: item.dealName || null,
@@ -459,12 +483,10 @@ const placeOrder = async (req, res) => {
       address,
       deliveryCharges: deliveryCharges || 0,
       paymentMethod: paymentMethod,
-      payment: paymentStatus === 'verified', // Only true if payment is verified
+      payment: paymentStatus === 'verified',
       status: paymentStatus === 'verified' ? "Order Placed" : "Pending Verification",
       date: Date.now(),
       customerDetails: finalCustomerDetails,
-      
-      // 🆕 PAYMENT VERIFICATION FIELDS
       paymentStatus: paymentStatus || 'pending',
       paymentAmount: paymentAmount || (paymentMethod === 'COD' ? 350 : Number(amount)),
       paymentScreenshot: paymentScreenshot || null,
@@ -472,22 +494,21 @@ const placeOrder = async (req, res) => {
       orderPlacedAt: new Date()
     };
 
-    console.log("📝 FINAL ORDER DATA SAVED:", {
-      totalItems: orderData.items.length,
-      customerDetails: orderData.customerDetails,
-      paymentMethod: orderData.paymentMethod,
-      paymentStatus: orderData.paymentStatus,
-      paymentAmount: orderData.paymentAmount,
-      orderStatus: orderData.status
+    console.log("📝 ORDER DATA:", {
+      orderType: orderData.orderType,
+      guestId: orderData.guestId,
+      customer: orderData.customerDetails.name,
+      items: orderData.items.length,
+      amount: orderData.amount
     });
 
     const newOrder = new orderModel(orderData);
     await newOrder.save();
 
-    console.log(`✅ Order created: ${newOrder._id} with status: ${newOrder.status}`);
+    console.log(`✅ Order created: ${newOrder._id}`);
 
-    // Clear user cart only if payment is verified
-    if (paymentStatus === 'verified') {
+    // Clear cart only for logged-in users with verified payment
+    if (!isGuest && paymentStatus === 'verified') {
       await userModel.findByIdAndUpdate(userId, { 
         cartData: {},
         cartDeals: {} 
@@ -495,13 +516,17 @@ const placeOrder = async (req, res) => {
       console.log(`✅ Cleared cart for user: ${userId}`);
     }
 
-    // 🆕 SEND ORDER PLACED NOTIFICATION
+    // Send notification
     await sendOrderPlacedNotification(newOrder);
 
     res.json({ 
       success: true, 
-      message: paymentStatus === 'verified' ? "Order Placed Successfully" : "Order Placed - Payment Verification Pending",
+      message: paymentStatus === 'verified' 
+        ? "Order Placed Successfully" 
+        : "Order Placed - Payment Verification Pending",
       orderId: newOrder._id,
+      orderType: newOrder.orderType,
+      guestId: newOrder.guestId, // Important for guest tracking
       deliveryCharges: newOrder.deliveryCharges,
       customerDetails: newOrder.customerDetails,
       paymentStatus: newOrder.paymentStatus,
@@ -510,19 +535,19 @@ const placeOrder = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error in placeOrder:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 🆕 UPDATED: Place Order with Payment (Cloudinary)
+// 🆕 GUEST CHECKOUT WITH PAYMENT
 const placeOrderWithPayment = async (req, res) => {
   try {
-    console.log("💰 ========== PLACE ORDER WITH PAYMENT ==========");
+    console.log("💰 ========== ORDER WITH PAYMENT UPLOAD ==========");
     
     const { orderData } = req.body;
     let paymentScreenshot = null;
 
-    // Upload to Cloudinary if file exists
+    // Upload to Cloudinary
     if (req.file) {
       try {
         const result = await cloudinary.uploader.upload(req.file.path, {
@@ -533,20 +558,17 @@ const placeOrderWithPayment = async (req, res) => {
         });
         
         paymentScreenshot = result.secure_url;
-        
-        // Remove temporary file
         fs.unlinkSync(req.file.path);
-        
-        console.log(`✅ Payment screenshot uploaded to Cloudinary: ${paymentScreenshot}`);
+        console.log(`✅ Payment screenshot uploaded`);
       } catch (uploadError) {
         console.error("❌ Cloudinary upload error:", uploadError);
-        return res.json({ 
+        return res.status(500).json({ 
           success: false, 
           message: "Failed to upload payment screenshot" 
         });
       }
     } else {
-      return res.json({ 
+      return res.status(400).json({ 
         success: false, 
         message: "Payment screenshot is required" 
       });
@@ -554,11 +576,11 @@ const placeOrderWithPayment = async (req, res) => {
 
     const parsedOrderData = JSON.parse(orderData);
     
-    // Call the main placeOrder function with payment data
+    // Call the main placeOrder function
     req.body = {
       ...parsedOrderData,
       paymentScreenshot: paymentScreenshot,
-      paymentStatus: 'pending' // Set to pending for admin verification
+      paymentStatus: 'pending'
     };
     
     return await placeOrder(req, res);
@@ -566,7 +588,6 @@ const placeOrderWithPayment = async (req, res) => {
   } catch (error) {
     console.error("❌ Error in placeOrderWithPayment:", error);
     
-    // Clean up temporary file if it exists
     if (req.file && req.file.path) {
       try {
         fs.unlinkSync(req.file.path);
@@ -575,34 +596,101 @@ const placeOrderWithPayment = async (req, res) => {
       }
     }
     
-    res.json({ 
+    res.status(500).json({ 
       success: false, 
       message: error.message 
     });
   }
 };
 
-// 🆕 NEW: Verify Payment (Admin Function)
+// 🆕 GUEST CHECKOUT SPECIFIC FUNCTIONS
+const placeGuestOrderWithPayment = async (req, res) => {
+  try {
+    console.log("👤 ========== GUEST ORDER WITH PAYMENT ==========");
+    
+    const { orderData } = req.body;
+    let paymentScreenshot = null;
+
+    // Upload to Cloudinary
+    if (req.file) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: "payments",
+          transformation: [
+            { width: 800, height: 800, crop: "limit", quality: "auto" }
+          ],
+        });
+        
+        paymentScreenshot = result.secure_url;
+        fs.unlinkSync(req.file.path);
+        console.log(`✅ Guest payment screenshot uploaded`);
+      } catch (uploadError) {
+        console.error("❌ Cloudinary upload error:", uploadError);
+        return res.status(500).json({ 
+          success: false, 
+          message: "Failed to upload payment screenshot" 
+        });
+      }
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Payment screenshot is required" 
+      });
+    }
+
+    const parsedOrderData = JSON.parse(orderData);
+    
+    // Call the main placeOrder function
+    req.body = {
+      ...parsedOrderData,
+      paymentScreenshot: paymentScreenshot,
+      paymentStatus: 'pending'
+    };
+    
+    // Remove userId for guest checkout
+    req.userId = null;
+    
+    return await placeOrder(req, res);
+    
+  } catch (error) {
+    console.error("❌ Error in placeGuestOrderWithPayment:", error);
+    
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error("❌ Error cleaning up temp file:", cleanupError);
+      }
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
+// 🆕 VERIFY PAYMENT (Admin Function)
 const verifyPayment = async (req, res) => {
   try {
     const { orderId, action, reason } = req.body;
     const adminId = req.userId;
 
     if (!orderId || !action) {
-      return res.json({ success: false, message: "Order ID and action are required" });
+      return res.status(400).json({ success: false, message: "Order ID and action are required" });
     }
 
     if (!['approve', 'reject'].includes(action)) {
-      return res.json({ success: false, message: "Invalid action" });
+      return res.status(400).json({ success: false, message: "Invalid action" });
     }
 
     const order = await orderModel.findById(orderId);
     if (!order) {
-      return res.json({ success: false, message: "Order not found" });
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
 
     if (order.paymentStatus !== 'pending') {
-      return res.json({ success: false, message: `Payment is already ${order.paymentStatus}` });
+      return res.status(400).json({ success: false, message: `Payment is already ${order.paymentStatus}` });
     }
 
     let updateData = {};
@@ -636,13 +724,15 @@ const verifyPayment = async (req, res) => {
         }
       }
 
-      // Clear user cart
-      await userModel.findByIdAndUpdate(order.userId, { 
-        cartData: {},
-        cartDeals: {} 
-      });
+      // Clear user cart if it's a user order
+      if (order.userId && order.orderType === 'user') {
+        await userModel.findByIdAndUpdate(order.userId, { 
+          cartData: {},
+          cartDeals: {} 
+        });
+      }
 
-      notificationFunction = sendPaymentVerifiedNotification;
+      notificationFunction = () => sendPaymentVerifiedNotification(order);
 
     } else if (action === 'reject') {
       updateData = {
@@ -664,7 +754,7 @@ const verifyPayment = async (req, res) => {
 
     // Send appropriate notification
     if (notificationFunction) {
-      await notificationFunction(updatedOrder);
+      await notificationFunction();
     }
 
     res.json({ 
@@ -675,11 +765,76 @@ const verifyPayment = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error in verifyPayment:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 🆕 NEW: Get Pending Payment Orders
+// 🆕 TRACK GUEST ORDER
+const trackGuestOrder = async (req, res) => {
+  try {
+    const { orderId, email } = req.body;
+
+    if (!orderId || !email) {
+      return res.status(400).json({ success: false, message: "Order ID and email are required" });
+    }
+
+    const order = await orderModel.findOne({
+      _id: orderId,
+      'customerDetails.email': email,
+      orderType: 'guest'
+    });
+
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Order not found. Please check your order ID and email." 
+      });
+    }
+
+    // Format order for response
+    const orderDetails = {
+      _id: order._id,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      amount: order.amount,
+      deliveryCharges: order.deliveryCharges,
+      items: order.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image,
+        isFromDeal: item.isFromDeal,
+        dealName: item.dealName
+      })),
+      address: {
+        street: order.address.street,
+        city: order.address.city,
+        state: order.address.state,
+        zipCode: order.address.zipCode
+      },
+      customerDetails: {
+        name: order.customerDetails.name,
+        email: order.customerDetails.email,
+        phone: order.customerDetails.phone
+      },
+      orderPlacedAt: order.orderPlacedAt,
+      paymentMethod: order.paymentMethod,
+      orderType: order.orderType
+    };
+
+    res.json({ 
+      success: true, 
+      order: orderDetails,
+      isGuestOrder: true
+    });
+
+  } catch (error) {
+    console.error("❌ Error in trackGuestOrder:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 🆕 GET PENDING PAYMENT ORDERS
 const getPendingPaymentOrders = async (req, res) => {
   try {
     const orders = await orderModel.find({ 
@@ -689,56 +844,49 @@ const getPendingPaymentOrders = async (req, res) => {
     res.json({ success: true, orders });
   } catch (error) {
     console.error("❌ Error in getPendingPaymentOrders:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 📋 Get All Orders (Admin Panel) - UPDATED
+// 📋 Get All Orders (Admin Panel)
 const allOrders = async (req, res) => {
   try {
     const orders = await orderModel.find({}).sort({ date: -1 });
     res.json({ success: true, orders });
   } catch (error) {
     console.error("❌ Error in allOrders:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 👤 Get Logged-in User Orders - UPDATED
+// 👤 Get User Orders
 const userOrders = async (req, res) => {
   try {
     const userId = req.userId;
-    const orders = await orderModel.find({ userId }).sort({ date: -1 });
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "User not authenticated" });
+    }
+
+    const orders = await orderModel.find({ 
+      $or: [
+        { userId, orderType: 'user' },
+        { convertedToUser: true, userId }
+      ]
+    }).sort({ date: -1 });
     
-    console.log("📦 USER ORDERS RETRIEVED - DEBUG:", {
+    console.log("📦 USER ORDERS RETRIEVED:", {
       totalOrders: orders.length,
-      orders: orders.map(order => ({
-        id: order._id,
-        status: order.status,
-        paymentStatus: order.paymentStatus,
-        totalItems: order.items.length,
-        customerDetails: order.customerDetails,
-        dealItems: order.items.filter(item => item.isFromDeal).map(item => ({
-          name: item.name,
-          isFromDeal: item.isFromDeal,
-          dealName: item.dealName,
-          dealImage: item.dealImage,
-          productImage: item.image,
-          hasDealImage: !!item.dealImage,
-          hasProductImage: !!item.image
-        })),
-        regularItems: order.items.filter(item => !item.isFromDeal).length
-      }))
+      userId
     });
     
     res.json({ success: true, orders });
   } catch (error) {
     console.error("❌ Error in userOrders:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 🆕 Get Order Details with Customer Information - UPDATED
+// 🆕 GET ORDER DETAILS (works for both guest and user)
 const getOrderDetails = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -746,44 +894,49 @@ const getOrderDetails = async (req, res) => {
 
     const order = await orderModel.findById(orderId);
     if (!order) {
-      return res.json({ success: false, message: "Order not found" });
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // Check if user owns this order or is admin
-    if (order.userId !== userId && userId !== 'admin') {
-      return res.json({ success: false, message: "Unauthorized to view this order" });
+    // Authorization check
+    const isOwner = order.userId && order.userId.toString() === userId;
+    const isAdmin = userId === 'admin';
+    const isGuestOrder = order.orderType === 'guest';
+
+    if (!isOwner && !isAdmin && !isGuestOrder) {
+      return res.status(403).json({ success: false, message: "Unauthorized to view this order" });
     }
 
     res.json({ 
       success: true, 
       order,
-      customerDetails: order.customerDetails
+      customerDetails: order.customerDetails,
+      isGuestOrder
     });
 
   } catch (error) {
     console.error("❌ Error in getOrderDetails:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 🔄 Update Order Status (Admin Panel) with notifications - UPDATED
+// 🔄 Update Order Status (Admin Panel)
 const updateStatus = async (req, res) => {
   try {
     const { orderId, status, cancellationReason } = req.body;
     
     if (!orderId || !status) {
-      return res.json({ success: false, message: "Order ID and status are required" });
+      return res.status(400).json({ success: false, message: "Order ID and status are required" });
     }
 
     // Find the current order first
     const currentOrder = await orderModel.findById(orderId);
     if (!currentOrder) {
-      return res.json({ success: false, message: "Order not found" });
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // 🆕 Don't allow status update if payment is pending
+    // Don't allow status update if payment is pending
     if (currentOrder.paymentStatus === 'pending' && status !== 'Cancelled') {
-      return res.json({ success: false, message: "Cannot update status while payment verification is pending" });
+      return res.status(400).json({ success: false, message: "Cannot update status while payment verification is pending" });
     }
 
     const oldStatus = currentOrder.status;
@@ -827,10 +980,10 @@ const updateStatus = async (req, res) => {
     );
 
     if (!updatedOrder) {
-      return res.json({ success: false, message: "Order not found" });
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // 🆕 SEND STATUS UPDATE NOTIFICATION (if status changed)
+    // SEND STATUS UPDATE NOTIFICATION (if status changed)
     if (oldStatus !== status && status !== "Cancelled") {
       await sendOrderStatusUpdateNotification(updatedOrder, oldStatus, status);
     }
@@ -843,40 +996,40 @@ const updateStatus = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error in updateStatus:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ❌ Cancel Order (User) with notifications - UPDATED
+// ❌ Cancel Order (User)
 const cancelOrder = async (req, res) => {
   try {
     const { orderId, cancellationReason } = req.body;
     const userId = req.userId;
 
     if (!orderId) {
-      return res.json({ success: false, message: "Order ID is required" });
+      return res.status(400).json({ success: false, message: "Order ID is required" });
     }
 
     if (!cancellationReason || cancellationReason.trim() === "") {
-      return res.json({ success: false, message: "Cancellation reason is required" });
+      return res.status(400).json({ success: false, message: "Cancellation reason is required" });
     }
 
     // Find the order
     const order = await orderModel.findById(orderId);
     
     if (!order) {
-      return res.json({ success: false, message: "Order not found" });
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // Check if user owns this order
-    if (order.userId !== userId) {
-      return res.json({ success: false, message: "Unauthorized to cancel this order" });
+    // Check if user owns this order (only for user orders)
+    if (order.userId && order.userId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: "Unauthorized to cancel this order" });
     }
 
     // Check if order can be cancelled
     const nonCancellableStatuses = ["Shipped", "Out for delivery", "Delivered", "Cancelled"];
     if (nonCancellableStatuses.includes(order.status)) {
-      return res.json({ 
+      return res.status(400).json({ 
         success: false, 
         message: `Order cannot be cancelled as it is already ${order.status.toLowerCase()}` 
       });
@@ -924,7 +1077,7 @@ const cancelOrder = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error in cancelOrder:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -955,7 +1108,7 @@ const getUserNotifications = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error in getUserNotifications:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -983,7 +1136,7 @@ const getAdminNotifications = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error in getAdminNotifications:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -999,11 +1152,10 @@ const markNotificationAsRead = async (req, res) => {
     });
 
     if (!notification) {
-      return res.json({ success: false, message: "Notification not found" });
+      return res.status(404).json({ success: false, message: "Notification not found" });
     }
 
     notification.isRead = true;
-    notification.readAt = new Date();
     await notification.save();
 
     res.json({
@@ -1013,7 +1165,7 @@ const markNotificationAsRead = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error in markNotificationAsRead:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -1025,8 +1177,7 @@ const markAllNotificationsAsRead = async (req, res) => {
     await notificationModel.updateMany(
       { userId, isRead: false },
       { 
-        isRead: true,
-        readAt: new Date()
+        isRead: true
       }
     );
 
@@ -1037,7 +1188,7 @@ const markAllNotificationsAsRead = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error in markAllNotificationsAsRead:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -1059,7 +1210,7 @@ const getCancellationReasons = async (req, res) => {
     res.json({ success: true, cancellationReasons });
   } catch (error) {
     console.error("❌ Error in getCancellationReasons:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -1070,11 +1221,11 @@ const checkStock = async (req, res) => {
     
     const product = await productModel.findById(productId);
     if (!product) {
-      return res.json({ success: false, message: "Product not found" });
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
     
     if (product.quantity < quantity) {
-      return res.json({ 
+      return res.status(400).json({ 
         success: false, 
         message: `Only ${product.quantity} items available`,
         availableQuantity: product.quantity
@@ -1089,15 +1240,103 @@ const checkStock = async (req, res) => {
     
   } catch (error) {
     console.error("❌ Error in checkStock:", error);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 🆕 CONVERT GUEST ORDER TO USER ORDER
+const convertGuestOrderToUser = async (req, res) => {
+  try {
+    const { guestId, orderId } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "User must be logged in" });
+    }
+
+    // Find guest orders by guestId or specific orderId
+    let query = { orderType: 'guest' };
+    
+    if (orderId) {
+      query._id = orderId;
+    } else if (guestId) {
+      query.guestId = guestId;
+    } else {
+      // Find by email (when user registers/creates account with same email)
+      const user = await userModel.findById(userId);
+      if (!user || !user.email) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      
+      query['customerDetails.email'] = user.email;
+    }
+
+    // Find guest orders
+    const guestOrders = await orderModel.find(query);
+    
+    if (guestOrders.length === 0) {
+      return res.json({ 
+        success: true, 
+        message: "No guest orders found to convert",
+        convertedCount: 0 
+      });
+    }
+
+    let convertedCount = 0;
+    const user = await userModel.findById(userId);
+
+    for (const order of guestOrders) {
+      // Skip if already converted or delivered/cancelled
+      if (order.convertedToUser || 
+          order.status === 'Delivered' || 
+          order.status === 'Cancelled') {
+        continue;
+      }
+
+      // Update order to user type
+      order.userId = userId;
+      order.orderType = 'user';
+      order.convertedToUser = true;
+      order.convertedAt = new Date();
+      order.convertedFromGuestId = order.guestId;
+      order.guestId = null;
+      order.expiresAt = null; // Remove expiration
+      
+      // Update customer details from user profile if not already set
+      if (!order.customerDetails.name && user.name) {
+        order.customerDetails.name = user.name;
+      }
+      if (!order.customerDetails.email && user.email) {
+        order.customerDetails.email = user.email;
+      }
+      if (!order.customerDetails.phone && user.phone) {
+        order.customerDetails.phone = user.phone;
+      }
+
+      await order.save();
+      convertedCount++;
+      
+      console.log(`✅ Converted guest order ${order._id} to user order for user ${userId}`);
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Converted ${convertedCount} guest order(s) to your account`,
+      convertedCount 
+    });
+
+  } catch (error) {
+    console.error("❌ Error converting guest orders:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 export { 
   placeOrder, 
-  placeOrderWithPayment, // 🆕 NEW
-  verifyPayment, // 🆕 NEW
-  getPendingPaymentOrders, // 🆕 NEW
+  placeOrderWithPayment,
+  placeGuestOrderWithPayment,
+  verifyPayment,
+  getPendingPaymentOrders,
   allOrders, 
   userOrders, 
   getOrderDetails,
@@ -1105,6 +1344,9 @@ export {
   cancelOrder,
   getCancellationReasons,
   checkStock,
+  // Guest functions
+  trackGuestOrder,
+  convertGuestOrderToUser,
   // Notification functions
   getUserNotifications,
   getAdminNotifications,

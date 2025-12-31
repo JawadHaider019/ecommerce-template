@@ -29,6 +29,13 @@ const PlaceOrder = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [isUploadingPayment, setIsUploadingPayment] = useState(false);
   
+  // Guest checkout states
+  const [isGuestCheckout, setIsGuestCheckout] = useState(false);
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  
   const {
     backendUrl,
     token,
@@ -74,25 +81,34 @@ const PlaceOrder = () => {
 
   const totalAmount = calculateTotalAmount();
 
+  // Check if user is logged in or not
+  useEffect(() => {
+    const checkAuth = () => {
+      if (!token || !user) {
+        setIsGuestCheckout(true);
+        setShowGuestForm(true);
+      } else {
+        setIsGuestCheckout(false);
+        setShowGuestForm(false);
+      }
+    };
+    
+    checkAuth();
+  }, [token, user]);
+
   // Enhanced authentication and cart check
   useEffect(() => {
-    if (!token || !user) {
-      sessionStorage.setItem('redirectAfterLogin', '/place-order');
-      navigate('/login');
-      return;
-    }
-
     const cartItemCount = (cartItems ? Object.keys(cartItems).length : 0) + 
                          (cartDeals ? Object.keys(cartDeals).length : 0);
     
     if (cartItemCount === 0) {
       // Cart is empty, will show empty state
     }
-  }, [token, user, cartItems, cartDeals, navigate]);
+  }, [cartItems, cartDeals]);
 
-  // Load user data as defaults
+  // Load user data as defaults for logged-in users
   useEffect(() => {
-    if (user?.name && user?.email && !hasUserDataLoaded) {
+    if (user?.name && user?.email && !hasUserDataLoaded && !isGuestCheckout) {
       setFormData(prev => ({
         ...prev,
         fullName: user.name || '',
@@ -101,7 +117,38 @@ const PlaceOrder = () => {
       }));
       setHasUserDataLoaded(true);
     }
-  }, [user, hasUserDataLoaded]);
+  }, [user, hasUserDataLoaded, isGuestCheckout]);
+
+  // For guest users, pre-fill from localStorage if available
+  useEffect(() => {
+    if (isGuestCheckout) {
+      const savedGuestData = localStorage.getItem('guestCheckoutData');
+      if (savedGuestData) {
+        const data = JSON.parse(savedGuestData);
+        setFormData(prev => ({
+          ...prev,
+          fullName: data.fullName || prev.fullName,
+          email: data.email || prev.email,
+          phone: data.phone || prev.phone
+        }));
+        setGuestName(data.fullName || '');
+        setGuestEmail(data.email || '');
+        setGuestPhone(data.phone || '');
+      }
+    }
+  }, [isGuestCheckout]);
+
+  // Save guest data to localStorage
+  useEffect(() => {
+    if (isGuestCheckout && formData.email) {
+      const guestData = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone
+      };
+      localStorage.setItem('guestCheckoutData', JSON.stringify(guestData));
+    }
+  }, [isGuestCheckout, formData.fullName, formData.email, formData.phone]);
 
   // Load Pakistan states
   useEffect(() => {
@@ -241,7 +288,7 @@ const PlaceOrder = () => {
     localStorage.setItem('orderFormData', JSON.stringify(formData));
   }, [formData]);
 
-  // Enhanced data readiness check - FIXED SYNTAX ERROR
+  // Enhanced data readiness check
   useEffect(() => {
     const hasCartItems = (cartItems && Object.keys(cartItems).length > 0) || 
                         (cartDeals && Object.keys(cartDeals).length > 0);
@@ -455,6 +502,13 @@ const PlaceOrder = () => {
     if (validationErrors[name]) {
       setValidationErrors(prev => ({ ...prev, [name]: '' }));
     }
+    
+    // Update guest state if needed
+    if (isGuestCheckout) {
+      if (name === 'fullName') setGuestName(value);
+      if (name === 'email') setGuestEmail(value);
+      if (name === 'phone') setGuestPhone(value);
+    }
   };
 
   const onBlurHandler = async (e) => {
@@ -554,17 +608,29 @@ const PlaceOrder = () => {
     return { orderItems, calculatedAmount };
   };
 
+  // Handle user login for checkout
+  const handleLoginForCheckout = () => {
+    sessionStorage.setItem('redirectAfterLogin', '/place-order');
+    navigate('/login');
+  };
+
+  // Handle guest checkout
+  const handleGuestCheckout = () => {
+    setShowGuestForm(true);
+  };
+
+  // Main submit handler - now supports both guest and logged-in
   const onSubmitHandler = async (e) => {
     e.preventDefault();
     
-    if (!await validateForm()) {
-      toast.error('Please fix the validation errors before submitting');
+    if (isGuestCheckout && !showGuestForm) {
+      // Show guest form if not shown yet
+      setShowGuestForm(true);
       return;
     }
     
-    if (!token || !user) {
-      sessionStorage.setItem('redirectAfterLogin', '/place-order');
-      navigate('/login');
+    if (!await validateForm()) {
+      toast.error('Please fix the validation errors before submitting');
       return;
     }
     
@@ -613,6 +679,26 @@ const PlaceOrder = () => {
         paymentAmount: paymentMethod === 'COD' ? 350 : finalAmount
       };
 
+      // Prepare API endpoint and headers based on checkout type
+      let apiEndpoint;
+      let requestHeaders = {
+        'Content-Type': 'multipart/form-data'
+      };
+
+      if (isGuestCheckout) {
+        // Guest checkout - no token required
+        apiEndpoint = `${backendUrl}/api/order/guest/place-with-payment`;
+      } else {
+        // Logged-in user - token required
+        if (!token) {
+          toast.error('Please login to continue');
+          navigate('/login');
+          return;
+        }
+        apiEndpoint = `${backendUrl}/api/order/place-with-payment`;
+        requestHeaders.token = token;
+      }
+
       // Upload payment screenshot with order data
       if (paymentScreenshot) {
         setIsUploadingPayment(true);
@@ -621,22 +707,53 @@ const PlaceOrder = () => {
         paymentFormData.append('orderData', JSON.stringify(orderData));
         
         const paymentResponse = await axios.post(
-          `${backendUrl}/api/order/place-with-payment`, 
+          apiEndpoint, 
           paymentFormData, 
           {
-            headers: { 
-              token, 
-              'Content-Type': 'multipart/form-data' 
-            }
+            headers: requestHeaders
           }
         );
         
         if (paymentResponse.data.success) {
-          // Clear cart using ShopContext function
-          clearCart();
+          // Clear cart only for logged-in users
+          if (!isGuestCheckout) {
+            clearCart();
+          }
           
-          toast.success(paymentResponse.data.message || 'Order placed successfully!');
-          navigate('/orders');
+          // Save guest order info for tracking
+          if (isGuestCheckout) {
+            const guestOrderInfo = {
+              orderId: paymentResponse.data.orderId,
+              guestId: paymentResponse.data.guestId,
+              email: orderData.customerDetails.email,
+              timestamp: Date.now()
+            };
+            localStorage.setItem('guestOrderInfo', JSON.stringify(guestOrderInfo));
+            
+            // Show guest success message
+            toast.success(
+              <div>
+                <p>✅ Order placed successfully as guest!</p>
+                <p className="text-sm mt-1">
+                  Save this order ID: <strong>{paymentResponse.data.orderId}</strong>
+                </p>
+                <p className="text-sm">Check your email for tracking details.</p>
+              </div>
+            );
+            
+            // Navigate to guest tracking page
+            navigate('/orders', { 
+              state: { 
+                orderId: paymentResponse.data.orderId,
+                guestId: paymentResponse.data.guestId,
+                email: orderData.customerDetails.email
+              } 
+            });
+          } else {
+            // For logged-in users
+            toast.success(paymentResponse.data.message || 'Order placed successfully!');
+            navigate('/orders');
+          }
         } else {
           toast.error(paymentResponse.data.message || 'Failed to place order with payment');
         }
@@ -646,7 +763,10 @@ const PlaceOrder = () => {
       }
 
     } catch (error) {
-      if (error.response?.status === 401) {
+      console.error('Order placement error:', error);
+      
+      if (error.response?.status === 401 && !isGuestCheckout) {
+        // For logged-in users who got unauthorized
         sessionStorage.setItem('redirectAfterLogin', '/place-order');
         navigate('/login');
       } else if (error.response?.data?.message) {
@@ -663,16 +783,6 @@ const PlaceOrder = () => {
   // Check if cart is empty
   const cartItemCount = (cartItems ? Object.keys(cartItems).length : 0) + 
                        (cartDeals ? Object.keys(cartDeals).length : 0);
-
-  if (!token || !user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="text-gray-600">Redirecting to login...</div>
-        </div>
-      </div>
-    );
-  }
 
   if (cartItemCount === 0) {
     return (
@@ -1058,6 +1168,74 @@ const PlaceOrder = () => {
     </div>
   );
 
+  // Render guest checkout header section
+  const renderGuestCheckoutHeader = () => {
+    if (!isGuestCheckout) return null;
+    
+    return (
+      <div className="mb-6 bg-white rounded-3xl border border-gray-300 p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Guest Checkout</h2>
+            <p className="text-gray-600 text-sm">
+              You're checking out as a guest. Your order will be stored for 30 days.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleLoginForCheckout}
+              className="px-6 py-3 border border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Login to Account
+            </button>
+            <button
+              onClick={() => navigate('/signup')}
+              className="px-6 py-3 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
+            >
+              Create Account
+            </button>
+          </div>
+        </div>
+        
+        {!showGuestForm && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="text-blue-700 text-sm">
+              <strong>Note:</strong> Guest orders can be tracked using your order ID and email.
+              Create an account later to save your order history permanently.
+            </p>
+            <button
+              onClick={() => setShowGuestForm(true)}
+              className="mt-3 text-blue-600 font-medium text-sm hover:text-blue-800"
+            >
+              Continue as guest →
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render user checkout header section
+  const renderUserCheckoutHeader = () => {
+    if (isGuestCheckout) return null;
+    
+    return (
+      <div className="mb-6 bg-white rounded-3xl border border-gray-300 p-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center">
+            <span className="text-white font-semibold">
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </span>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">Welcome back, {user?.name || 'User'}!</h3>
+            <p className="text-gray-600 text-sm">Your order will be saved to your account history.</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
@@ -1067,99 +1245,160 @@ const PlaceOrder = () => {
           <p className="text-gray-600">Complete your order with delivery information</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Delivery Information */}
-          <div className="bg-white rounded-3xl border border-gray-300 p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Delivery Information</h2>
-            
-            <form onSubmit={onSubmitHandler} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {renderInputField('fullName', 'text', 'Enter full name', 'Full Name')}
-                {renderInputField('email', 'email', 'your@email.com', 'Email Address')}
-              </div>
-              
-              {renderAddressInput()}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {renderSelectField('state', pakistanStates, 'Select province', 'Province')}
-                {renderCityInput()}
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {renderZipCodeInput()}
-                {renderInputField('phone', 'tel', '03XX-XXXXXXX', 'Phone Number')}
-              </div>
+        {/* Guest/User Checkout Header */}
+        {renderGuestCheckoutHeader()}
+        {renderUserCheckoutHeader()}
 
-              {renderPaymentMethod()}
-              {renderEasyPaisaPayment()}
-            </form>
-          </div>
-
-          {/* Right Column - Order Summary */}
-          <div className="lg:sticky lg:top-4 lg:h-fit space-y-6">
+        {/* Only show form if user is logged in OR guest form is shown */}
+        {(!isGuestCheckout || (isGuestCheckout && showGuestForm)) ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Column - Delivery Information */}
             <div className="bg-white rounded-3xl border border-gray-300 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
-              <CartTotal/>
-           
+              <h2 className="text-xl font-bold text-gray-900 mb-6">
+                {isGuestCheckout ? 'Guest Information' : 'Delivery Information'}
+              </h2>
+              
+              <form onSubmit={onSubmitHandler} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {renderInputField('fullName', 'text', 'Enter full name', 'Full Name')}
+                  {renderInputField('email', 'email', 'your@email.com', 'Email Address')}
+                </div>
+                
+                {renderAddressInput()}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {renderSelectField('state', pakistanStates, 'Select province', 'Province')}
+                  {renderCityInput()}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {renderZipCodeInput()}
+                  {renderInputField('phone', 'tel', '03XX-XXXXXXX', 'Phone Number')}
+                </div>
+
+                {renderPaymentMethod()}
+                {renderEasyPaisaPayment()}
+              </form>
+            </div>
+
+            {/* Right Column - Order Summary */}
+            <div className="lg:sticky lg:top-4 lg:h-fit space-y-6">
+              <div className="bg-white rounded-3xl border border-gray-300 p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
+                <CartTotal/>
+              </div>
             
-            {/* Place Order Button */}
-            <div className=" p-8">
-              <button 
-                type='submit' 
-                onClick={onSubmitHandler}
-                className={`w-full bg-black text-white px-6 py-4 font-semibold rounded-3xl hover:bg-gray-800 transition-colors ${
-                  loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot
-                    ? 'opacity-50 cursor-not-allowed' 
-                    : ''
-                }`}
-                disabled={loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot}
-              >
-                {isUploadingPayment ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Uploading Payment...
-                  </span>
-                ) : isValidatingAddress ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Validating Address...
-                  </span>
-                ) : loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Placing Order...
-                  </span>
-                ) : !isDataReady ? (
-                  'Loading...'
-                ) : !paymentScreenshot ? (
-                  'Upload Payment to Place Order'
-                ) : paymentMethod === 'COD' ? (
-                  `Place Order - Rs 350`
-                ) : (
-                  `Place Order - ${currency} ${totalAmount.toFixed(2)}`
+              {/* Place Order Button */}
+              <div className="p-8">
+                <button 
+                  type='submit' 
+                  onClick={onSubmitHandler}
+                  className={`w-full bg-black text-white px-6 py-4 font-semibold rounded-3xl hover:bg-gray-800 transition-colors ${
+                    loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : ''
+                  }`}
+                  disabled={loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot}
+                >
+                  {isUploadingPayment ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Uploading Payment...
+                    </span>
+                  ) : isValidatingAddress ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Validating Address...
+                    </span>
+                  ) : loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Placing Order...
+                    </span>
+                  ) : !isDataReady ? (
+                    'Loading...'
+                  ) : !paymentScreenshot ? (
+                    'Upload Payment to Place Order'
+                  ) : isGuestCheckout ? (
+                    `Place Order as Guest`
+                  ) : paymentMethod === 'COD' ? (
+                    `Place Order - Rs 350`
+                  ) : (
+                    `Place Order - ${currency} ${totalAmount.toFixed(2)}`
+                  )}
+                </button>
+                
+                {isGuestCheckout && (
+                  <p className="text-center text-gray-600 text-sm mt-4">
+                    By placing this order, you agree to our Terms of Service. 
+                    Your order will be stored for 30 days.
+                  </p>
                 )}
-              </button>
-               </div>
-           {/* Validation Summary */}
-{Object.keys(validationErrors).length > 0 && (
-  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-3xl">
-    <p className="text-red-700 text-sm font-medium">
-      Please fix the following errors before placing your order:
-    </p>
-    <ul className="text-red-600 text-sm mt-2 space-y-1">
-      {Object.entries(validationErrors).map(([field, error]) => (
-        field !== 'zipcode' && (
-          <li key={field} className="flex items-center gap-2">
-            <span>•</span> {error}
-          </li>
-        )
-      ))}
-    </ul>
-  </div>
-)}
+              </div>
+              
+              {/* Validation Summary */}
+              {Object.keys(validationErrors).length > 0 && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-3xl">
+                  <p className="text-red-700 text-sm font-medium">
+                    Please fix the following errors before placing your order:
+                  </p>
+                  <ul className="text-red-600 text-sm mt-2 space-y-1">
+                    {Object.entries(validationErrors).map(([field, error]) => (
+                      field !== 'zipcode' && (
+                        <li key={field} className="flex items-center gap-2">
+                          <span>•</span> {error}
+                        </li>
+                      )
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        ) : isGuestCheckout ? (
+          // Show continue button for guest checkout
+          <div className="bg-white rounded-3xl border border-gray-300 p-8 text-center">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Ready to Checkout?</h3>
+            <p className="text-gray-600 mb-6">
+              Continue as guest to place your order. You'll be able to track it using your email and order ID.
+            </p>
+            <button
+              onClick={handleGuestCheckout}
+              className="bg-black text-white px-8 py-4 rounded-3xl font-semibold hover:bg-gray-800 transition-colors"
+            >
+              Continue as Guest
+            </button>
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-gray-600 mb-4">Or create an account for:</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">📦</span>
+                  </div>
+                  <p className="text-sm font-medium">Order History</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">🚚</span>
+                  </div>
+                  <p className="text-sm font-medium">Fast Checkout</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-xl">
+                  <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">🔔</span>
+                  </div>
+                  <p className="text-sm font-medium">Order Updates</p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/signup')}
+                className="mt-6 w-full border border-gray-300 px-6 py-3 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Create Account
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

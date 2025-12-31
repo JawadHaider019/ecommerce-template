@@ -9,7 +9,8 @@ import {
   FaShoppingCart, 
   FaBars, 
   FaTimes,
-  FaChevronDown
+  FaChevronDown,
+  FaClipboardList // Import order icon
 } from 'react-icons/fa';
 import { assets } from '../assets/assets'
 
@@ -265,7 +266,24 @@ const Navbar = () => {
             
             {/* Right side icons */}
             <div className='flex items-center gap-3 sm:gap-4 md:gap-6'>
-              {/* Desktop Profile dropdown */}
+              {/* Order Icon - Always visible when logged in */}
+              
+                <Link 
+                  to='/orders' 
+                  className={`p-2 sm:p-3 rounded-full transition-all duration-200 ${
+                    scrolled 
+                      ? 'hover:bg-black text-white' 
+                      : 'hover:bg-black/50 text-white'
+                  }`}
+                  aria-label="My Orders"
+                >
+                  <FaClipboardList className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
+                    scrolled ? 'text-white' : 'text-white'
+                  }`} />
+                </Link>
+              
+
+              {/* Desktop Profile dropdown - SIMPLIFIED (removed order logic) */}
               <div className='hidden sm:block group relative'>
                 <div className={`p-2 sm:p-3 rounded-full transition-all duration-200 cursor-pointer ${
                   scrolled 
@@ -284,14 +302,8 @@ const Navbar = () => {
                   <div className='absolute right-0 top-full mt-2 z-20 hidden group-hover:block'>
                     <div className='w-40 sm:w-48 rounded-2xl bg-white/95 backdrop-blur-md shadow-lg border border-white/20 py-2'>
                       <div 
-                        onClick={() => { navigate('/orders'); }}
-                        className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors rounded-t-lg"
-                      >
-                        My Orders
-                      </div>
-                      <div 
                         onClick={logout}
-                        className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors rounded-b-lg border-t border-gray-100"
+                        className="px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors rounded-lg"
                       >
                         Sign Out
                       </div>
@@ -300,10 +312,10 @@ const Navbar = () => {
                 )}   
               </div>
 
-              {/* Mobile Profile Icon */}
+              {/* Mobile Profile Icon - SIMPLIFIED */}
               <div className='sm:hidden'>
                 <FaUser 
-                  onClick={() => token ? navigate('/orders') : navigate('/login')} 
+                  onClick={() => token ? null : navigate('/login')} 
                   className={`w-4 h-4 cursor-pointer transition-colors ${
                     scrolled ? 'text-white' : 'text-white'
                   }`}
@@ -412,18 +424,29 @@ const Navbar = () => {
                   {item.label}
                 </NavLink>
               ))}
+
+              {/* Order link in mobile menu when logged in */}
+              
+                <NavLink 
+                  to='/orders'
+                  onClick={handleMobileNavClick}
+                  className={({ isActive }) => 
+                    `block px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors border-l-4 ${
+                      isActive 
+                        ? 'text-black bg-gray-50 border-black' 
+                        : 'text-gray-600 border-transparent hover:bg-gray-50 hover:text-black'
+                    }`
+                  }
+                >
+                  MY ORDERS
+                </NavLink>
+             
             </nav>
 
             {/* Mobile footer */}
             {token && (
               <div className='border-t border-gray-200 p-4 sm:p-6'>
                 <div className="space-y-2">
-                  <button 
-                    onClick={() => { navigate('/orders'); handleMobileNavClick(); }}
-                    className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
-                  >
-                    My Orders
-                  </button>
                   <button 
                     onClick={logout}
                     className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
