@@ -5,10 +5,9 @@ import { IoIosArrowForward } from "react-icons/io";
 import { FaWhatsapp, FaTiktok, FaFacebookF, FaInstagram } from "react-icons/fa";
 import { Link } from 'react-router-dom';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import axios from 'axios';
 import { assets } from "../assets/assets";  
 
-// Simple cache implementation
+// Cache with TTL
 const createCache = (duration = 5 * 60 * 1000) => ({
   data: null,
   timestamp: 0,
@@ -31,126 +30,122 @@ const Hero = () => {
   });
   const sliderRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const mountedRef = useRef(true);
-  const [loadedImages, setLoadedImages] = useState(new Set());
+  const loadedImagesRef = useRef(new Set());
+  const fetchControllerRef = useRef(null);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      mountedRef.current = false;
+      if (fetchControllerRef.current) {
+        fetchControllerRef.current.abort();
+      }
     };
   }, []);
 
-  // Initialize with cache if available
+  // Initialize with cache synchronously
   useEffect(() => {
     const now = Date.now();
     
-    // Initialize banners from cache
     if (bannerCache.data && now - bannerCache.timestamp < bannerCache.duration) {
       setBanners(bannerCache.data);
       setLoading(false);
     }
     
-    // Initialize business info from cache
     if (businessCache.data && now - businessCache.timestamp < businessCache.duration) {
       setBusinessInfo(businessCache.data);
     }
   }, []);
 
-  // Fetch business details
+  // Fetch business details (lower priority)
   useEffect(() => {
     const fetchBusinessDetails = async () => {
+      const now = Date.now();
+      if (businessCache.data && now - businessCache.timestamp < businessCache.duration) {
+        return;
+      }
+
       try {
-        const response = await axios.get(`${backendUrl}/api/business-details`, {
-          timeout: 5000
+        const response = await fetch(`${backendUrl}/api/business-details`, {
+          signal: AbortSignal.timeout(3000),
+          priority: 'low'
         });
-        if (response.data.success && response.data.data) {
-          businessCache.data = response.data.data;
-          businessCache.timestamp = Date.now();
-          if (mountedRef.current) {
-            setBusinessInfo(response.data.data);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            businessCache.data = data.data;
+            businessCache.timestamp = Date.now();
+            setBusinessInfo(data.data);
           }
         }
       } catch (error) {
-        // Silently fail - use cached data or default values
-        console.log('Business details fetch failed, using cached data if available');
+        // Silently fail
       }
     };
 
-    const now = Date.now();
-    if (!businessCache.data || now - businessCache.timestamp >= businessCache.duration) {
-      if (backendUrl) {
-        fetchBusinessDetails();
-      }
+    if (backendUrl) {
+      // Defer business details fetch
+      setTimeout(fetchBusinessDetails, 1000);
     }
   }, [backendUrl]);
 
-  // Fetch banners
-  const fetchBanners = useCallback(async () => {
-    if (!mountedRef.current) return;
+  // Fetch banners (higher priority)
+  useEffect(() => {
+    const fetchBanners = async () => {
+      const now = Date.now();
+      if (bannerCache.data && now - bannerCache.timestamp < bannerCache.duration) {
+        return;
+      }
 
-    try {
       setLoading(true);
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      try {
+        if (fetchControllerRef.current) {
+          fetchControllerRef.current.abort();
+        }
+        
+        fetchControllerRef.current = new AbortController();
+        
+        const response = await fetch(`${backendUrl}/api/banners/active`, {
+          signal: fetchControllerRef.current.signal,
+          priority: 'high'
+        });
 
-      const response = await fetch(`${backendUrl}/api/banners/active`, {
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
 
-      clearTimeout(timeoutId);
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+        if (data.success && Array.isArray(data.data)) {
+          // Preload first image
+          if (data.data[0]?.imageUrl) {
+            const img = new Image();
+            img.src = data.data[0].imageUrl;
+            img.decode().catch(() => {});
+          }
 
-      const data = await response.json();
-
-      if (data.success && Array.isArray(data.data)) {
-        bannerCache.data = data.data;
-        bannerCache.timestamp = Date.now();
-        if (mountedRef.current) {
+          bannerCache.data = data.data;
+          bannerCache.timestamp = Date.now();
           setBanners(data.data);
         }
-      } else {
-        throw new Error('Invalid response format');
-      }
-    } catch (err) {
-      // Silently handle all errors - don't set error state
-      if (mountedRef.current) {
-        // Ensure we have empty array on error to show fallback UI
-        setBanners([]);
-      }
-    } finally {
-      if (mountedRef.current) {
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          setBanners([]);
+        }
+      } finally {
         setLoading(false);
       }
+    };
+
+    if (backendUrl) {
+      fetchBanners();
+    } else {
+      setLoading(false);
     }
   }, [backendUrl]);
-
-  // Fetch banners on mount if not cached
-  useEffect(() => {
-    const now = Date.now();
-    if (!bannerCache.data || now - bannerCache.timestamp >= bannerCache.duration) {
-      fetchBanners();
-    }
-  }, [fetchBanners]);
-
-  // Handle button click
-  const handleButtonClick = useCallback((e) => {
-    e.stopPropagation();
-  }, []);
-
-  // Handle image load
-  const handleImageLoad = useCallback((imageUrl) => {
-    setLoadedImages(prev => new Set(prev).add(imageUrl));
-  }, []);
 
   // Social media platforms configuration
   const socialPlatforms = useMemo(() => [
@@ -160,63 +155,75 @@ const Hero = () => {
     { key: 'instagram', icon: FaInstagram, label: 'Instagram' }
   ], []);
 
-  // Social Media Icons Component
+  // Memoized Social Media Icons
   const SocialMediaIcons = useMemo(() => {
-    const Row = ({ className = "", iconSize = 20 }) => (
-      <div className={`flex items-center gap-4 ${className}`}>
-        {socialPlatforms.map((platform) => {
-          const socialUrl = businessInfo.socialMedia?.[platform.key];
-          const isActive = !!socialUrl;
-          
-          return (
-            <a
-              key={platform.key}
-              href={isActive ? socialUrl : "#"}
-              target={isActive ? "_blank" : "_self"}
-              rel={isActive ? "noopener noreferrer" : ""}
-              className={`text-white/80 hover:text-white transition-colors duration-300 transform hover:scale-110 ${
-                !isActive ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              aria-label={isActive ? `Visit our ${platform.label}` : `${platform.label} link not set`}
-              onClick={!isActive ? (e) => e.preventDefault() : undefined}
-            >
-              <platform.icon size={iconSize} />
-            </a>
-          );
-        })}
-      </div>
-    );
+    const Row = ({ className = "", iconSize = 20 }) => {
+      const socialMedia = businessInfo.socialMedia;
+      
+      return (
+        <div className={`flex items-center gap-4 ${className}`}>
+          {socialPlatforms.map((platform) => {
+            const socialUrl = socialMedia?.[platform.key];
+            const isActive = !!socialUrl;
+            
+            const Icon = platform.icon;
+            
+            return (
+              <a
+                key={platform.key}
+                href={isActive ? socialUrl : "#"}
+                target={isActive ? "_blank" : "_self"}
+                rel={isActive ? "noopener noreferrer" : ""}
+                className={`text-white/80 hover:text-white transition-colors duration-300 transform hover:scale-110 ${
+                  !isActive ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                aria-label={isActive ? `Visit our ${platform.label}` : `${platform.label} link not set`}
+                onClick={!isActive ? (e) => e.preventDefault() : undefined}
+              >
+                <Icon size={iconSize} />
+              </a>
+            );
+          })}
+        </div>
+      );
+    };
 
-    const Column = ({ className = "", iconSize = 20 }) => (
-      <div className={`flex flex-col items-center gap-4 ${className}`}>
-        {socialPlatforms.map((platform) => {
-          const socialUrl = businessInfo.socialMedia?.[platform.key];
-          const isActive = !!socialUrl;
-          
-          return (
-            <a
-              key={platform.key}
-              href={isActive ? socialUrl : "#"}
-              target={isActive ? "_blank" : "_self"}
-              rel={isActive ? "noopener noreferrer" : ""}
-              className={`text-white hover:text-white/90 transition-colors duration-300 transform hover:scale-110 ${
-                !isActive ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              aria-label={isActive ? `Visit our ${platform.label}` : `${platform.label} link not set`}
-              onClick={!isActive ? (e) => e.preventDefault() : undefined}
-            >
-              <platform.icon size={iconSize} />
-            </a>
-          );
-        })}
-      </div>
-    );
+    const Column = ({ className = "", iconSize = 20 }) => {
+      const socialMedia = businessInfo.socialMedia;
+      
+      return (
+        <div className={`flex flex-col items-center gap-4 ${className}`}>
+          {socialPlatforms.map((platform) => {
+            const socialUrl = socialMedia?.[platform.key];
+            const isActive = !!socialUrl;
+            
+            const Icon = platform.icon;
+            
+            return (
+              <a
+                key={platform.key}
+                href={isActive ? socialUrl : "#"}
+                target={isActive ? "_blank" : "_self"}
+                rel={isActive ? "noopener noreferrer" : ""}
+                className={`text-white hover:text-white/90 transition-colors duration-300 transform hover:scale-110 ${
+                  !isActive ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                aria-label={isActive ? `Visit our ${platform.label}` : `${platform.label} link not set`}
+                onClick={!isActive ? (e) => e.preventDefault() : undefined}
+              >
+                <Icon size={iconSize} />
+              </a>
+            );
+          })}
+        </div>
+      );
+    };
 
     return { Row, Column };
   }, [businessInfo.socialMedia, socialPlatforms]);
 
   // Custom Dots Component
-  const CustomDots = () => {
+  const CustomDots = useCallback(() => {
     if (banners.length <= 1) return null;
 
     return (
@@ -241,10 +248,10 @@ const Hero = () => {
         </div>
       </div>
     );
-  };
+  }, [banners.length, currentSlide]);
 
   // Slider settings
-  const settings = useMemo(() => ({
+  const sliderSettings = useMemo(() => ({
     dots: false,
     infinite: banners.length > 1,
     speed: 800,
@@ -266,96 +273,116 @@ const Hero = () => {
   }), [banners.length]);
 
   // Optimized Banner Image Component
-  const BannerImage = useCallback(({ banner, index }) => (
-    <img
-      src={banner.imageUrl}
-      alt={banner.headingLine1 || "Premium Banner"}
-      className={`w-full h-full object-cover transition-opacity duration-500 ${
-        loadedImages.has(banner.imageUrl) ? 'opacity-100' : 'opacity-0'
-      }`}
-      loading={index === 0 ? "eager" : "lazy"}
-      decoding="async"
-     width={1920}
-        height={1080}
-      onLoad={() => handleImageLoad(banner.imageUrl)}
-      onError={() => handleImageLoad(banner.imageUrl)}
-    />
-  ), [loadedImages, handleImageLoad]);
+  const BannerImage = useCallback(({ banner, index }) => {
+    const isLoaded = loadedImagesRef.current.has(banner.imageUrl);
+    
+    useEffect(() => {
+      if (!isLoaded && index < 2) {
+        const img = new Image();
+        img.src = banner.imageUrl;
+        img.onload = img.onerror = () => {
+          loadedImagesRef.current.add(banner.imageUrl);
+        };
+      }
+    }, [banner.imageUrl, index, isLoaded]);
 
-  // Banner Item Component
-  const BannerItem = useCallback(({ banner, index }) => (
-    <section className="relative w-full h-full">
-      {/* Background Image Container */}
-      <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl mx-auto overflow-hidden">
-        <BannerImage banner={banner} index={index} />
-        
-        {/* Loading placeholder */}
-        {!loadedImages.has(banner.imageUrl) && (
+    return (
+      <>
+        <img
+          src={banner.imageUrl}
+          alt={banner.headingLine1 || "Premium Banner"}
+          className={`w-full h-full object-cover transition-opacity duration-500 ${
+            isLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+          loading={index === 0 ? "eager" : "lazy"}
+          decoding={index === 0 ? "sync" : "async"}
+          width={1920}
+          height={1080}
+          onLoad={() => loadedImagesRef.current.add(banner.imageUrl)}
+          onError={() => loadedImagesRef.current.add(banner.imageUrl)}
+        />
+        {!isLoaded && (
           <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse" />
         )}
-      </div>
+      </>
+    );
+  }, []);
 
-      {/* Overlays */}
-      <div className="absolute inset-0 bg-black/30 z-2 rounded-3xl md:rounded-4xl"></div>
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30 z-3 rounded-3xl md:rounded-4xl"></div>
+  // Banner Item Component
+  const BannerItem = useCallback(({ banner, index }) => {
+    const handleButtonClick = useCallback((e) => {
+      e.stopPropagation();
+    }, []);
 
-      {/* Content */}
-      <div className="absolute inset-0 z-10 flex items-center justify-center">
-        <div className="text-center px-4 md:px-6 max-w-7xl md:max-w-8xl">
-          {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white uppercase mb-4 md:mb-6">
-            {banner.headingLine1}
-            {banner.headingLine2 && (
-              <> <span className="font-bold">{banner.headingLine2}</span></>
+    return (
+      <section className="relative w-full h-full">
+        {/* Background Image Container */}
+        <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl mx-auto overflow-hidden">
+          <BannerImage banner={banner} index={index} />
+        </div>
+
+        {/* Overlays */}
+        <div className="absolute inset-0 bg-black/30 z-2 rounded-3xl md:rounded-4xl"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30 z-3 rounded-3xl md:rounded-4xl"></div>
+
+        {/* Content */}
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
+          <div className="text-center px-4 md:px-6 max-w-7xl md:max-w-8xl">
+            {/* Headline */}
+            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white uppercase mb-4 md:mb-6">
+              {banner.headingLine1}
+              {banner.headingLine2 && (
+                <> <span className="font-bold">{banner.headingLine2}</span></>
+              )}
+            </h1>
+          
+            {/* Subtext */}
+            {banner.subtext && (
+              <p className="text-base sm:text-lg md:text-xl text-white/90 font-light max-w-xs sm:max-w-sm md:max-w-2xl mx-auto leading-relaxed mb-6 md:mb-10 px-2">
+                {banner.subtext}
+              </p>
             )}
-          </h1>
-        
-          {/* Subtext */}
-          {banner.subtext && (
-            <p className="text-base sm:text-lg md:text-xl text-white/90 font-light max-w-xs sm:max-w-sm md:max-w-2xl mx-auto leading-relaxed mb-6 md:mb-10 px-2">
-              {banner.subtext}
-            </p>
-          )}
 
-          {/* CTA Button */}
-          {banner.buttonText && banner.redirectUrl && (
-            <div className="relative z-30">
-              <Link
-                to={banner.redirectUrl}
-                onClick={handleButtonClick}
-                className="inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 text-white border border-white/50 rounded-full transition-all duration-300 hover:bg-white/10 hover:border-white/80 group"
-                aria-label={banner.buttonText}
-              >
-                <span className="text-xs md:text-sm font-medium tracking-wider uppercase">
-                  {banner.buttonText}
-                </span>
-                <IoIosArrowForward size={14} className="transition-transform group-hover:translate-x-1" />
-              </Link>
+            {/* CTA Button */}
+            {banner.buttonText && banner.redirectUrl && (
+              <div className="relative z-30">
+                <Link
+                  to={banner.redirectUrl}
+                  onClick={handleButtonClick}
+                  className="inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 text-white border border-white/50 rounded-full transition-all duration-300 hover:bg-white/10 hover:border-white/80 group"
+                  aria-label={banner.buttonText}
+                >
+                  <span className="text-xs md:text-sm font-medium tracking-wider uppercase">
+                    {banner.buttonText}
+                  </span>
+                  <IoIosArrowForward size={14} className="transition-transform group-hover:translate-x-1" />
+                </Link>
+              </div>
+            )}
+
+            {/* Mobile Social Media */}
+            <div className="mt-6 md:mt-8 md:hidden flex justify-center">
+              <SocialMediaIcons.Row iconSize={20} />
             </div>
-          )}
-
-          {/* Mobile Social Media */}
-          <div className="mt-6 md:mt-8 md:hidden flex justify-center">
-            <SocialMediaIcons.Row iconSize={20} />
           </div>
         </div>
-      </div>
 
-      {/* Desktop Social Media */}
-      <div className="absolute bottom-4 md:bottom-8 left-4 md:left-12 z-10 hidden md:flex flex-col gap-3 md:gap-4">
-        <SocialMediaIcons.Column iconSize={18} />
-      </div>
-
-      {/* Slide Counter */}
-      <div className="absolute bottom-4 md:bottom-8 right-4 md:right-12 z-10">
-        <div className="text-white/80 text-sm md:text-lg font-light tracking-wide">
-          {(index + 1).toString().padStart(2, '0')} / {banners.length.toString().padStart(2, '0')}
+        {/* Desktop Social Media */}
+        <div className="absolute bottom-4 md:bottom-8 left-4 md:left-12 z-10 hidden md:flex flex-col gap-3 md:gap-4">
+          <SocialMediaIcons.Column iconSize={18} />
         </div>
-      </div>
-    </section>
-  ), [handleButtonClick, SocialMediaIcons, BannerImage, loadedImages]);
 
-  // Fallback banner content when no banners are available
+        {/* Slide Counter */}
+        <div className="absolute bottom-4 md:bottom-8 right-4 md:right-12 z-10">
+          <div className="text-white/80 text-sm md:text-lg font-light tracking-wide">
+            {(index + 1).toString().padStart(2, '0')} / {banners.length.toString().padStart(2, '0')}
+          </div>
+        </div>
+      </section>
+    );
+  }, [SocialMediaIcons]);
+
+  // Fallback banner content
   const fallbackBanners = useMemo(() => [{
     _id: 'fallback',
     imageUrl: assets.hero_img,
@@ -366,25 +393,7 @@ const Hero = () => {
     redirectUrl: '/collection'
   }], []);
 
-  // Render slider
-  const renderSlider = () => {
-    const bannersToShow = banners.length > 0 ? banners : fallbackBanners;
-
-    return (
-      <div className="transform -translate-y-9 md:-translate-y-[2.7rem] relative">
-        <Slider ref={sliderRef} {...settings}>
-          {bannersToShow.map((banner, index) => (
-            <div key={banner._id || `banner-${index}`} className="px-0 mx-0">
-              <BannerItem banner={banner} index={index} />
-            </div>
-          ))}
-        </Slider>
-        {bannersToShow.length > 1 && <CustomDots />}
-      </div>
-    );
-  };
-
-  // Loading state
+  // Loading skeleton
   if (loading) {
     return (
       <section className="relative w-full h-[100vh] md:h-screen transform -translate-y-9 md:-translate-y-[2.7rem]">
@@ -405,7 +414,9 @@ const Hero = () => {
     );
   }
 
-  // Main return - always render something
+  // Main render
+  const bannersToShow = banners.length > 0 ? banners : fallbackBanners;
+
   return (
     <div className="relative w-full transform -translate-y-9 md:-translate-y-[2.7rem]">
       <style>{`
@@ -417,7 +428,16 @@ const Hero = () => {
         }
       `}</style>
       
-      {renderSlider()}
+      <div className="transform -translate-y-9 md:-translate-y-[2.7rem] relative">
+        <Slider ref={sliderRef} {...sliderSettings}>
+          {bannersToShow.map((banner, index) => (
+            <div key={banner._id || `banner-${index}`} className="px-0 mx-0">
+              <BannerItem banner={banner} index={index} />
+            </div>
+          ))}
+        </Slider>
+        {bannersToShow.length > 1 && <CustomDots />}
+      </div>
     </div>
   );
 };

@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { assets } from "../assets/assets";
+import LoginModal from '../components/Login'; // Import LoginModal
 
 const PlaceOrder = () => {
   const [loading, setLoading] = useState(false);
@@ -35,6 +36,10 @@ const PlaceOrder = () => {
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [showGuestForm, setShowGuestForm] = useState(false);
+  
+  // Login Modal State (NEW)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
   
   const {
     backendUrl,
@@ -608,15 +613,22 @@ const PlaceOrder = () => {
     return { orderItems, calculatedAmount };
   };
 
-  // Handle user login for checkout
+  // Handle user login for checkout - UPDATED to use LoginModal
   const handleLoginForCheckout = () => {
-    sessionStorage.setItem('redirectAfterLogin', '/place-order');
-    navigate('/login');
+    setAuthMode('login');
+    setIsLoginModalOpen(true);
   };
 
   // Handle guest checkout
   const handleGuestCheckout = () => {
     setShowGuestForm(true);
+  };
+
+  // Handle login success
+  const handleLoginSuccess = () => {
+    setIsLoginModalOpen(false);
+    setIsGuestCheckout(false);
+    setShowGuestForm(false);
   };
 
   // Main submit handler - now supports both guest and logged-in
@@ -692,7 +704,9 @@ const PlaceOrder = () => {
         // Logged-in user - token required
         if (!token) {
           toast.error('Please login to continue');
-          navigate('/login');
+          setIsLoginModalOpen(true);
+          setAuthMode('login');
+          setLoading(false);
           return;
         }
         apiEndpoint = `${backendUrl}/api/order/place-with-payment`;
@@ -767,8 +781,8 @@ const PlaceOrder = () => {
       
       if (error.response?.status === 401 && !isGuestCheckout) {
         // For logged-in users who got unauthorized
-        sessionStorage.setItem('redirectAfterLogin', '/place-order');
-        navigate('/login');
+        setIsLoginModalOpen(true);
+        setAuthMode('login');
       } else if (error.response?.data?.message) {
         toast.error(error.response.data.message);
       } else {
@@ -1189,7 +1203,10 @@ const PlaceOrder = () => {
               Login to Account
             </button>
             <button
-              onClick={() => navigate('/signup')}
+              onClick={() => {
+                setAuthMode('signup');
+                setIsLoginModalOpen(true);
+              }}
               className="px-6 py-3 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
             >
               Create Account
@@ -1237,170 +1254,183 @@ const PlaceOrder = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
-          <p className="text-gray-600">Complete your order with delivery information</p>
-        </div>
+    <>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-6xl mx-auto px-4">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
+            <p className="text-gray-600">Complete your order with delivery information</p>
+          </div>
 
-        {/* Guest/User Checkout Header */}
-        {renderGuestCheckoutHeader()}
-        {renderUserCheckoutHeader()}
+          {/* Guest/User Checkout Header */}
+          {renderGuestCheckoutHeader()}
+          {renderUserCheckoutHeader()}
 
-        {/* Only show form if user is logged in OR guest form is shown */}
-        {(!isGuestCheckout || (isGuestCheckout && showGuestForm)) ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column - Delivery Information */}
-            <div className="bg-white rounded-3xl border border-gray-300 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">
-                {isGuestCheckout ? 'Guest Information' : 'Delivery Information'}
-              </h2>
-              
-              <form onSubmit={onSubmitHandler} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {renderInputField('fullName', 'text', 'Enter full name', 'Full Name')}
-                  {renderInputField('email', 'email', 'your@email.com', 'Email Address')}
-                </div>
-                
-                {renderAddressInput()}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {renderSelectField('state', pakistanStates, 'Select province', 'Province')}
-                  {renderCityInput()}
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {renderZipCodeInput()}
-                  {renderInputField('phone', 'tel', '03XX-XXXXXXX', 'Phone Number')}
-                </div>
-
-                {renderPaymentMethod()}
-                {renderEasyPaisaPayment()}
-              </form>
-            </div>
-
-            {/* Right Column - Order Summary */}
-            <div className="lg:sticky lg:top-4 lg:h-fit space-y-6">
+          {/* Only show form if user is logged in OR guest form is shown */}
+          {(!isGuestCheckout || (isGuestCheckout && showGuestForm)) ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column - Delivery Information */}
               <div className="bg-white rounded-3xl border border-gray-300 p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
-                <CartTotal/>
-              </div>
-            
-              {/* Place Order Button */}
-              <div className="p-8">
-                <button 
-                  type='submit' 
-                  onClick={onSubmitHandler}
-                  className={`w-full bg-black text-white px-6 py-4 font-semibold rounded-3xl hover:bg-gray-800 transition-colors ${
-                    loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : ''
-                  }`}
-                  disabled={loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot}
-                >
-                  {isUploadingPayment ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Uploading Payment...
-                    </span>
-                  ) : isValidatingAddress ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Validating Address...
-                    </span>
-                  ) : loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Placing Order...
-                    </span>
-                  ) : !isDataReady ? (
-                    'Loading...'
-                  ) : !paymentScreenshot ? (
-                    'Upload Payment to Place Order'
-                  ) : isGuestCheckout ? (
-                    `Place Order as Guest`
-                  ) : paymentMethod === 'COD' ? (
-                    `Place Order - Rs 350`
-                  ) : (
-                    `Place Order - ${currency} ${totalAmount.toFixed(2)}`
-                  )}
-                </button>
+                <h2 className="text-xl font-bold text-gray-900 mb-6">
+                  {isGuestCheckout ? 'Guest Information' : 'Delivery Information'}
+                </h2>
                 
-                {isGuestCheckout && (
-                  <p className="text-center text-gray-600 text-sm mt-4">
-                    By placing this order, you agree to our Terms of Service. 
-                    Your order will be stored for 30 days.
-                  </p>
+                <form onSubmit={onSubmitHandler} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {renderInputField('fullName', 'text', 'Enter full name', 'Full Name')}
+                    {renderInputField('email', 'email', 'your@email.com', 'Email Address')}
+                  </div>
+                  
+                  {renderAddressInput()}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {renderSelectField('state', pakistanStates, 'Select province', 'Province')}
+                    {renderCityInput()}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {renderZipCodeInput()}
+                    {renderInputField('phone', 'tel', '03XX-XXXXXXX', 'Phone Number')}
+                  </div>
+
+                  {renderPaymentMethod()}
+                  {renderEasyPaisaPayment()}
+                </form>
+              </div>
+
+              {/* Right Column - Order Summary */}
+              <div className="lg:sticky lg:top-4 lg:h-fit space-y-6">
+                <div className="bg-white rounded-3xl border border-gray-300 p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
+                  <CartTotal/>
+                </div>
+              
+                {/* Place Order Button */}
+                <div className="p-8">
+                  <button 
+                    type='submit' 
+                    onClick={onSubmitHandler}
+                    className={`w-full bg-black text-white px-6 py-4 font-semibold rounded-3xl hover:bg-gray-800 transition-colors ${
+                      loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : ''
+                    }`}
+                    disabled={loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot}
+                  >
+                    {isUploadingPayment ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        Uploading Payment...
+                      </span>
+                    ) : isValidatingAddress ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        Validating Address...
+                      </span>
+                    ) : loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        Placing Order...
+                      </span>
+                    ) : !isDataReady ? (
+                      'Loading...'
+                    ) : !paymentScreenshot ? (
+                      'Upload Payment to Place Order'
+                    ) : isGuestCheckout ? (
+                      `Place Order as Guest`
+                    ) : paymentMethod === 'COD' ? (
+                      `Place Order - Rs 350`
+                    ) : (
+                      `Place Order - ${currency} ${totalAmount.toFixed(2)}`
+                    )}
+                  </button>
+                  
+                  {isGuestCheckout && (
+                    <p className="text-center text-gray-600 text-sm mt-4">
+                      By placing this order, you agree to our Terms of Service. 
+                      Your order will be stored for 30 days.
+                    </p>
+                  )}
+                </div>
+                
+                {/* Validation Summary */}
+                {Object.keys(validationErrors).length > 0 && (
+                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-3xl">
+                    <p className="text-red-700 text-sm font-medium">
+                      Please fix the following errors before placing your order:
+                    </p>
+                    <ul className="text-red-600 text-sm mt-2 space-y-1">
+                      {Object.entries(validationErrors).map(([field, error]) => (
+                        field !== 'zipcode' && (
+                          <li key={field} className="flex items-center gap-2">
+                            <span>•</span> {error}
+                          </li>
+                        )
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </div>
-              
-              {/* Validation Summary */}
-              {Object.keys(validationErrors).length > 0 && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-3xl">
-                  <p className="text-red-700 text-sm font-medium">
-                    Please fix the following errors before placing your order:
-                  </p>
-                  <ul className="text-red-600 text-sm mt-2 space-y-1">
-                    {Object.entries(validationErrors).map(([field, error]) => (
-                      field !== 'zipcode' && (
-                        <li key={field} className="flex items-center gap-2">
-                          <span>•</span> {error}
-                        </li>
-                      )
-                    ))}
-                  </ul>
-                </div>
-              )}
             </div>
-          </div>
-        ) : isGuestCheckout ? (
-          // Show continue button for guest checkout
-          <div className="bg-white rounded-3xl border border-gray-300 p-8 text-center">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Ready to Checkout?</h3>
-            <p className="text-gray-600 mb-6">
-              Continue as guest to place your order. You'll be able to track it using your email and order ID.
-            </p>
-            <button
-              onClick={handleGuestCheckout}
-              className="bg-black text-white px-8 py-4 rounded-3xl font-semibold hover:bg-gray-800 transition-colors"
-            >
-              Continue as Guest
-            </button>
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <p className="text-gray-600 mb-4">Or create an account for:</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-gray-50 rounded-xl">
-                  <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm">📦</span>
-                  </div>
-                  <p className="text-sm font-medium">Order History</p>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-xl">
-                  <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm">🚚</span>
-                  </div>
-                  <p className="text-sm font-medium">Fast Checkout</p>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-xl">
-                  <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm">🔔</span>
-                  </div>
-                  <p className="text-sm font-medium">Order Updates</p>
-                </div>
-              </div>
+          ) : isGuestCheckout ? (
+            // Show continue button for guest checkout
+            <div className="bg-white rounded-3xl border border-gray-300 p-8 text-center">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Ready to Checkout?</h3>
+              <p className="text-gray-600 mb-6">
+                Continue as guest to place your order. You'll be able to track it using your email and order ID.
+              </p>
               <button
-                onClick={() => navigate('/signup')}
-                className="mt-6 w-full border border-gray-300 px-6 py-3 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                onClick={handleGuestCheckout}
+                className="bg-black text-white px-8 py-4 rounded-3xl font-semibold hover:bg-gray-800 transition-colors"
               >
-                Create Account
+                Continue as Guest
               </button>
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <p className="text-gray-600 mb-4">Or create an account for:</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-gray-50 rounded-xl">
+                    <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm">📦</span>
+                    </div>
+                    <p className="text-sm font-medium">Order History</p>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-xl">
+                    <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm">🚚</span>
+                    </div>
+                    <p className="text-sm font-medium">Fast Checkout</p>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-xl">
+                    <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm">🔔</span>
+                    </div>
+                    <p className="text-sm font-medium">Order Updates</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setAuthMode('signup');
+                    setIsLoginModalOpen(true);
+                  }}
+                  className="mt-6 w-full border border-gray-300 px-6 py-3 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Create Account
+                </button>
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
-    </div>
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+        initialMode={authMode}
+      />
+    </>
   );
 };
 

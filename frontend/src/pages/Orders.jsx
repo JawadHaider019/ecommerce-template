@@ -482,10 +482,6 @@ const Orders = () => {
   const { backendUrl, token, currency } = useContext(ShopContext);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showTrackModal, setShowTrackModal] = useState(false);
-  const [trackOrderId, setTrackOrderId] = useState('');
-  const [trackEmail, setTrackEmail] = useState('');
-  const [trackOrderLoading, setTrackOrderLoading] = useState(false);
 
   // Load all orders
   useEffect(() => {
@@ -533,7 +529,7 @@ const Orders = () => {
             try {
               const { email, orderId } = JSON.parse(guestOrderInfo);
               
-              // Try to track the order
+              // Try to get the order
               if (orderId && email) {
                 const trackResponse = await axios.post(
                   backendUrl + '/api/order/guest/track',
@@ -607,64 +603,6 @@ const Orders = () => {
     };
   }, [backendUrl, token]);
 
-  // Track guest order
-  const handleTrackOrderSubmit = useCallback(async () => {
-    if (!trackOrderId || !trackEmail) {
-      toast.error("Please enter order ID and email");
-      return;
-    }
-
-    setTrackOrderLoading(true);
-    try {
-      const response = await axios.post(
-        `${backendUrl}/api/order/guest/track`,
-        {
-          orderId: trackOrderId,
-          email: trackEmail
-        },
-        { timeout: 5000 }
-      );
-
-      if (response.data.success) {
-        const trackedOrder = response.data.order;
-        
-        // Add to orders list
-        setOrders(prev => {
-          const exists = prev.some(order => order._id === trackedOrder._id);
-          if (exists) return prev;
-          return [trackedOrder, ...prev];
-        });
-        
-        // Save tracking info
-        localStorage.setItem('guestOrderInfo', JSON.stringify({
-          email: trackEmail,
-          orderId: trackOrderId,
-          timestamp: Date.now()
-        }));
-        
-        // Also save to guest orders list
-        try {
-          const savedGuestOrders = localStorage.getItem('guestOrders');
-          const guestOrders = savedGuestOrders ? JSON.parse(savedGuestOrders) : [];
-          const exists = guestOrders.some(order => order._id === trackedOrder._id);
-          if (!exists) {
-            guestOrders.unshift(trackedOrder);
-            localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
-          }
-        } catch (error) {
-          console.error("Error saving to guest orders:", error);
-        }
-        
-        toast.success("Order found!");
-        setShowTrackModal(false);
-      }
-    } catch (error) {
-      toast.error("Order not found. Please check your details.");
-    } finally {
-      setTrackOrderLoading(false);
-    }
-  }, [backendUrl, trackOrderId, trackEmail]);
-
   if (loading) {
     return (
       <div className="pt-16">
@@ -684,30 +622,6 @@ const Orders = () => {
         <Title text1={"My"} text2={"Orders"} />
       </div>
 
-      {/* Track Order Button (shown when no orders) */}
-      {orders.length === 0 && !token && (
-        <div className="bg-gray-50 border border-black/50 rounded-2xl p-6 mb-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-black/10 rounded-full flex items-center justify-center flex-shrink-0">
-              <FontAwesomeIcon icon={faSearch} className="text-gray-900 text-xl" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-gray-900 mb-2">Track Your Order</h3>
-              <p className="text-gray-900 text-sm mb-3">
-                Enter your order ID and email to view your order status and details.
-              </p>
-              <button
-                onClick={() => setShowTrackModal(true)}
-                className="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800 transition-colors"
-              >
-                <FontAwesomeIcon icon={faSearch} className="mr-2" />
-                Track Order
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Orders List */}
       <div>
         {orders.length === 0 ? (
@@ -720,24 +634,15 @@ const Orders = () => {
             <p className="text-gray-900 text-sm mb-6">
               {token 
                 ? "You haven't placed any orders yet."
-                : "Track your order or place a new order to get started."}
+                : "You haven't placed any orders yet."}
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                onClick={() => setShowTrackModal(true)}
-                className="px-4 py-2 border border-black/50 text-gray-900 text-sm rounded hover:bg-gray-50 transition-colors"
-              >
-                <FontAwesomeIcon icon={faSearch} className="mr-2" />
-                Track Order
-              </button>
-              <button
-                onClick={() => window.location.href = '/'}
-                className="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800 transition-colors"
-              >
-                Start Shopping
-              </button>
-            </div>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800 transition-colors"
+            >
+              Start Shopping
+            </button>
           </div>
         ) : (
           orders.map((order) => (
@@ -751,33 +656,6 @@ const Orders = () => {
         )}
       </div>
 
-      {/* Login CTA (shown when not logged in) */}
-      {!token && orders.length > 0 && (
-        <div className="mt-8 p-6 bg-gray-50 rounded-2xl border border-black/50">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h3 className="font-bold text-gray-900 mb-1">Create an Account</h3>
-              <p className="text-gray-900 text-sm">
-                Create an account to save your orders and get faster checkout.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => window.location.href = '/login'}
-                className="px-4 py-2 border border-black/50 text-gray-900 text-sm rounded hover:bg-gray-50 transition-colors"
-              >
-                Login
-              </button>
-              <button
-                onClick={() => window.location.href = '/signup'}
-                className="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800 transition-colors"
-              >
-                Create Account
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

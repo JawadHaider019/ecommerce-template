@@ -1,4 +1,4 @@
-import { useContext, useCallback, useMemo } from "react";
+import { useContext, useCallback, useMemo, useRef, useEffect, useState } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
 import { FaStar, FaStarHalf, FaRegStar, FaArrowRight } from 'react-icons/fa';
@@ -6,11 +6,47 @@ import { FaStar, FaStarHalf, FaRegStar, FaArrowRight } from 'react-icons/fa';
 const ProductItem = ({ id, image, name, price, discount, rating, status = 'published' }) => {
   const { currency } = useContext(ShopContext);
   const navigate = useNavigate();
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const imageRef = useRef(null);
 
   // Don't render if product is not published
   if (status !== 'published') {
     return null;
   }
+
+  // Preload image immediately
+  useEffect(() => {
+    if (!image || isImageLoaded) return;
+
+    const img = new Image();
+    img.src = image;
+    img.loading = 'eager';
+    img.decoding = 'async';
+    
+    img.onload = img.onerror = () => {
+      setIsImageLoaded(true);
+    };
+  }, [image, isImageLoaded]);
+
+  // Preconnect to image domain
+  useEffect(() => {
+    if (image) {
+      try {
+        const url = new URL(image);
+        const link = document.createElement('link');
+        link.rel = 'preconnect';
+        link.href = url.origin;
+        link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+        
+        return () => {
+          document.head.removeChild(link);
+        };
+      } catch (e) {
+        // Invalid URL, skip preconnect
+      }
+    }
+  }, [image]);
 
   const handleClick = useCallback(() => {
     navigate(`/product/${id}`);
@@ -97,15 +133,30 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
       <div className="relative overflow-hidden rounded-xl mb-4 flex-shrink-0">
         {discountBadge}
         <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden group-hover:shadow-md transition-shadow duration-300">
-          <img
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-            src={image}
-            alt={name}
-            loading="lazy"
-            width={280}
-            height={280}
-            decoding="async"
-          />
+          <div className="relative w-full h-full">
+            {/* Placeholder */}
+            {!isImageLoaded && (
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse" />
+            )}
+            
+            {/* Actual Image */}
+            <img
+              ref={imageRef}
+              className={`w-full h-full object-cover transition-all duration-500 ${
+                isImageLoaded 
+                  ? 'opacity-100 group-hover:scale-110' 
+                  : 'opacity-0'
+              }`}
+              src={image}
+              alt={name}
+              loading="eager"
+              width={280}
+              height={280}
+              decoding="async"
+              onLoad={() => setIsImageLoaded(true)}
+              onError={() => setIsImageLoaded(true)}
+            />
+          </div>
         </div>
       </div>
       
