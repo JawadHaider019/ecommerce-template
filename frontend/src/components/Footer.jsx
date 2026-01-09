@@ -251,7 +251,7 @@ const Footer = () => {
                             © {currentYear} {businessInfo.company?.name || "Pure Clay"}. All rights reserved. 
                         </p>
                         <div className="text-gray-400 text-sm px-1">
-                        Developed by {" "}
+                        A Project of {" "}
                             <Link 
                                 to='https://jawumitech.com/' 
                                 className="text-white hover:text-gray-100 transition-colors font-medium"
