@@ -670,7 +670,9 @@ const placeGuestOrderWithPayment = async (req, res) => {
   }
 };
 
-// 🆕 VERIFY PAYMENT (Admin Function)
+// ============================================
+// VERIFY PAYMENT (Admin Function) - UPDATED
+// ============================================
 const verifyPayment = async (req, res) => {
   try {
     const { orderId, action, reason } = req.body;
@@ -697,6 +699,7 @@ const verifyPayment = async (req, res) => {
     let notificationFunction = null;
 
     if (action === 'approve') {
+      // IMPORTANT: Preserve the screenshot in verifiedPayment object
       updateData = {
         paymentStatus: 'verified',
         status: 'Order Placed',
@@ -704,7 +707,17 @@ const verifyPayment = async (req, res) => {
         verifiedBy: adminId,
         verifiedAt: new Date(),
         paymentVerifiedAt: new Date(),
-        orderConfirmedAt: new Date()
+        orderConfirmedAt: new Date(),
+        // Store screenshot permanently in verifiedPayment
+        verifiedPayment: {
+          screenshot: order.paymentScreenshot, // Save screenshot here
+          verifiedAt: new Date(),
+          verifiedBy: adminId,
+          amount: order.paymentAmount || order.amount,
+          method: order.paymentMethod || 'online',
+          transactionId: order._id.toString(), // Use order ID as transaction reference
+          action: 'approved'
+        }
       };
 
       // Reduce inventory for approved payments
@@ -741,7 +754,18 @@ const verifyPayment = async (req, res) => {
         payment: false,
         verifiedBy: adminId,
         verifiedAt: new Date(),
-        rejectionReason: reason || 'Payment verification failed'
+        rejectionReason: reason || 'Payment verification failed',
+        // Still preserve screenshot for reference even if rejected
+        verifiedPayment: {
+          screenshot: order.paymentScreenshot, // Keep screenshot for audit trail
+          verifiedAt: new Date(),
+          verifiedBy: adminId,
+          amount: order.paymentAmount || order.amount,
+          method: order.paymentMethod || 'online',
+          transactionId: order._id.toString(),
+          action: 'rejected',
+          reason: reason || 'Payment verification failed'
+        }
       };
       notificationFunction = () => sendPaymentRejectedNotification(order, reason);
     }
@@ -768,6 +792,7 @@ const verifyPayment = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // 🆕 TRACK GUEST ORDER
 const trackGuestOrder = async (req, res) => {

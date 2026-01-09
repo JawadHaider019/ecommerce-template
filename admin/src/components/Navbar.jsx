@@ -61,7 +61,7 @@ const Navbar = () => {
         <img 
           src={adminLogo} 
           alt="Admin Logo" 
-          className={isMobile ? "w-20 h-20 object-contain" : "w-32 h-32 object-contain"}
+          className={isMobile ? "w-20 h-20 object-contain" : "w-20 h-20 object-contain"}
           onError={(e) => {
             console.error('❌ Failed to load admin logo from backend, using asset logo');
             // If backend logo fails to load, show asset logo instead

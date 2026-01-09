@@ -904,11 +904,7 @@ const Dashboard = () => {
             <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Welcome back! Here's what's happening with your store today.</p>
           </div>
           <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-            <TimeRangeSelector 
-              currentRange={timeRange} 
-              onRangeChange={handleTimeRangeChange}
-              options={TIME_RANGES}
-            />
+         
             <button 
               onClick={handleRefresh}
               disabled={refreshing}
@@ -920,18 +916,7 @@ const Dashboard = () => {
                 className={`text-xl ${refreshing ? 'animate-spin' : ''}`} 
               />
             </button>
-            <button 
-              onClick={() => setShowAlertsModal(true)} 
-              className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
-              title="View notifications"
-            >
-              <FontAwesomeIcon icon={faBell} className="text-xl" />
-              {totalNotificationsCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                  {totalNotificationsCount}
-                </span>
-              )}
-            </button>
+       
           </div>
         </div>
 

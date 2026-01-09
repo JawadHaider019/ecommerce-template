@@ -131,6 +131,44 @@ const orderSchema = new mongoose.Schema({
         default: null 
     },
     
+    // ================= VERIFIED PAYMENT DATA =================
+    verifiedPayment: {
+        screenshot: { 
+            type: String, 
+            default: null 
+        },
+        verifiedAt: { 
+            type: Date, 
+            default: null 
+        },
+        verifiedBy: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'User', 
+            default: null 
+        },
+        amount: { 
+            type: Number, 
+            default: 0 
+        },
+        method: { 
+            type: String, 
+            default: '' 
+        },
+        transactionId: { 
+            type: String, 
+            default: '' 
+        },
+        action: {
+            type: String,
+            enum: ['approved', 'rejected'],
+            default: 'approved'
+        },
+        reason: { 
+            type: String, 
+            default: null 
+        }
+    },
+    
     // Order timeline
     orderPlacedAt: { 
         type: Date, 
@@ -159,6 +197,12 @@ const orderSchema = new mongoose.Schema({
         default: null 
     },
     
+    // Delivery charges (ADD THIS FIELD)
+    deliveryCharges: {
+        type: Number,
+        default: 0
+    },
+    
     // Metadata
     createdAt: { 
         type: Date, 
@@ -167,6 +211,11 @@ const orderSchema = new mongoose.Schema({
     updatedAt: { 
         type: Date, 
         default: Date.now 
+    },
+    // Date field for sorting (used in frontend)
+    date: {
+        type: Number,
+        default: () => Date.now()
     }
 });
 
@@ -176,6 +225,8 @@ orderSchema.index({ guestId: 1 });
 orderSchema.index({ 'customerDetails.email': 1 });
 orderSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // Auto-delete expired orders
 orderSchema.index({ orderType: 1, status: 1 });
+orderSchema.index({ paymentStatus: 1 });
+orderSchema.index({ 'verifiedPayment.verifiedAt': -1 });
 
 // Pre-save middleware to set expiration for guest orders
 orderSchema.pre('save', function(next) {
