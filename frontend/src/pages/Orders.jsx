@@ -804,7 +804,7 @@ const Orders = () => {
                 : "You haven't placed any orders yet. Start shopping to see your order history here."}
             </p>
             <button
-              onClick={() => window.location.href = '/shop'}
+              onClick={() => window.location.href = '/collection'}
               className="group inline-flex items-center gap-3 bg-black text-white px-8 py-3 rounded-xl font-medium hover:bg-gray-800 transition-all"
             >
               <span>Browse Products</span>
