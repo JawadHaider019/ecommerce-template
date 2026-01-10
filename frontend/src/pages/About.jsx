@@ -200,7 +200,7 @@ const About = () => {
     }, []);
 
     return (
-      <div className="py-16 bg-gradient-to-br from-gray-50 to-white">
+    ( teamMembers.length>0 && <div className="py-16 bg-gradient-to-br from-gray-50 to-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <div className="text-center text-4xl mb-6">
@@ -275,7 +275,7 @@ const About = () => {
             )}
           </div>
         </div>
-      </div>
+      </div>)
     );
   }, [loading, error, teamMembers]);
 

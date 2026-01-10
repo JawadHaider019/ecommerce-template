@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useMemo } from 'react'
+import { useContext, useState, useEffect, useMemo, useRef } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ShopContext } from '../context/ShopContext'
 import { useNavigate } from "react-router-dom";
@@ -10,36 +10,43 @@ import {
   FaBars, 
   FaTimes,
   FaChevronDown,
-  FaClipboardList
+  FaClipboardList,
+  FaSignOutAlt,
+  FaUserCircle,
+  FaCog,
+  FaHistory
 } from 'react-icons/fa';
 import { assets } from '../assets/assets'
-import LoginModal from '../components/Login'; // Import LoginModal
+import LoginModal from '../components/Login';
 
-// Import directly from environment variables
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
-// Cache for logo to prevent refetching
 let logoCache = {
   url: '',
   timestamp: 0,
-  cacheTime: 5 * 60 * 1000 // 5 minutes
+  cacheTime: 5 * 60 * 1000
 };
 
 const Navbar = () => {
-  const [visible, setVisible] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-  const [websiteLogo, setWebsiteLogo] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [visible, setVisible] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [websiteLogo, setWebsiteLogo] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  // User dropdown state
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   
   // Login Modal State
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   
-  const { getCartCount, token, setToken, setCartItems, user } = useContext(ShopContext)
+  const { getCartCount, token, setToken, setCartItems, user } = useContext(ShopContext);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Ref for dropdown to close when clicking outside
+  const userDropdownRef = useRef(null);
 
-  // Memoized navigation items
   const navItems = useMemo(() => [
     { path: '/', label: 'HOME' },
     { path: '/collection', label: 'COLLECTION' },
@@ -48,7 +55,34 @@ const Navbar = () => {
     { path: '/contact', label: 'CONTACT' }
   ], []);
 
-  // Throttled scroll handler
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
+        setUserDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Close dropdown on escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setUserDropdownOpen(false);
+        if (visible) setVisible(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [visible]);
+
+  // Scroll handler
   useEffect(() => {
     let ticking = false;
     
@@ -70,7 +104,6 @@ const Navbar = () => {
   // Fetch website logo from backend with caching
   useEffect(() => {
     const fetchWebsiteLogo = async () => {
-      // Check cache first
       const now = Date.now();
       if (logoCache.url && now - logoCache.timestamp < logoCache.cacheTime) {
         setWebsiteLogo(logoCache.url);
@@ -115,19 +148,29 @@ const Navbar = () => {
   }, [backendUrl]);
 
   const logout = () => {
-    localStorage.removeItem('token')
-    setToken('')
-    setCartItems({})
-    toast.success("Logged out successfully")
-    setIsLoginModalOpen(false)
-    navigate('/')
-    setVisible(false)
-  }
+    localStorage.removeItem('token');
+    localStorage.removeItem('userOrders'); // Clear localStorage orders on logout
+    setToken('');
+    setCartItems({});
+    setUserDropdownOpen(false); // Close dropdown after logout
+    toast.success("Logged out successfully");
+    navigate('/');
+  };
+
+  // Toggle user dropdown
+  const toggleUserDropdown = () => {
+    if (token) {
+      setUserDropdownOpen(!userDropdownOpen);
+    } else {
+      openLoginModal();
+    }
+  };
 
   // Handle login modal open
   const openLoginModal = () => {
     setAuthMode('login');
     setIsLoginModalOpen(true);
+    setUserDropdownOpen(false);
     setVisible(false);
   };
 
@@ -144,22 +187,10 @@ const Navbar = () => {
     toast.success("Logged in successfully!");
   };
 
-  // Close mobile menu when navigating
+  // Handle mobile nav click
   const handleMobileNavClick = () => {
     setVisible(false);
   };
-
-  // Close mobile menu on escape key
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && visible) {
-        setVisible(false);
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [visible]);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -174,7 +205,6 @@ const Navbar = () => {
     };
   }, [visible]);
 
-  // Optimized Logo display component
   const LogoDisplay = () => {
     if (!loading && websiteLogo) {
       return (
@@ -195,6 +225,40 @@ const Navbar = () => {
         className='w-16 sm:w-20 h-auto object-contain transition-all duration-300' 
         alt="Logo" 
       />
+    );
+  };
+
+  // User dropdown component
+  const UserDropdown = () => {
+    if (!token || !userDropdownOpen) return null;
+
+    return (
+      <div 
+        ref={userDropdownRef}
+        className="absolute right-0 top-full mt-2 z-50 w-48 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/50 py-2"
+      >
+        {/* User info */}
+        <div className="px-4 py-3 border-b border-gray-100">
+          <p className="text-sm font-medium text-gray-900 truncate">
+            {user?.name }
+          </p>
+          <p className="text-xs text-gray-500 truncate mt-1">
+            {user?.email || ''}
+          </p>
+        </div>
+
+        {/* Dropdown items */}
+        <div className="py-1">
+          {/* Logout button */}
+          <button
+            onClick={logout}
+            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100 mt-1"
+          >
+            <FaSignOutAlt className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
     );
   };
 
@@ -293,36 +357,43 @@ const Navbar = () => {
               {/* Right side icons */}
               <div className='flex items-center gap-3 sm:gap-4 md:gap-6'>
                 {/* Order Icon */}
-           
-                  <Link 
-                    to='/orders' 
-                    className={`p-2 sm:p-3 rounded-full transition-all duration-200 ${
-                      scrolled 
-                        ? 'hover:bg-black text-white' 
-                        : 'hover:bg-black/50 text-white'
-                    }`}
-                    aria-label="My Orders"
-                  >
-                    <FaClipboardList className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
-                      scrolled ? 'text-white' : 'text-white'
-                    }`} />
-                  </Link>
-         
-
-                {/* User Icon - SIMPLIFIED: Just opens modal */}
-                <button
-                  onClick={token ? logout : openLoginModal}
+                <Link 
+                  to='/orders' 
                   className={`p-2 sm:p-3 rounded-full transition-all duration-200 ${
                     scrolled 
                       ? 'hover:bg-black text-white' 
                       : 'hover:bg-black/50 text-white'
                   }`}
-                  aria-label={token ? "Logout" : "Login"}
+                  aria-label="My Orders"
                 >
-                  <FaUser className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
+                  <FaClipboardList className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
                     scrolled ? 'text-white' : 'text-white'
                   }`} />
-                </button>
+                </Link>
+
+                {/* User Icon with dropdown */}
+                <div className="relative" ref={userDropdownRef}>
+                  <button
+                    onClick={toggleUserDropdown}
+                    className={`p-2 sm:p-3 rounded-full transition-all duration-200 relative ${
+                      scrolled 
+                        ? 'hover:bg-black text-white' 
+                        : 'hover:bg-black/50 text-white'
+                    } ${userDropdownOpen ? 'bg-black/30' : ''}`}
+                    aria-label={token ? "User menu" : "Login"}
+                  >
+                    <FaUser className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
+                      scrolled ? 'text-white' : 'text-white'
+                    }`} />
+                    {/* Indicator dot for logged in users */}
+                    {token && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    )}
+                  </button>
+                  
+                  {/* User dropdown menu */}
+                  <UserDropdown />
+                </div>
 
                 {/* Cart */}
                 <Link 
@@ -428,9 +499,24 @@ const Navbar = () => {
                 ))}
 
                 {/* Order link in mobile menu */}
-              
+                <NavLink 
+                  to='/orders'
+                  onClick={handleMobileNavClick}
+                  className={({ isActive }) => 
+                    `block px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors border-l-4 ${
+                      isActive 
+                        ? 'text-black bg-gray-50 border-black' 
+                        : 'text-gray-600 border-transparent hover:bg-gray-50 hover:text-black'
+                    }`
+                  }
+                >
+                  MY ORDERS
+                </NavLink>
+                
+                {/* Profile link in mobile menu (only for logged in users) */}
+                {token && (
                   <NavLink 
-                    to='/orders'
+                    to='/profile'
                     onClick={handleMobileNavClick}
                     className={({ isActive }) => 
                       `block px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors border-l-4 ${
@@ -440,9 +526,9 @@ const Navbar = () => {
                       }`
                     }
                   >
-                    MY ORDERS
+                    MY PROFILE
                   </NavLink>
-       
+                )}
               </nav>
 
               {/* Mobile footer */}
@@ -459,24 +545,27 @@ const Navbar = () => {
                           logout();
                           handleMobileNavClick();
                         }}
-                        className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
+                        className="flex items-center gap-3 w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm sm:text-base"
                       >
-                        Sign Out
+                        <FaSignOutAlt className="w-4 h-4" />
+                        <span>Sign Out</span>
                       </button>
                     </>
                   ) : (
                     <>
                       <button 
                         onClick={openLoginModal}
-                        className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
+                        className="flex items-center gap-3 w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
                       >
-                        Sign In
+                        <FaUser className="w-4 h-4" />
+                        <span>Sign In</span>
                       </button>
                       <button 
                         onClick={openSignupModal}
-                        className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
+                        className="flex items-center gap-3 w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-sm sm:text-base"
                       >
-                        Create Account
+                        <FaUser className="w-4 h-4" />
+                        <span>Create Account</span>
                       </button>
                     </>
                   )}
