@@ -673,7 +673,7 @@ const Product = () => {
                    `Please let me know the next steps.`;
     
     const encodedMessage = encodeURIComponent(message);
-    const phoneNumber = "923329780355";
+    const phoneNumber = "923260325475";
     
     window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, '_blank');
   }, [productData, quantity, currency]);

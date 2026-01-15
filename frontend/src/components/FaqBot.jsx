@@ -102,7 +102,7 @@ const faqTree = {
 
   "How can I contact Pure Clay?": {
     answer:
-      "You can reach us via email at ahmed@pureclay.com or call +923260325475 / +923329780355. You can also contact us through the website contact page.",
+      "You can reach us via email at ahmed@pureclay.com or call +923260325475. You can also contact us through the website contact page.",
     followups: {
       "Where is Pure Clay located?": {
         answer: "We are based in Chakwal, Pakistan.",
@@ -171,7 +171,7 @@ export default function FaqBot() {
       ]);
     } else if (option === "Contact on WhatsApp") {
       // Open WhatsApp
-      window.open("https://wa.me/923329780355", "_blank");
+      window.open("https://wa.me/923260325475", "_blank");
     } else {
       handleClick(option);
     }
@@ -221,7 +221,7 @@ export default function FaqBot() {
   }, [open]);
 
   const openWhatsApp = () => {
-    window.open("https://wa.me/923329780355", "_blank");
+    window.open("https://wa.me/923260325475", "_blank");
   };
 
   return (
