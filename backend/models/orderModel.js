@@ -4,7 +4,7 @@ const orderSchema = new mongoose.Schema({
     // User identification (optional for guests)
     userId: { 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User', 
+        ref: 'user', 
         default: null 
     },
     
