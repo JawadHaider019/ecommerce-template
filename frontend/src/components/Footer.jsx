@@ -22,12 +22,12 @@ const Footer = () => {
         company: {
             name: "Pure Clay",
             description: "Handmade organic skincare crafted from pure, natural ingredients — gentle on your skin and kind to the planet.",
-            foundedYear: 2024
+            foundedYear: 2025
         },
         contact: {
             customerSupport: {
                 email: "contact@pureclay.com",
-                phone: "+92-300-123-4567",
+                phone: "+923260325457",
             }
         },
         location: {
@@ -187,7 +187,7 @@ const Footer = () => {
                                     <FontAwesomeIcon icon={faPhone} className="text-gray-900 w-3" />
                                 </div>
                                 <span className="group-hover:text-white transition-colors">
-                                    {businessInfo.contact?.customerSupport?.phone}
+                                    +{businessInfo.contact?.customerSupport?.phone}
                                 </span>
                             </div>
                             <div className="flex items-center space-x-3 group">
