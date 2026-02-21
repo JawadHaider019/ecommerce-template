@@ -1365,9 +1365,9 @@ const PlaceOrder = () => {
                     ) : paymentMethod === 'online' && !paymentScreenshot ? (
                       'Upload Payment to Place Order'
                     ) : paymentMethod === 'COD' ? (
-                      'Place Order (Cash on Delivery)'
+                      'Place Order'
                     ) : (
-                      'Place Order (Online Payment)'
+                      'Place Order '
                     )}
                   </button>
                   
