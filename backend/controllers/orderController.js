@@ -108,10 +108,12 @@ const sendOrderPlacedNotification = async (order) => {
       await createNotification({
         userId: order.userId.toString(),
         type: NOTIFICATION_TYPES.ORDER_PLACED,
-        title: order.paymentStatus === 'pending' ? '⏳ Order Placed - Payment Pending' : '🎉 Order Placed Successfully!',
-        message: order.paymentStatus === 'pending' 
-          ? `Your order #${shortOrderId} has been placed. Waiting for payment verification.` 
-          : `Your order #${shortOrderId} has been placed. Total: $${order.amount}`,
+        title: order.paymentMethod === 'COD' 
+          ? '🎉 Order Placed Successfully (Cash on Delivery)!' 
+          : '🎉 Order Placed Successfully - Payment Pending',
+        message: order.paymentMethod === 'COD'
+          ? `Your order #${shortOrderId} has been placed. Pay when you receive your order. Total: $${order.amount}`
+          : `Your order #${shortOrderId} has been placed. Waiting for payment verification. Total: $${order.amount}`,
         relatedId: order._id.toString(),
         relatedType: 'order',
         actionUrl: `/orders/${order._id}`,
@@ -121,6 +123,7 @@ const sendOrderPlacedNotification = async (order) => {
           itemsCount: order.items.length,
           customerName: customerName,
           customerEmail: customerEmail,
+          paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus
         }
       });
@@ -131,22 +134,23 @@ const sendOrderPlacedNotification = async (order) => {
       userId: 'admin',
       type: NOTIFICATION_TYPES.ORDER_PLACED,
       title: order.orderType === 'guest' 
-        ? (order.paymentStatus === 'pending' ? '👤 Guest Order - Payment Pending' : '👤 New Guest Order')
-        : (order.paymentStatus === 'pending' ? '⏳ New Order - Payment Pending' : '🛒 New Order Received'),
+        ? (order.paymentMethod === 'COD' ? '👤 New Guest Order (COD)' : '👤 New Guest Order - Payment Pending')
+        : (order.paymentMethod === 'COD' ? '🛒 New COD Order' : '🛒 New Order - Payment Pending'),
       message: order.orderType === 'guest'
-        ? `New GUEST order #${shortOrderId} from ${customerName} (${customerEmail}). ${order.paymentStatus === 'pending' ? 'Payment verification required.' : ''}`
-        : `New order #${shortOrderId} from ${customerName}. Amount: $${order.amount}`,
+        ? `New GUEST order #${shortOrderId} from ${customerName} (${customerEmail}) - Payment: ${order.paymentMethod}`
+        : `New order #${shortOrderId} from ${customerName} - Amount: $${order.amount} - Payment: ${order.paymentMethod}`,
       relatedId: order._id.toString(),
       relatedType: 'order',
       isAdmin: true,
       actionUrl: `/admin/orders/${order._id}`,
-      priority: order.paymentStatus === 'pending' ? 'high' : 'medium',
+      priority: order.paymentMethod === 'online' ? 'high' : 'medium',
       metadata: {
         orderId: order._id.toString(),
         customerName: customerName,
         customerEmail: customerEmail,
         amount: order.amount,
         itemsCount: order.items.length,
+        paymentMethod: order.paymentMethod,
         paymentStatus: order.paymentStatus,
         isGuestOrder: order.orderType === 'guest'
       }
@@ -217,7 +221,7 @@ const sendOrderCancelledNotification = async (order, cancelledBy, reason = '') =
 };
 
 // 🆕 Send Order Status Update Notification
-const sendOrderStatusUpdateNotification = async (order, oldStatus, newStatus) => {
+const sendOr9yMnTm4NSzvG9rrwjM2ec8xZgh1cafXH8 = async (order, oldStatus, newStatus) => {
   try {
     const statusMessages = {
       'Processing': 'is being processed',
@@ -255,7 +259,7 @@ const sendOrderStatusUpdateNotification = async (order, oldStatus, newStatus) =>
   }
 };
 
-// 🆕 MASTER ORDER PLACEMENT FUNCTION (handles both guest and user)
+// 🆕 MASTER ORDER PLACEMENT FUNCTION (handles both guest and user) - UPDATED FOR COD WITHOUT ADVANCE PAYMENT
 const placeOrder = async (req, res) => {
   try {
     console.log("🛒 ========== ORDER PLACEMENT ==========");
@@ -268,8 +272,7 @@ const placeOrder = async (req, res) => {
       customerDetails, 
       paymentMethod, 
       paymentStatus, 
-      paymentAmount, 
-      paymentScreenshot 
+      paymentAmount
     } = req.body;
 
     // Get user ID (might be null for guests)
@@ -412,8 +415,12 @@ const placeOrder = async (req, res) => {
       });
     }
 
-    // Reduce inventory if payment verified or online payment
-    if (paymentStatus === 'verified' || paymentMethod === 'online') {
+    // Reduce inventory if:
+    // 1. Online payment (payment verified or online payment)
+    // 2. For COD, we reduce inventory immediately (no advance payment required)
+    const shouldReduceInventory = (paymentMethod === 'online' && paymentStatus === 'verified') || paymentMethod === 'COD';
+    
+    if (shouldReduceInventory) {
       console.log("📦 Reducing inventory quantity...");
       for (const validatedItem of validatedItems) {
         if (!validatedItem.actualProduct) continue;
@@ -454,13 +461,27 @@ const placeOrder = async (req, res) => {
         }
       }
     } else {
-      console.log("⚠️ Skipping inventory reduction - payment pending verification");
+      console.log("⚠️ Skipping inventory reduction - payment pending verification for online payment");
     }
 
     // 🆕 Generate IDs for guest orders
     const generateGuestId = () => {
       return 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     };
+    
+    // Determine payment status based on method
+    let finalPaymentStatus = paymentStatus || 'pending';
+    let finalOrderStatus = "Order Placed";
+    
+    if (paymentMethod === 'COD') {
+      // For COD, payment is automatically considered verified (no advance payment)
+      finalPaymentStatus = 'verified';
+      finalOrderStatus = "Order Placed";
+    } else if (paymentMethod === 'online') {
+      // For online, payment needs verification
+      finalPaymentStatus = paymentStatus || 'pending';
+      finalOrderStatus = paymentStatus === 'verified' ? "Order Placed" : "Pending Verification";
+    }
     
     // Create order data
     const orderData = {
@@ -483,23 +504,28 @@ const placeOrder = async (req, res) => {
       address,
       deliveryCharges: deliveryCharges || 0,
       paymentMethod: paymentMethod,
-      payment: paymentStatus === 'verified',
-      status: paymentStatus === 'verified' ? "Order Placed" : "Pending Verification",
+      payment: finalPaymentStatus === 'verified',
+      status: finalOrderStatus,
       date: Date.now(),
       customerDetails: finalCustomerDetails,
-      paymentStatus: paymentStatus || 'pending',
-      paymentAmount: paymentAmount || (paymentMethod === 'COD' ? 350 : Number(amount)),
-      paymentScreenshot: paymentScreenshot || null,
-      paymentMethodDetail: paymentMethod === 'COD' ? 'easypaisa' : 'online',
+      paymentStatus: finalPaymentStatus,
+      paymentAmount: paymentAmount || Number(amount),
       orderPlacedAt: new Date()
     };
+
+    // Add payment screenshot only for online payments
+    if (paymentMethod === 'online' && req.body.paymentScreenshot) {
+      orderData.paymentScreenshot = req.body.paymentScreenshot;
+    }
 
     console.log("📝 ORDER DATA:", {
       orderType: orderData.orderType,
       guestId: orderData.guestId,
       customer: orderData.customerDetails.name,
       items: orderData.items.length,
-      amount: orderData.amount
+      amount: orderData.amount,
+      paymentMethod: orderData.paymentMethod,
+      paymentStatus: orderData.paymentStatus
     });
 
     const newOrder = new orderModel(orderData);
@@ -507,8 +533,8 @@ const placeOrder = async (req, res) => {
 
     console.log(`✅ Order created: ${newOrder._id}`);
 
-    // Clear cart only for logged-in users with verified payment
-    if (!isGuest && paymentStatus === 'verified') {
+    // Clear cart only for logged-in users with verified payment or COD
+    if (!isGuest && (finalPaymentStatus === 'verified' || paymentMethod === 'COD')) {
       await userModel.findByIdAndUpdate(userId, { 
         cartData: {},
         cartDeals: {} 
@@ -521,14 +547,17 @@ const placeOrder = async (req, res) => {
 
     res.json({ 
       success: true, 
-      message: paymentStatus === 'verified' 
-        ? "Order Placed Successfully" 
-        : "Order Placed - Payment Verification Pending",
+      message: paymentMethod === 'COD' 
+        ? "Order Placed Successfully (Cash on Delivery)" 
+        : (paymentStatus === 'verified' 
+            ? "Order Placed Successfully" 
+            : "Order Placed - Payment Verification Pending"),
       orderId: newOrder._id,
       orderType: newOrder.orderType,
       guestId: newOrder.guestId, // Important for guest tracking
       deliveryCharges: newOrder.deliveryCharges,
       customerDetails: newOrder.customerDetails,
+      paymentMethod: newOrder.paymentMethod,
       paymentStatus: newOrder.paymentStatus,
       orderStatus: newOrder.status
     });
@@ -539,7 +568,7 @@ const placeOrder = async (req, res) => {
   }
 };
 
-// 🆕 GUEST CHECKOUT WITH PAYMENT
+// 🆕 ORDER WITH PAYMENT UPLOAD (for online payments only)
 const placeOrderWithPayment = async (req, res) => {
   try {
     console.log("💰 ========== ORDER WITH PAYMENT UPLOAD ==========");
@@ -570,17 +599,20 @@ const placeOrderWithPayment = async (req, res) => {
     } else {
       return res.status(400).json({ 
         success: false, 
-        message: "Payment screenshot is required" 
+        message: "Payment screenshot is required for online payments" 
       });
     }
 
     const parsedOrderData = JSON.parse(orderData);
     
+    // Ensure payment method is online
+    parsedOrderData.paymentMethod = 'online';
+    parsedOrderData.paymentStatus = 'pending';
+    
     // Call the main placeOrder function
     req.body = {
       ...parsedOrderData,
-      paymentScreenshot: paymentScreenshot,
-      paymentStatus: 'pending'
+      paymentScreenshot: paymentScreenshot
     };
     
     return await placeOrder(req, res);
@@ -603,7 +635,7 @@ const placeOrderWithPayment = async (req, res) => {
   }
 };
 
-// 🆕 GUEST CHECKOUT SPECIFIC FUNCTIONS
+// 🆕 GUEST CHECKOUT WITH PAYMENT (for online payments only)
 const placeGuestOrderWithPayment = async (req, res) => {
   try {
     console.log("👤 ========== GUEST ORDER WITH PAYMENT ==========");
@@ -634,17 +666,20 @@ const placeGuestOrderWithPayment = async (req, res) => {
     } else {
       return res.status(400).json({ 
         success: false, 
-        message: "Payment screenshot is required" 
+        message: "Payment screenshot is required for online payments" 
       });
     }
 
     const parsedOrderData = JSON.parse(orderData);
     
+    // Ensure payment method is online
+    parsedOrderData.paymentMethod = 'online';
+    parsedOrderData.paymentStatus = 'pending';
+    
     // Call the main placeOrder function
     req.body = {
       ...parsedOrderData,
-      paymentScreenshot: paymentScreenshot,
-      paymentStatus: 'pending'
+      paymentScreenshot: paymentScreenshot
     };
     
     // Remove userId for guest checkout
@@ -689,6 +724,14 @@ const verifyPayment = async (req, res) => {
     const order = await orderModel.findById(orderId);
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // Skip verification for COD orders
+    if (order.paymentMethod === 'COD') {
+      return res.status(400).json({ 
+        success: false, 
+        message: "COD orders do not require payment verification" 
+      });
     }
 
     if (order.paymentStatus !== 'pending') {
@@ -793,7 +836,6 @@ const verifyPayment = async (req, res) => {
   }
 };
 
-
 // 🆕 TRACK GUEST ORDER
 const trackGuestOrder = async (req, res) => {
   try {
@@ -821,6 +863,7 @@ const trackGuestOrder = async (req, res) => {
       _id: order._id,
       status: order.status,
       paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
       amount: order.amount,
       deliveryCharges: order.deliveryCharges,
       items: order.items.map(item => ({
@@ -843,7 +886,6 @@ const trackGuestOrder = async (req, res) => {
         phone: order.customerDetails.phone
       },
       orderPlacedAt: order.orderPlacedAt,
-      paymentMethod: order.paymentMethod,
       orderType: order.orderType
     };
 
@@ -859,11 +901,12 @@ const trackGuestOrder = async (req, res) => {
   }
 };
 
-// 🆕 GET PENDING PAYMENT ORDERS
+// 🆕 GET PENDING PAYMENT ORDERS (for online payments only)
 const getPendingPaymentOrders = async (req, res) => {
   try {
     const orders = await orderModel.find({ 
-      paymentStatus: 'pending' 
+      paymentStatus: 'pending',
+      paymentMethod: 'online' // Only show online payment orders
     }).sort({ orderPlacedAt: -1 });
     
     res.json({ success: true, orders });
@@ -959,9 +1002,14 @@ const updateStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // Don't allow status update if payment is pending
-    if (currentOrder.paymentStatus === 'pending' && status !== 'Cancelled') {
-      return res.status(400).json({ success: false, message: "Cannot update status while payment verification is pending" });
+    // Don't allow status update if payment is pending for online orders
+    if (currentOrder.paymentMethod === 'online' && 
+        currentOrder.paymentStatus === 'pending' && 
+        status !== 'Cancelled') {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Cannot update status while payment verification is pending for online payment" 
+      });
     }
 
     const oldStatus = currentOrder.status;
@@ -1010,7 +1058,7 @@ const updateStatus = async (req, res) => {
 
     // SEND STATUS UPDATE NOTIFICATION (if status changed)
     if (oldStatus !== status && status !== "Cancelled") {
-      await sendOrderStatusUpdateNotification(updatedOrder, oldStatus, status);
+      await sendOr9yMnTm4NSzvG9rrwjM2ec8xZgh1cafXH8(updatedOrder, oldStatus, status);
     }
 
     res.json({ 

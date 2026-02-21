@@ -26,6 +26,7 @@ import upload from "../middleware/multer.js"
 const orderRoutes = express.Router()
 
 // 🆕 GUEST ROUTES (No authentication required)
+orderRoutes.post("/guest/place", placeOrder)  // ✅ ADDED: Guest COD - uses the same placeOrder function
 orderRoutes.post("/guest/place-with-payment", upload.single('payment_screenshot'), placeGuestOrderWithPayment)
 orderRoutes.post("/guest/track", trackGuestOrder)
 

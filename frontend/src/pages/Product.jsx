@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import RelatedProduct from '../components/RelatedProduct';
 import LoginModal from '../components/Login';
@@ -31,6 +31,7 @@ import { toast } from 'react-toastify';
 
 const Product = () => {
   const { productId } = useParams();
+  const navigate = useNavigate();
   const { 
     products, 
     currency, 
@@ -72,12 +73,15 @@ const Product = () => {
     howToUse: false
   });
 
-  // Category data
+  // Category and Subcategory state
   const [backendCategories, setBackendCategories] = useState([]);
   const [categoryIdMap, setCategoryIdMap] = useState({});
   const [subcategoryIdMap, setSubcategoryIdMap] = useState({});
+  const [availableSubcategories, setAvailableSubcategories] = useState([]);
+  const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [categoriesError, setCategoriesError] = useState(null);
+  const [changingSubcategory, setChangingSubcategory] = useState(false);
 
   const backendURL = import.meta.env.VITE_BACKEND_URL || backendUrl;
   const addToCartCalledRef = useRef(false);
@@ -306,6 +310,32 @@ const Product = () => {
     }
   }, [backendURL]);
 
+  // Set available subcategories based on current product's category
+  useEffect(() => {
+    if (productData?.category && backendCategories.length > 0) {
+      const categoryId = productData.category;
+      const category = backendCategories.find(cat => cat.id === categoryId);
+      
+      if (category && category.subcategories && category.subcategories.length > 0) {
+        setAvailableSubcategories(category.subcategories);
+        
+        // Set initial selected subcategory to current product's subcategory
+        if (productData.subcategory) {
+          const subcatId = productData.subcategory;
+          const subcat = category.subcategories.find(sub => sub.id === subcatId);
+          if (subcat) {
+            setSelectedSubcategory(subcat.id);
+          } else {
+            setSelectedSubcategory('');
+          }
+        }
+      } else {
+        setAvailableSubcategories([]);
+        setSelectedSubcategory('');
+      }
+    }
+  }, [productData, backendCategories]);
+
   // Fetch product data and reviews
   useEffect(() => {
     setLoading(true);
@@ -348,6 +378,49 @@ const Product = () => {
     }
     setLoading(false);
   }, [productId, products, fetchProductReviews, fetchProductDetails]);
+
+  // Handle subcategory change
+  const handleSubcategoryChange = useCallback(async (e) => {
+    const newSubcategoryId = e.target.value;
+    setSelectedSubcategory(newSubcategoryId);
+    
+    if (!newSubcategoryId || !productData?.category) return;
+    
+    setChangingSubcategory(true);
+    
+    try {
+      // Find a product with the same category but different subcategory
+      const categoryId = productData.category;
+      const category = backendCategories.find(cat => cat.id === categoryId);
+      
+      if (category) {
+        // Find the subcategory name
+        const subcategory = category.subcategories.find(sub => sub.id === newSubcategoryId);
+        const subcategoryName = subcategory ? subcategory.name : newSubcategoryId;
+        
+        // Find a product in the same category with this subcategory
+        const newProduct = products.find(p => 
+          p.category === categoryId && 
+          p.subcategory === newSubcategoryId &&
+          p._id !== productId
+        );
+        
+        if (newProduct) {
+        
+          navigate(`/product/${newProduct._id}`);
+        } else {
+          // If no specific product found, navigate to category page with subcategory filter
+          toast.info(`Viewing all ${subcategoryName} products`);
+          navigate(`/collection?category=${encodeURIComponent(categoryId)}&subcategory=${encodeURIComponent(newSubcategoryId)}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error changing subcategory:', error);
+      toast.error('Failed to change subcategory');
+    } finally {
+      setChangingSubcategory(false);
+    }
+  }, [productData, backendCategories, products, navigate]);
 
   const stock = productData ? productData.quantity : 0;
 
@@ -907,53 +980,53 @@ const Product = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
             {/* Left Column - Product Images */}
-<div className="space-y-6">
-  {/* Main Image Card */}
-  <div className="bg-white rounded-2xl shadow border border-gray-200 relative overflow-hidden" style={{ height: '600px' }}>
-    {discountPercentage && (
-      <div className="absolute top-4 left-4 z-10 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow">
-        {discountPercentage}% OFF
-      </div>
-    )}
-    {productData.bestseller && (
-      <div className="absolute top-4 right-4 z-10 bg-black text-white px-4 py-2 rounded-full text-sm font-semibold shadow">
-        <FaTag className="inline mr-2" /> BESTSELLER
-      </div>
-    )}
-    <img
-      src={image || productData.image?.[0]}
-      alt={productData.name}
-      className="w-full h-full object-cover"
-      loading="eager"
-      onError={(e) => {
-        e.target.src = 'https://via.placeholder.com/500?text=Product+Image';
-      }}
-    />
-  </div>
+            <div className="space-y-6">
+              {/* Main Image Card */}
+              <div className="bg-white rounded-2xl shadow border border-gray-200 relative overflow-hidden" style={{ height: '600px' }}>
+                {discountPercentage && (
+                  <div className="absolute top-4 left-4 z-10 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow">
+                    {discountPercentage}% OFF
+                  </div>
+                )}
+                {productData.bestseller && (
+                  <div className="absolute top-4 right-4 z-10 bg-black text-white px-4 py-2 rounded-full text-sm font-semibold shadow">
+                    <FaTag className="inline mr-2" /> BESTSELLER
+                  </div>
+                )}
+                <img
+                  src={image || productData.image?.[0]}
+                  alt={productData.name}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/500?text=Product+Image';
+                  }}
+                />
+              </div>
 
-  {/* Thumbnails */}
-  <div className="bg-white rounded-2xl shadow border border-gray-200 p-4">
-    <div className="flex gap-3 overflow-x-auto pb-2">
-      {productData.image?.map((item, index) => (
-        <img
-          key={index}
-          src={item}
-          alt={`${productData.name} thumbnail ${index + 1}`}
-          className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg cursor-pointer border-2 transition-colors ${
-            image === item 
-              ? 'border-black' 
-              : 'border-gray-200 hover:border-gray-300'
-          }`}
-          onClick={() => setImage(item)}
-          loading="lazy"
-          onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/100?text=Image';
-          }}
-        />
-      ))}
-    </div>
-  </div>
-</div>
+              {/* Thumbnails */}
+              <div className="bg-white rounded-2xl shadow border border-gray-200 p-4">
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {productData.image?.map((item, index) => (
+                    <img
+                      key={index}
+                      src={item}
+                      alt={`${productData.name} thumbnail ${index + 1}`}
+                      className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg cursor-pointer border-2 transition-colors ${
+                        image === item 
+                          ? 'border-black' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => setImage(item)}
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/100?text=Image';
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
 
             {/* Right Column - Product Info & Actions */}
             <div className="space-y-6">
@@ -991,28 +1064,62 @@ const Product = () => {
                 {/* Stock Status */}
                 <div className="mb-6">{renderStockStatus()}</div>
 
-                {/* Quantity Selector */}
-                <div className="mb-6">
-                  <p className="text-sm font-medium text-gray-800 mb-3">Quantity:</p>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={decrementQuantity}
-                      disabled={quantity <= 1 || stock === 0}
-                      className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <FaMinus className="w-4 h-4" />
-                    </button>
-                    <div className="text-center">
-                      <span className="text-2xl font-bold text-gray-900">{quantity}</span>
+                {/* Quantity and Subcategory Row */}
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Quantity Selector */}
+                  <div>
+                    <p className="text-sm font-medium text-gray-800 mb-3">Quantity:</p>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={decrementQuantity}
+                        disabled={quantity <= 1 || stock === 0}
+                        className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        <FaMinus className="w-4 h-4" />
+                      </button>
+                      <div className="text-center">
+                        <span className="text-2xl font-bold text-gray-900">{quantity}</span>
+                      </div>
+                      <button
+                        onClick={incrementQuantity}
+                        disabled={quantity >= stock || stock === 0}
+                        className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        <FaPlus className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={incrementQuantity}
-                      disabled={quantity >= stock || stock === 0}
-                      className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <FaPlus className="w-4 h-4" />
-                    </button>
                   </div>
+
+                  {/* Subcategory Dropdown */}
+                  {availableSubcategories.length > 1 && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-800 mb-3">Size:</p>
+                      <div className="relative">
+                        <select
+                          value={selectedSubcategory}
+                          onChange={handleSubcategoryChange}
+                          disabled={changingSubcategory || availableSubcategories.length === 0}
+                          className="w-full px-4 py-2 pr-8 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-black appearance-none"
+                        >
+                          <option value="">Select Size</option>
+                          {availableSubcategories.map((subcat) => (
+                            <option key={subcat.id} value={subcat.id}>
+                              {subcat.name}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                          <FaChevronDown className="w-4 h-4 text-gray-500" />
+                        </div>
+                        {changingSubcategory && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg">
+                            <FaSpinner className="animate-spin w-5 h-5 text-gray-600" />
+                          </div>
+                        )}
+                      </div>
+                    
+                    </div>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
@@ -1088,156 +1195,151 @@ const Product = () => {
                 </div>
               </div>
               
-           {/* Expandable Sections */}
-<div className="space-y-4">
-  {/* Description Section */}
-  {(productData.description && productData.description.trim() !== '') && (
-    <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-      <button
-        onClick={() => toggleSection('description')}
-        className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-         
-          <h3 className="text-lg font-semibold text-gray-900">Description</h3>
-        </div>
-        {expandedSections.description ? (
-          <FaChevronUp className="w-4 h-4 text-gray-500" />
-        ) : (
-          <FaChevronDown className="w-4 h-4 text-gray-500" />
-        )}
-      </button>
-      {expandedSections.description && (
-        <div className="p-5 pt-0">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="prose prose-sm max-w-none">
-              <p className="text-gray-700 leading-relaxed tracking-wide text-justify">
-                {productData.description}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )}
-
-  {/* Ingredients Section */}
-  {(ingredientsList.length > 0) && (
-    <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-      <button
-        onClick={() => toggleSection('ingredients')}
-        className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-         
-          <h3 className="text-lg font-semibold text-gray-900">Ingredients</h3>
-        </div>
-        {expandedSections.ingredients ? (
-          <FaChevronUp className="w-4 h-4 text-gray-500" />
-        ) : (
-          <FaChevronDown className="w-4 h-4 text-gray-500" />
-        )}
-      </button>
-      {expandedSections.ingredients && (
-        <div className="p-5 pt-0">
-          {loadingProductDetails ? (
-            <div className="flex items-center justify-center p-4">
-              <FaSpinner className="animate-spin w-5 h-5 text-gray-400" />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {ingredientsList.map((ingredient, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <FaCheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 font-medium tracking-wide">{ingredient}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )}
-
-  {/* Benefits Section */}
-  {(benefitsList.length > 0) && (
-    <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-      <button
-        onClick={() => toggleSection('benefits')}
-        className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-       
-          <h3 className="text-lg font-semibold text-gray-900">Benefits</h3>
-        </div>
-        {expandedSections.benefits ? (
-          <FaChevronUp className="w-4 h-4 text-gray-500" />
-        ) : (
-          <FaChevronDown className="w-4 h-4 text-gray-500" />
-        )}
-      </button>
-      {expandedSections.benefits && (
-        <div className="p-5 pt-0">
-          {loadingProductDetails ? (
-            <div className="flex items-center justify-center p-4">
-              <FaSpinner className="animate-spin w-5 h-5 text-gray-400" />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {benefitsList.map((benefit, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="w-4 h-4 flex-shrink-0 mt-0.5">
-                    <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+              {/* Expandable Sections */}
+              <div className="space-y-4">
+                {/* Description Section */}
+                {(productData.description && productData.description.trim() !== '') && (
+                  <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() => toggleSection('description')}
+                      className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-900">Description</h3>
+                      </div>
+                      {expandedSections.description ? (
+                        <FaChevronUp className="w-4 h-4 text-gray-500" />
+                      ) : (
+                        <FaChevronDown className="w-4 h-4 text-gray-500" />
+                      )}
+                    </button>
+                    {expandedSections.description && (
+                      <div className="p-5 pt-0">
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <div className="prose prose-sm max-w-none">
+                            <p className="text-gray-700 leading-relaxed tracking-wide text-justify">
+                              {productData.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className="text-sm text-gray-700 font-medium tracking-wide leading-relaxed">{benefit}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )}
+                )}
 
-  {/* How to Use Section */}
-  {(howToUseText && howToUseText.trim() !== '') && (
-    <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-      <button
-        onClick={() => toggleSection('howToUse')}
-        className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-       
-          <h3 className="text-lg font-semibold text-gray-900">How to Use</h3>
-        </div>
-        {expandedSections.howToUse ? (
-          <FaChevronUp className="w-4 h-4 text-gray-500" />
-        ) : (
-          <FaChevronDown className="w-4 h-4 text-gray-500" />
-        )}
-      </button>
-      {expandedSections.howToUse && (
-        <div className="p-5 pt-0">
-          {loadingProductDetails ? (
-            <div className="flex items-center justify-center p-4">
-              <FaSpinner className="animate-spin w-5 h-5 text-gray-400" />
-            </div>
-          ) : (
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <div className="prose prose-sm max-w-none">
-                <p className="text-gray-700 leading-relaxed tracking-wide text-justify whitespace-pre-line">
-                  {howToUseText}
-                </p>
+                {/* Ingredients Section */}
+                {(ingredientsList.length > 0) && (
+                  <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() => toggleSection('ingredients')}
+                      className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-900">Ingredients</h3>
+                      </div>
+                      {expandedSections.ingredients ? (
+                        <FaChevronUp className="w-4 h-4 text-gray-500" />
+                      ) : (
+                        <FaChevronDown className="w-4 h-4 text-gray-500" />
+                      )}
+                    </button>
+                    {expandedSections.ingredients && (
+                      <div className="p-5 pt-0">
+                        {loadingProductDetails ? (
+                          <div className="flex items-center justify-center p-4">
+                            <FaSpinner className="animate-spin w-5 h-5 text-gray-400" />
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {ingredientsList.map((ingredient, index) => (
+                              <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                <FaCheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                <span className="text-sm text-gray-700 font-medium tracking-wide">{ingredient}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Benefits Section */}
+                {(benefitsList.length > 0) && (
+                  <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() => toggleSection('benefits')}
+                      className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-900">Benefits</h3>
+                      </div>
+                      {expandedSections.benefits ? (
+                        <FaChevronUp className="w-4 h-4 text-gray-500" />
+                      ) : (
+                        <FaChevronDown className="w-4 h-4 text-gray-500" />
+                      )}
+                    </button>
+                    {expandedSections.benefits && (
+                      <div className="p-5 pt-0">
+                        {loadingProductDetails ? (
+                          <div className="flex items-center justify-center p-4">
+                            <FaSpinner className="animate-spin w-5 h-5 text-gray-400" />
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {benefitsList.map((benefit, index) => (
+                              <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                <div className="w-4 h-4 flex-shrink-0 mt-0.5">
+                                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                                </div>
+                                <span className="text-sm text-gray-700 font-medium tracking-wide leading-relaxed">{benefit}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* How to Use Section */}
+                {(howToUseText && howToUseText.trim() !== '') && (
+                  <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() => toggleSection('howToUse')}
+                      className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-900">How to Use</h3>
+                      </div>
+                      {expandedSections.howToUse ? (
+                        <FaChevronUp className="w-4 h-4 text-gray-500" />
+                      ) : (
+                        <FaChevronDown className="w-4 h-4 text-gray-500" />
+                      )}
+                    </button>
+                    {expandedSections.howToUse && (
+                      <div className="p-5 pt-0">
+                        {loadingProductDetails ? (
+                          <div className="flex items-center justify-center p-4">
+                            <FaSpinner className="animate-spin w-5 h-5 text-gray-400" />
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-gray-50 rounded-lg">
+                            <div className="prose prose-sm max-w-none">
+                              <p className="text-gray-700 leading-relaxed tracking-wide text-justify whitespace-pre-line">
+                                {howToUseText}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
-      )}
-    </div>
-  )}
-</div>
-            </div>
-
           </div>
 
           {/* Reviews Section */}

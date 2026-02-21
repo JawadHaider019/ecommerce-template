@@ -24,7 +24,7 @@ const PlaceOrder = () => {
   const [cityZipData, setCityZipData] = useState({});
   const [knownCitiesWithZips, setKnownCitiesWithZips] = useState({});
   
-  // Payment States
+  // Payment States - Both COD and Online
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
@@ -37,7 +37,7 @@ const PlaceOrder = () => {
   const [guestPhone, setGuestPhone] = useState('');
   const [showGuestForm, setShowGuestForm] = useState(false);
   
-  // Login Modal State (NEW)
+  // Login Modal State
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   
@@ -395,15 +395,15 @@ const PlaceOrder = () => {
   const validateForm = async () => {
     const errors = {};
     
-    // Validate all form fields except ZIP code validation won't block submission
+    // Validate all form fields
     for (const field of Object.keys(formData)) {
       const fieldErrors = await validateField(field, formData[field]);
       Object.assign(errors, fieldErrors);
     }
     
-    // Validate payment screenshot
-    if (!paymentScreenshot) {
-      errors.payment = 'Please upload payment screenshot to place order';
+    // Validate payment screenshot for online payments
+    if (paymentMethod === 'online' && !paymentScreenshot) {
+      errors.payment = 'Payment screenshot is required for online payments';
     }
     
     setValidationErrors(errors);
@@ -415,7 +415,7 @@ const PlaceOrder = () => {
     return Object.keys(blockingErrors).length === 0;
   };
 
-  // Handle payment screenshot upload
+  // Payment screenshot upload functions
   const handlePaymentScreenshot = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -448,7 +448,6 @@ const PlaceOrder = () => {
     }
   };
 
-  // Remove payment screenshot
   const removePaymentScreenshot = () => {
     setPaymentScreenshot(null);
     setPreviewImage(null);
@@ -631,7 +630,7 @@ const PlaceOrder = () => {
     setShowGuestForm(false);
   };
 
-  // Main submit handler - now supports both guest and logged-in
+  // Main submit handler - supports both payment methods
   const onSubmitHandler = async (e) => {
     e.preventDefault();
     
@@ -675,7 +674,7 @@ const PlaceOrder = () => {
         return;
       }
 
-      // Prepare order data according to backend schema
+      // Prepare order data
       const orderData = {
         items: orderItems,
         amount: finalAmount,
@@ -687,95 +686,75 @@ const PlaceOrder = () => {
           phone: formData.phone
         },
         paymentMethod: paymentMethod,
-        paymentStatus: 'pending',
-        paymentAmount: paymentMethod === 'COD' ? 350 : finalAmount
+        // For COD, payment is automatically verified (no advance payment)
+        // For online, payment status is pending until admin verification
+        paymentStatus: paymentMethod === 'COD' ? 'verified' : 'pending'
       };
 
-      // Prepare API endpoint and headers based on checkout type
+      // Determine API endpoint based on payment method and checkout type
       let apiEndpoint;
-      let requestHeaders = {
-        'Content-Type': 'multipart/form-data'
-      };
+      let requestHeaders = {};
 
-      if (isGuestCheckout) {
-        // Guest checkout - no token required
-        apiEndpoint = `${backendUrl}/api/order/guest/place-with-payment`;
-      } else {
-        // Logged-in user - token required
-        if (!token) {
-          toast.error('Please login to continue');
-          setIsLoginModalOpen(true);
-          setAuthMode('login');
-          setLoading(false);
-          return;
-        }
-        apiEndpoint = `${backendUrl}/api/order/place-with-payment`;
-        requestHeaders.token = token;
-      }
-
-      // Upload payment screenshot with order data
-      if (paymentScreenshot) {
-        setIsUploadingPayment(true);
-        const paymentFormData = new FormData();
-        paymentFormData.append('payment_screenshot', paymentScreenshot);
-        paymentFormData.append('orderData', JSON.stringify(orderData));
+      if (paymentMethod === 'online') {
+        // For online payments, use multipart/form-data to upload screenshot
+        requestHeaders = {
+          'Content-Type': 'multipart/form-data'
+        };
         
-        const paymentResponse = await axios.post(
-          apiEndpoint, 
-          paymentFormData, 
-          {
-            headers: requestHeaders
-          }
-        );
-        
-        if (paymentResponse.data.success) {
-          // Clear cart only for logged-in users
-          if (!isGuestCheckout) {
-            clearCart();
-          }
-          
-          // Save guest order info for tracking
-          if (isGuestCheckout) {
-            const guestOrderInfo = {
-              orderId: paymentResponse.data.orderId,
-              guestId: paymentResponse.data.guestId,
-              email: orderData.customerDetails.email,
-              timestamp: Date.now()
-            };
-            localStorage.setItem('guestOrderInfo', JSON.stringify(guestOrderInfo));
-            
-            // Show guest success message
-            toast.success(
-              <div>
-                <p>✅ Order placed successfully as guest!</p>
-                <p className="text-sm mt-1">
-                  Save this order ID: <strong>{paymentResponse.data.orderId}</strong>
-                </p>
-                <p className="text-sm">Check your email for tracking details.</p>
-              </div>
-            );
-            
-            // Navigate to guest tracking page
-            navigate('/orders', { 
-              state: { 
-                orderId: paymentResponse.data.orderId,
-                guestId: paymentResponse.data.guestId,
-                email: orderData.customerDetails.email
-              } 
-            });
-          } else {
-            // For logged-in users
-            toast.success(paymentResponse.data.message || 'Order placed successfully!');
-            navigate('/orders');
-          }
+        if (isGuestCheckout) {
+          apiEndpoint = `${backendUrl}/api/order/guest/place-with-payment`;
         } else {
-          toast.error(paymentResponse.data.message || 'Failed to place order with payment');
+          if (!token) {
+            toast.error('Please login to continue');
+            setIsLoginModalOpen(true);
+            setAuthMode('login');
+            setLoading(false);
+            return;
+          }
+          apiEndpoint = `${backendUrl}/api/order/place-with-payment`;
+          requestHeaders.token = token;
         }
-        setIsUploadingPayment(false);
-        setLoading(false);
-        return;
-      }
+        
+        // Create FormData for online payment
+        const formDataObj = new FormData();
+        formDataObj.append('orderData', JSON.stringify(orderData));
+        if (paymentScreenshot) {
+          formDataObj.append('payment_screenshot', paymentScreenshot);
+        }
+        
+        const response = await axios.post(apiEndpoint, formDataObj, {
+          headers: requestHeaders
+        });
+        
+        handleOrderResponse(response.data, orderData);
+        
+      } else {
+        // COD - no payment screenshot required
+        requestHeaders = {
+          'Content-Type': 'application/json'
+        };
 
+        if (isGuestCheckout) {
+          apiEndpoint = `${backendUrl}/api/order/guest/place`;
+        } else {
+          if (!token) {
+            toast.error('Please login to continue');
+            setIsLoginModalOpen(true);
+            setAuthMode('login');
+            setLoading(false);
+            return;
+          }
+          apiEndpoint = `${backendUrl}/api/order/place`;
+          requestHeaders.token = token;
+        }
+
+        const response = await axios.post(apiEndpoint, orderData, {
+          headers: requestHeaders
+        });
+        
+        handleOrderResponse(response.data, orderData);
+      }
+      
     } catch (error) {
       console.error('Order placement error:', error);
       
@@ -788,10 +767,59 @@ const PlaceOrder = () => {
       } else {
         toast.error('Failed to place order. Please try again.');
       }
-    } finally {
       setLoading(false);
       setIsValidatingAddress(false);
     }
+  };
+
+  // Helper function to handle order response
+  const handleOrderResponse = (data, orderData) => {
+    if (data.success) {
+      // Clear cart only for logged-in users
+      if (!isGuestCheckout) {
+        clearCart();
+      }
+      
+      // Save guest order info for tracking
+      if (isGuestCheckout) {
+        const guestOrderInfo = {
+          orderId: data.orderId,
+          guestId: data.guestId,
+          email: orderData.customerDetails.email,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('guestOrderInfo', JSON.stringify(guestOrderInfo));
+        
+        // Show guest success message
+        toast.success(
+          <div>
+            <p>✅ Order placed successfully as guest!</p>
+            <p className="text-sm mt-1">
+              Save this order ID: <strong>{data.orderId}</strong>
+            </p>
+            <p className="text-sm">Check your email for tracking details.</p>
+          </div>
+        );
+        
+        // Navigate to guest tracking page
+        navigate('/orders', { 
+          state: { 
+            orderId: data.orderId,
+            guestId: data.guestId,
+            email: orderData.customerDetails.email
+          } 
+        });
+      } else {
+        // For logged-in users
+        toast.success(data.message || 'Order placed successfully!');
+        navigate('/orders');
+      }
+    } else {
+      toast.error(data.message || 'Failed to place order');
+    }
+    
+    setLoading(false);
+    setIsValidatingAddress(false);
   };
 
   // Check if cart is empty
@@ -1013,19 +1041,24 @@ const PlaceOrder = () => {
     </div>
   );
 
-  // Render Payment Method Selection
+  // Render Payment Method Selection - Both COD and Online
   const renderPaymentMethod = () => (
     <div className="mt-8">
       <h2 className="text-xl font-bold text-gray-900 mb-6">Payment Method</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* COD Option */}
+      <div className="grid grid-cols-1  gap-4">
+        {/* COD Option - No advance payment */}
         <div 
           className={`border border-gray-300 rounded-xl p-4 cursor-pointer transition-all ${
             paymentMethod === 'COD' 
               ? 'border-gray-900 bg-gray-50' 
               : 'hover:border-gray-400'
           }`}
-          onClick={() => setPaymentMethod('COD')}
+          onClick={() => {
+            setPaymentMethod('COD');
+            // Clear any payment screenshot when switching to COD
+            setPaymentScreenshot(null);
+            setPreviewImage(null);
+          }}
         >
           <div className="flex items-center gap-3">
             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -1035,13 +1068,12 @@ const PlaceOrder = () => {
             </div>
             <div>
               <p className="font-semibold text-gray-900">Cash on Delivery</p>
-              <p className="text-sm text-gray-600 mt-1">Pay Rs 350 now, rest on delivery</p>
             </div>
           </div>
         </div>
         
         {/* Online Payment Option */}
-        <div 
+        {/* <div 
           className={`border border-gray-300 rounded-xl p-4 cursor-pointer transition-all ${
             paymentMethod === 'online' 
               ? 'border-gray-900 bg-gray-50' 
@@ -1057,28 +1089,24 @@ const PlaceOrder = () => {
             </div>
             <div>
               <p className="font-semibold text-gray-900">Online Payment</p>
-              <p className="text-sm text-gray-600 mt-1">Pay full amount now via EasyPaisa</p>
+              <p className="text-sm text-gray-600 mt-1">Pay via EasyPaisa/JazzCash</p>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );
 
-  // Render EasyPaisa Payment Section
+  // Render EasyPaisa Payment Section for Online Payments
   const renderEasyPaisaPayment = () => (
     <div className="mt-6">
       <div className="bg-white p-6 border border-gray-300 rounded-3xl">
-        <h3 className="text-lg font-bold text-gray-900 mb-6">Payment</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-6">Online Payment Details</h3>
         
         <div className="space-y-4 mb-6 p-4 bg-gray-50 rounded-3xl">
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">
-              {paymentMethod === 'COD' ? 'Pre-payment Amount:' : 'Total Amount:'}
-            </span>
-            <span className="font-bold text-gray-900">
-              {paymentMethod === 'COD' ? 'Rs 350' : `${currency} ${totalAmount.toFixed(2)}`}
-            </span>
+            <span className="text-gray-700 font-medium">Total Amount:</span>
+            <span className="font-bold text-gray-900">{currency} {totalAmount.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-700 font-medium">EasyPaisa Number:</span>
@@ -1087,6 +1115,11 @@ const PlaceOrder = () => {
           <div className="flex items-center justify-between">
             <span className="text-gray-700 font-medium">Account:</span>
             <span className="font-semibold text-gray-900">Muhammad Ahmad</span>
+          </div>
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <p className="text-sm text-yellow-700">
+              <strong>Note:</strong> Payment will be verified by admin before processing.
+            </p>
           </div>
         </div>
 
@@ -1157,11 +1190,7 @@ const PlaceOrder = () => {
         <div className="text-sm text-gray-600 space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
           <p className="flex items-start gap-2">
             <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-            <span>
-              Send <span className="font-semibold text-gray-900">
-                {paymentMethod === 'COD' ? 'Rs 350 pre-payment' : `${currency} ${totalAmount.toFixed(2)} full payment`}
-              </span> to our EasyPaisa account
-            </span>
+            <span>Send <span className="font-semibold text-gray-900">{currency} {totalAmount.toFixed(2)}</span> to EasyPaisa account</span>
           </p>
           <p className="flex items-start gap-2">
             <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
@@ -1169,18 +1198,13 @@ const PlaceOrder = () => {
           </p>
           <p className="flex items-start gap-2">
             <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-            <span>Upload the screenshot above to verify your payment</span>
+            <span>Upload screenshot above for verification</span>
           </p>
-          {paymentMethod === 'COD' && (
-            <p className="flex items-start gap-2">
-              <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-              <span>Pay remaining balance when your order is delivered</span>
-            </p>
-          )}
         </div>
       </div>
     </div>
   );
+
 
   // Render guest checkout header section
   const renderGuestCheckoutHeader = () => {
@@ -1295,7 +1319,10 @@ const PlaceOrder = () => {
                   </div>
 
                   {renderPaymentMethod()}
-                  {renderEasyPaisaPayment()}
+                  
+                  {/* Conditional Payment Section */}
+                  {paymentMethod === 'COD' ?  ' ': renderEasyPaisaPayment()}
+                  
                 </form>
               </div>
 
@@ -1312,11 +1339,11 @@ const PlaceOrder = () => {
                     type='submit' 
                     onClick={onSubmitHandler}
                     className={`w-full bg-black text-white px-6 py-4 font-semibold rounded-3xl hover:bg-gray-800 transition-colors ${
-                      loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot
+                      loading || !isDataReady || isValidatingAddress || isUploadingPayment
                         ? 'opacity-50 cursor-not-allowed' 
                         : ''
                     }`}
-                    disabled={loading || !isDataReady || isValidatingAddress || isUploadingPayment || !paymentScreenshot}
+                    disabled={loading || !isDataReady || isValidatingAddress || isUploadingPayment}
                   >
                     {isUploadingPayment ? (
                       <span className="flex items-center justify-center gap-2">
@@ -1335,14 +1362,12 @@ const PlaceOrder = () => {
                       </span>
                     ) : !isDataReady ? (
                       'Loading...'
-                    ) : !paymentScreenshot ? (
+                    ) : paymentMethod === 'online' && !paymentScreenshot ? (
                       'Upload Payment to Place Order'
-                    ) : isGuestCheckout ? (
-                      `Place Order as Guest`
                     ) : paymentMethod === 'COD' ? (
-                      `Place Order - Rs 350`
+                      'Place Order (Cash on Delivery)'
                     ) : (
-                      `Place Order - ${currency} ${totalAmount.toFixed(2)}`
+                      'Place Order (Online Payment)'
                     )}
                   </button>
                   
