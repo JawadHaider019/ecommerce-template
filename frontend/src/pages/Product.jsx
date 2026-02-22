@@ -1076,7 +1076,7 @@ const variantProducts = useMemo(() => {
                   </div>
                   
                   {/* Right side - Price */}
-                  <div className="flex flex-col items-center gap-1 sm:gap-2">
+                  <div className="flex sm:flex-row flex-col items-center gap-1 sm:gap-2">
                     <span className="font-bold text-sm sm:text-base">
                       {currency} {variantPrice.toFixed(2)}
                     </span>
