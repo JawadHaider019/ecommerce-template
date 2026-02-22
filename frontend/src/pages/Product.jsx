@@ -947,7 +947,7 @@ const Product = () => {
                 <img
                   src={image || productData.image?.[0]}
                   alt={productData.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   loading="eager"
                   onError={(e) => {
                     e.target.src = 'https://via.placeholder.com/500?text=Product+Image';

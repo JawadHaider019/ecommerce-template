@@ -8,14 +8,14 @@ export default defineConfig({
     viteImagemin({
       gifsicle: { optimizationLevel: 3 },
       mozjpeg: { 
-        quality: 75,  // Balanced for both
+        quality: 75,
         progressive: true 
       },
       pngquant: { 
-        quality: [0.65, 0.8]  // Balanced
+        quality: [0.65, 0.8]
       },
       webp: { 
-        quality: 75,  // Balanced
+        quality: 75,
         lossless: false 
       },
       svgo: {
@@ -26,10 +26,13 @@ export default defineConfig({
       }
     })
   ],
-  base: "./",
-  server: { port: 5174 },
+  base: '/', // Change from "./" to "/" for better compatibility
+  server: { 
+    port: 5174,
+    open: true 
+  },
   build: {
-    target: 'es2015',  // Good for both
+    target: 'es2015',
     rollupOptions: {
       output: {
         manualChunks: {
