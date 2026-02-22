@@ -41,7 +41,8 @@ const Product = () => {
     backendUrl,   
     getCartAmount, 
     isFreeDeliveryAvailable,
-    getAmountForFreeDelivery 
+    getAmountForFreeDelivery,
+    loading: contextLoading // Add this if your context has a loading state
   } = useContext(ShopContext);
   
   const [productData, setProductData] = useState(null);
@@ -60,6 +61,7 @@ const Product = () => {
   const [loading, setLoading] = useState(true);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [loadingProductDetails, setLoadingProductDetails] = useState(false);
+  const [dataFetched, setDataFetched] = useState(false);
   
   // Login Modal State
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -86,6 +88,7 @@ const Product = () => {
   const backendURL = import.meta.env.VITE_BACKEND_URL || backendUrl;
   const addToCartCalledRef = useRef(false);
   const whatsappButtonRef = useRef(null);
+  const hasAttemptedFetch = useRef(false);
 
   // Delivery timeline dates
   const deliveryDates = useMemo(() => {
@@ -336,48 +339,104 @@ const Product = () => {
     }
   }, [productData, backendCategories]);
 
-  // Fetch product data and reviews
+  // Fetch product data and reviews - FIXED FOR PRODUCTION
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    
-    if (!productId) {
-      setError('Product ID not found');
-      setLoading(false);
-      return;
-    }
-
-    if (!products || products.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    const product = products.find((item) => item._id === productId);
-    if (product) {
-      setProductData(product);
-      setImage(product.image?.[0] || '');
+    const loadProductData = async () => {
+      // Prevent multiple fetch attempts
+      if (hasAttemptedFetch.current && dataFetched) return;
+      
+      setLoading(true);
       setError(null);
       
-      fetchProductDetails(productId).then(details => {
-        if (details) {
-          setProductData(prev => ({
-            ...prev,
-            ingredients: details.ingredients || [],
-            benefits: details.benefits || [],
-            howToUse: details.howToUse || '',
-            ...(details.quantity !== undefined && { quantity: details.quantity }),
-            ...(details.status !== undefined && { status: details.status }),
-            ...(details.bestseller !== undefined && { bestseller: details.bestseller }),
-          }));
+      if (!productId) {
+        setError('Product ID not found');
+        setLoading(false);
+        setDataFetched(true);
+        hasAttemptedFetch.current = true;
+        return;
+      }
+
+      // Check if products exist in context
+      if (!products || products.length === 0) {
+        // Wait for products to load - don't set loading false
+        console.log('Waiting for products to load...');
+        return;
+      }
+
+      const product = products.find((item) => item._id === productId);
+      if (product) {
+        setProductData(product);
+        setImage(product.image?.[0] || '');
+        setError(null);
+        
+        // Fetch additional details
+        try {
+          const details = await fetchProductDetails(productId);
+          if (details) {
+            setProductData(prev => ({
+              ...prev,
+              ingredients: details.ingredients || [],
+              benefits: details.benefits || [],
+              howToUse: details.howToUse || '',
+              ...(details.quantity !== undefined && { quantity: details.quantity }),
+              ...(details.status !== undefined && { status: details.status }),
+              ...(details.bestseller !== undefined && { bestseller: details.bestseller }),
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching product details:', error);
         }
-      });
-      
-      fetchProductReviews(productId);
-    } else {
-      setError('Product not found');
+        
+        // Fetch reviews
+        try {
+          await fetchProductReviews(productId);
+        } catch (error) {
+          console.error('Error fetching reviews:', error);
+        }
+        
+        setLoading(false);
+        setDataFetched(true);
+        hasAttemptedFetch.current = true;
+      } else {
+        setError('Product not found');
+        setLoading(false);
+        setDataFetched(true);
+        hasAttemptedFetch.current = true;
+      }
+    };
+
+    loadProductData();
+  }, [productId, products, fetchProductDetails, fetchProductReviews]);
+
+  // Retry mechanism for production - checks if products load after initial render
+  useEffect(() => {
+    // If products are now available but we haven't fetched data yet
+    if (products?.length > 0 && productId && !dataFetched && !loading) {
+      console.log('Retrying product fetch...');
+      setLoading(true);
+      hasAttemptedFetch.current = false; // Reset to allow fetch
     }
-    setLoading(false);
-  }, [productId, products, fetchProductReviews, fetchProductDetails]);
+  }, [products, productId, dataFetched, loading]);
+
+  // Add a timeout to prevent infinite loading
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (loading && !dataFetched) {
+        console.log('Loading timeout - checking products...');
+        if (products?.length > 0) {
+          // Products are loaded but we haven't found the product
+          const productExists = products.some(p => p._id === productId);
+          if (!productExists) {
+            setError('Product not found');
+            setLoading(false);
+            setDataFetched(true);
+          }
+        }
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeoutId);
+  }, [loading, dataFetched, products, productId]);
 
   // Handle subcategory change
   const handleSubcategoryChange = useCallback(async (e) => {
@@ -406,7 +465,6 @@ const Product = () => {
         );
         
         if (newProduct) {
-        
           navigate(`/product/${newProduct._id}`);
         } else {
           // If no specific product found, navigate to category page with subcategory filter
@@ -939,8 +997,9 @@ const Product = () => {
     </div>
   ), []);
 
+  // Show loading if context is still loading or product data is loading
   if (error) return ErrorState;
-  if (loading || !productData) return LoadingState;
+  if (loading || !productData || !dataFetched) return LoadingState;
 
   const ingredientsList = getIngredientsArray();
   const benefitsList = getBenefitsArray();
@@ -1117,7 +1176,6 @@ const Product = () => {
                           </div>
                         )}
                       </div>
-                    
                     </div>
                   )}
                 </div>

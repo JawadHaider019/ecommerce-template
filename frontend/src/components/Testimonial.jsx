@@ -1,19 +1,17 @@
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
-import Slider from "react-slick";
-import "slick-carousel/slick/slick.css"; 
-import "slick-carousel/slick/slick-theme.css";
-import { FaStar } from 'react-icons/fa'; 
-import { useRef, useState, useEffect } from "react";
+import { FaStar } from 'react-icons/fa';
+import { useState, useEffect } from "react";
 import Title from '../components/Title';
-
 
 const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
 const Testimonial = () => {
-    const sliderRef = useRef(null);
+    const [currentIndex, setCurrentIndex] = useState(0);
     const [testimonials, setTestimonials] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [slideDirection, setSlideDirection] = useState('right');
+    const [isAnimating, setIsAnimating] = useState(false);
 
     // Fetch approved testimonials from backend
     const fetchTestimonials = async () => {
@@ -38,19 +36,58 @@ const Testimonial = () => {
         fetchTestimonials();
     }, []);
 
-    const sliderSettings = {
-        dots: true,
-        infinite: testimonials.length > 1,
-        speed: 600,
-        slidesToShow: 1,
-        slidesToScroll: 1,
-        autoplay: testimonials.length > 1,
-        autoplaySpeed: 5000,
-        arrows: false,
-        customPaging: () => (
-            <div className="size-3 rounded-full bg-gray-300 transition-all duration-300 hover:bg-black"></div>
-        ),
-        dotsClass: "slick-dots flex justify-center gap-2 mt-4",
+    // Auto-play functionality
+    useEffect(() => {
+        if (testimonials.length <= 1) return;
+        
+        const interval = setInterval(() => {
+            handleNext();
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [currentIndex, testimonials.length]);
+
+    const handlePrevious = () => {
+        if (isAnimating) return;
+        setIsAnimating(true);
+        setSlideDirection('left');
+        
+        // Slide out
+        setTimeout(() => {
+            setCurrentIndex(prev => (prev === 0 ? testimonials.length - 1 : prev - 1));
+            
+            // Reset animation after index change
+            setTimeout(() => {
+                setIsAnimating(false);
+            }, 50);
+        }, 300);
+    };
+
+    const handleNext = () => {
+        if (isAnimating) return;
+        setIsAnimating(true);
+        setSlideDirection('right');
+        
+        // Slide out
+        setTimeout(() => {
+            setCurrentIndex(prev => (prev === testimonials.length - 1 ? 0 : prev + 1));
+            
+            // Reset animation after index change
+            setTimeout(() => {
+                setIsAnimating(false);
+            }, 50);
+        }, 300);
+    };
+
+    const handleDotClick = (index) => {
+        if (isAnimating || index === currentIndex) return;
+        setIsAnimating(true);
+        setSlideDirection(index > currentIndex ? 'right' : 'left');
+        
+        setTimeout(() => {
+            setCurrentIndex(index);
+            setTimeout(() => setIsAnimating(false), 50);
+        }, 300);
     };
 
     // Get platform label for display
@@ -68,12 +105,12 @@ const Testimonial = () => {
 
     if (loading) {
         return (
-            <div className="relative my-10 px-4 md:px-20 lg:px-40">
-                <div className="text-center text-2xl">
+            <div className="my-16 px-4">
+                <div className="text-center">
                     <Title text1={'Customer'} text2={'Testimonials'} />
                 </div>
                 <div className="flex justify-center items-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-300 border-t-black"></div>
                 </div>
             </div>
         );
@@ -81,17 +118,17 @@ const Testimonial = () => {
 
     if (error) {
         return (
-            <div className="relative my-10 px-4 md:px-20 lg:px-40">
-                <div className="text-center text-2xl">
-                      <Title text1={'Customer'} text2={'Testimonials'} />
+            <div className="my-16 px-4">
+                <div className="text-center">
+                    <Title text1={'Customer'} text2={'Testimonials'} />
                 </div>
                 <div className="text-center py-12">
-                    <p className="text-red-600">Error: {error}</p>
+                    <p className="text-red-600 mb-4">{error}</p>
                     <button 
                         onClick={fetchTestimonials}
-                        className="mt-4 px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition duration-300"
+                        className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
                     >
-                        Retry
+                        Try Again
                     </button>
                 </div>
             </div>
@@ -100,60 +137,119 @@ const Testimonial = () => {
 
     if (testimonials.length === 0) {
         return (
-            <div className="relative my-10 px-4 md:px-20 lg:px-40">
-                <div className="text-center text-2xl">
+            <div className="my-16 px-4">
+                <div className="text-center">
                     <Title text1={'Customer'} text2={'Testimonials'} />
                 </div>
                 <div className="text-center py-12">
-                    <p className="text-gray-600">No testimonials available yet.</p>
-                    <p className="text-gray-500 text-sm mt-2">Check back later for customer reviews!</p>
+                    <p className="text-gray-600">No testimonials yet.</p>
                 </div>
             </div>
         );
     }
 
+    const currentTestimonial = testimonials[currentIndex];
+
+    // Animation classes
+    const getAnimationClass = () => {
+        if (!isAnimating) return 'translate-x-0 opacity-100';
+        return slideDirection === 'right' 
+            ? '-translate-x-full opacity-0' 
+            : 'translate-x-full opacity-0';
+    };
+
     return (
-        <div className="relative my-10 px-4 md:px-20 lg:px-40">
-            <div className="text-center text-2xl">
-                 <Title text1={'Customer'} text2={'Testimonials'} />
+        <div className="my-16 px-4">
+            {/* Header */}
+            <div className="text-center mb-10">
+                <Title text1={'Customer'} text2={'Testimonials'} />
             </div>
 
-            {/* Navigation Buttons */}
-            {testimonials.length > 1 && (
-                <>
-                    <button 
-                        className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gray-200 p-3 shadow-md transition duration-300 hover:bg-black"
-                        onClick={() => sliderRef.current.slickPrev()}
-                    >
-                        <IoIosArrowBack size={24} className="text-gray-700 hover:text-white" />
-                    </button>
+            {/* Testimonial Card with Animation */}
+            <div className="max-w-3xl mx-auto overflow-hidden">
+                <div 
+                    className={`transform transition-all duration-300 ease-in-out ${getAnimationClass()}`}
+                >
+                    <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+                        {/* Rating Stars */}
+                        <div className="flex justify-center gap-1 mb-4">
+                            {[...Array(5)].map((_, i) => (
+                                <FaStar 
+                                    key={i} 
+                                    className={`w-5 h-5 ${
+                                        i < currentTestimonial.rating 
+                                            ? 'text-yellow-400' 
+                                            : 'text-gray-300'
+                                    }`} 
+                                />
+                            ))}
+                        </div>
 
-                    <button 
-                        className="z-50 absolute right-0 top-1/2 -translate-y-1/2 rounded-full bg-gray-200 p-3 shadow-md transition duration-300 hover:bg-black"
-                        onClick={() => sliderRef.current.slickNext()}
-                    >
-                        <IoIosArrowForward size={24} className="text-gray-700 hover:text-white" />
-                    </button>
-                </>
-            )}
+                        {/* Testimonial Content */}
+                        <p className="text-lg text-gray-700 text-center leading-relaxed">
+                            "{currentTestimonial.content}"
+                        </p>
 
-            <Slider ref={sliderRef} {...sliderSettings}>
-                {testimonials.map((testimonial, index) => (
-                    <div key={testimonial._id || index} className="flex items-center justify-center">
-                        <div className="max-w-3xl rounded-lg border border-black/50 bg-white p-8 text-center transition duration-300 hover:scale-105">
-                            <p className="text-xl font-semibold text-gray-700">"{testimonial.content}"</p>
-                            <p className="mt-4 text-sm font-medium text-gray-600">
-                                - {testimonial.name}, via {getPlatformLabel(testimonial.platform)}
+                        {/* Author Info */}
+                        <div className="text-center mt-6">
+                            <p className="font-semibold text-gray-900">
+                                {currentTestimonial.name}
                             </p>
-                            <div className="mt-2 flex justify-center">
-                                {[...Array(testimonial.rating)].map((_, i) => (
-                                    <FaStar key={i} className="size-5 text-yellow-500" />
-                                ))}
-                            </div>
+                            <p className="text-sm text-gray-500 mt-1">
+                                via {getPlatformLabel(currentTestimonial.platform)}
+                            </p>
                         </div>
                     </div>
-                ))}
-            </Slider>
+                </div>
+
+                {/* Navigation Controls */}
+                {testimonials.length > 1 && (
+                    <div className="flex items-center justify-center gap-4 mt-8">
+                        {/* Previous Button */}
+                        <button 
+                            onClick={handlePrevious}
+                            disabled={isAnimating}
+                            className={`w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition ${
+                                isAnimating ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                            aria-label="Previous testimonial"
+                        >
+                            <IoIosArrowBack size={18} className="text-gray-700" />
+                        </button>
+
+                        {/* Dots */}
+                        <div className="flex gap-2">
+                            {testimonials.map((_, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => handleDotClick(index)}
+                                    disabled={isAnimating}
+                                    className={`transition-all ${
+                                        index === currentIndex 
+                                            ? 'w-6 bg-black' 
+                                            : 'w-2 bg-gray-300 hover:bg-gray-400'
+                                    } h-2 rounded-full ${
+                                        isAnimating ? 'cursor-not-allowed' : ''
+                                    }`}
+                                    aria-label={`Go to testimonial ${index + 1}`}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Next Button */}
+                        <button 
+                            onClick={handleNext}
+                            disabled={isAnimating}
+                            className={`w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition ${
+                                isAnimating ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                            aria-label="Next testimonial"
+                        >
+                            <IoIosArrowForward size={18} className="text-gray-700" />
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
