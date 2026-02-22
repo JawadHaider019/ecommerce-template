@@ -931,53 +931,56 @@ const Product = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
             {/* Left Column - Product Images */}
-            <div className="space-y-6">
-              {/* Main Image Card */}
-              <div className="bg-white rounded-2xl shadow border border-gray-200 relative overflow-hidden" style={{ height: '600px' }}>
-                {discountPercentage && (
-                  <div className="absolute top-4 left-4 z-10 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow">
-                    {discountPercentage}% OFF
-                  </div>
-                )}
-                {productData.bestseller && (
-                  <div className="absolute top-4 right-4 z-10 bg-black text-white px-4 py-2 rounded-full text-sm font-semibold shadow">
-                    <FaTag className="inline mr-2" /> BESTSELLER
-                  </div>
-                )}
-                <img
-                  src={image || productData.image?.[0]}
-                  alt={productData.name}
-                  className="w-full h-full object-contain"
-                  loading="eager"
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/500?text=Product+Image';
-                  }}
-                />
-              </div>
+<div className="space-y-4 md:space-y-6">
+  {/* Main Image Card */}
+  <div className="bg-white rounded-2xl shadow border border-gray-200 relative overflow-hidden" 
+       style={{ height: 'auto', minHeight: '300px', maxHeight: '600px' }}>
+    {discountPercentage && (
+      <div className="absolute top-2 left-2 md:top-4 md:left-4 z-10 bg-green-600 text-white px-2 py-1 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-semibold shadow">
+        {discountPercentage}% OFF
+      </div>
+    )}
+    {productData.bestseller && (
+      <div className="absolute top-2 right-2 md:top-4 md:right-4 z-10 bg-black text-white px-2 py-1 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-semibold shadow">
+        <FaTag className="inline mr-1 md:mr-2 text-xs md:text-sm" /> 
+        <span className="hidden xs:inline">BESTSELLER</span>
+        <span className="xs:hidden">BEST</span>
+      </div>
+    )}
+    <img
+      src={image || productData.image?.[0]}
+      alt={productData.name}
+      className="w-full h-full object-contain max-h-[300px] sm:max-h-[400px] md:max-h-[500px] lg:max-h-[600px]"
+      loading="eager"
+      onError={(e) => {
+        e.target.src = 'https://via.placeholder.com/500?text=Product+Image';
+      }}
+    />
+  </div>
 
-              {/* Thumbnails */}
-              <div className="bg-white rounded-2xl shadow border border-gray-200 p-4">
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {productData.image?.map((item, index) => (
-                    <img
-                      key={index}
-                      src={item}
-                      alt={`${productData.name} thumbnail ${index + 1}`}
-                      className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg cursor-pointer border-2 transition-colors ${
-                        image === item 
-                          ? 'border-black' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => setImage(item)}
-                      loading="lazy"
-                      onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/100?text=Image';
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+  {/* Thumbnails */}
+  <div className="bg-white rounded-2xl shadow border border-gray-200 p-2 md:p-4">
+    <div className="flex gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide">
+      {productData.image?.map((item, index) => (
+        <img
+          key={index}
+          src={item}
+          alt={`${productData.name} thumbnail ${index + 1}`}
+          className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 object-cover rounded-lg cursor-pointer border-2 transition-colors flex-shrink-0 ${
+            image === item 
+              ? 'border-black' 
+              : 'border-gray-200 hover:border-gray-300'
+          }`}
+          onClick={() => setImage(item)}
+          loading="lazy"
+          onError={(e) => {
+            e.target.src = 'https://via.placeholder.com/100?text=Image';
+          }}
+        />
+      ))}
+    </div>
+  </div>
+</div>
 
             {/* Right Column - Product Info & Actions */}
             <div className="space-y-6">
