@@ -337,44 +337,51 @@ const Product = () => {
     }
   }, [productId, products, fetchProductDetails, fetchProductReviews]);
 
-  // Handle subcategory change
-  const handleSubcategoryChange = useCallback(async (e) => {
-    const newSubcategoryId = e.target.value;
-    setSelectedSubcategory(newSubcategoryId);
+// Handle subcategory change (for radio buttons) - OPTIMIZED VERSION
+const handleSubcategoryChange = useCallback(async (subcategoryId) => {
+  if (!subcategoryId || !productData?.category || changingSubcategory) return;
+  
+  // If it's the same as current, do nothing
+  if (subcategoryId === selectedSubcategory) return;
+  
+  setSelectedSubcategory(subcategoryId);
+  
+  try {
+    const categoryId = productData.category;
     
-    if (!newSubcategoryId || !productData?.category) return;
+    // Find the product with this subcategory
+    const newProduct = products.find(p => 
+      p.category === categoryId && 
+      p.subcategory === subcategoryId
+    );
     
-    setChangingSubcategory(true);
-    
-    try {
-      const categoryId = productData.category;
-      const category = backendCategories.find(cat => cat.id === categoryId);
-      
-      if (category) {
-        const subcategory = category.subcategories.find(sub => sub.id === newSubcategoryId);
-        const subcategoryName = subcategory ? subcategory.name : newSubcategoryId;
-        
-        const newProduct = products.find(p => 
-          p.category === categoryId && 
-          p.subcategory === newSubcategoryId &&
-          p._id !== productId
-        );
-        
-        if (newProduct) {
-          navigate(`/product/${newProduct._id}`);
-        } else {
-          toast.info(`Viewing all ${subcategoryName} products`);
-          navigate(`/collection?category=${encodeURIComponent(categoryId)}&subcategory=${encodeURIComponent(newSubcategoryId)}`);
-        }
-      }
-    } catch (error) {
-      console.error('Error changing subcategory:', error);
-      toast.error('Failed to change subcategory');
-    } finally {
-      setChangingSubcategory(false);
+    if (newProduct) {
+      // Instant navigation - no delay
+      navigate(`/product/${newProduct._id}`);
     }
-  }, [productData, backendCategories, products, navigate]);
+    // No else condition needed - if no product found, selection remains
+  } catch (error) {
+    console.error('Error changing subcategory:', error);
+    toast.error('Failed to change subcategory');
+  }
+}, [productData, products, navigate, selectedSubcategory]);
 
+// Also update the variant product finding to use useMemo for better performance
+const variantProducts = useMemo(() => {
+  if (!productData?.category || !products.length) return {};
+  
+  const variants = {};
+  availableSubcategories.forEach(subcat => {
+    const variant = products.find(p => 
+      p.category === productData.category && 
+      p.subcategory === subcat.id
+    );
+    if (variant) {
+      variants[subcat.id] = variant;
+    }
+  });
+  return variants;
+}, [productData, products, availableSubcategories]);
   const stock = productData ? productData.quantity : 0;
 
   // Get category and subcategory names
@@ -913,7 +920,7 @@ const Product = () => {
     <>
       <style>{style}</style>
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <div className="max-w-8xl mx-auto px-2 py-6 md:py-8">
           {/* Product Header */}
           <div className="mb-6 md:mb-8 text-center px-4">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 break-words">
@@ -983,316 +990,353 @@ const Product = () => {
 </div>
 
             {/* Right Column - Product Info & Actions */}
-            <div className="space-y-6">
-              {/* Product Info Card */}
-              <div className="bg-white rounded-2xl shadow border border-gray-200 p-6">
-                {/* Price and Rating in Column */}
-                <div className="mb-6 space-y-4">
-                  <div>
-                    <div className="text-4xl font-bold text-gray-900 mb-1">
-                      {currency} {actualPrice.toFixed(2)}
+<div className="space-y-6">
+  {/* Product Info Card */}
+  <div className="bg-white rounded-2xl shadow border border-gray-200 p-4 sm:p-6">
+    {/* Price and Rating in Column */}
+    <div className="mb-6 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-2 sm:mb-0">
+          <div className="text-3xl sm:text-4xl font-bold text-gray-900">
+            {currency} {actualPrice.toFixed(2)}
+          </div>
+          {originalPrice && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-base sm:text-lg text-gray-500 line-through">
+                {currency} {originalPrice.toFixed(2)}
+              </span>
+              <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs sm:text-sm font-medium">
+                Save {discountPercentage}%
+              </span>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {renderRating(averageRating)}
+            <span className="ml-1 text-lg sm:text-xl font-bold text-gray-900">{averageRating.toFixed(1)}</span>
+          </div>
+          <span className="text-xs sm:text-sm text-gray-600">
+            ({reviews.length})
+          </span>
+        </div>
+      </div>
+
+      {/* Variants Section - Responsive */}
+      {availableSubcategories.length > 1 && (
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-xs sm:text-sm font-medium text-gray-800 mb-3 uppercase tracking-wide">
+            More Variants
+          </p>
+          <div className="space-y-2">
+            {availableSubcategories.map((subcat) => {
+              const variantProduct = variantProducts[subcat.id] || productData;
+              
+              const hasDisc = variantProduct.discountprice !== undefined && 
+                            variantProduct.discountprice !== null && 
+                            variantProduct.discountprice !== variantProduct.price;
+              
+              const variantPrice = hasDisc ? variantProduct.discountprice : variantProduct.price;
+              const variantOriginalPrice = hasDisc ? variantProduct.price : null;
+              
+              const isSelected = selectedSubcategory === subcat.id;
+              
+              return (
+                <label
+                  key={subcat.id}
+                  onClick={() => handleSubcategoryChange(subcat.id)}
+                  className={`
+                    relative p-3 sm:p-4 rounded-lg border-2 transition-all duration-150
+                    flex items-center justify-between w-full cursor-pointer
+                    ${isSelected 
+                      ? 'border-black bg-black text-white shadow-lg' 
+                      : 'border-gray-200 bg-white text-gray-800 hover:border-gray-400 hover:shadow'
+                    }
+                  `}
+                >
+                  <input
+                    type="radio"
+                    name="subcategory"
+                    value={subcat.id}
+                    checked={isSelected}
+                    onChange={() => {}}
+                    className="absolute opacity-0 w-0 h-0"
+                  />
+                  
+                  {/* Left side - Radio indicator and name */}
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className={`
+                      w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center transition-colors duration-150 flex-shrink-0
+                      ${isSelected ? 'border-white' : 'border-gray-400'}
+                    `}>
+                      {isSelected && <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-white"></div>}
                     </div>
-                    {originalPrice && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg text-gray-500 line-through">
-                          {currency} {originalPrice.toFixed(2)}
-                        </span>
-                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-medium">
-                          Save {discountPercentage}%
-                        </span>
-                      </div>
-                    )}
+                    <span className="text-sm sm:text-base font-medium">{subcat.name}</span>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      {renderRating(averageRating)}
-                      <span className="ml-1 text-xl font-bold text-gray-900">{averageRating.toFixed(1)}</span>
-                    </div>
-                    <span className="text-gray-600 text-sm">
-                      ({reviews.length} reviews)
+                  {/* Right side - Price */}
+                  <div className="flex flex-col items-center gap-1 sm:gap-2">
+                    <span className="font-bold text-sm sm:text-base">
+                      {currency} {variantPrice.toFixed(2)}
                     </span>
-                  </div>
-                </div>
-
-                {/* Stock Status */}
-                <div className="mb-6">{renderStockStatus()}</div>
-
-                {/* Quantity and Subcategory Row */}
-                <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Quantity Selector */}
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 mb-3">Quantity:</p>
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={decrementQuantity}
-                        disabled={quantity <= 1 || stock === 0}
-                        className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        <FaMinus className="w-4 h-4" />
-                      </button>
-                      <div className="text-center">
-                        <span className="text-2xl font-bold text-gray-900">{quantity}</span>
-                      </div>
-                      <button
-                        onClick={incrementQuantity}
-                        disabled={quantity >= stock || stock === 0}
-                        className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        <FaPlus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Subcategory Dropdown */}
-                  {availableSubcategories.length > 1 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-800 mb-3">Size:</p>
-                      <div className="relative">
-                        <select
-                          value={selectedSubcategory}
-                          onChange={handleSubcategoryChange}
-                          disabled={changingSubcategory || availableSubcategories.length === 0}
-                          className="w-full px-4 py-2 pr-8 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-black appearance-none"
-                        >
-                          <option value="">Select Size</option>
-                          {availableSubcategories.map((subcat) => (
-                            <option key={subcat.id} value={subcat.id}>
-                              {subcat.name}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                          <FaChevronDown className="w-4 h-4 text-gray-500" />
-                        </div>
-                        {changingSubcategory && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-lg">
-                            <FaSpinner className="animate-spin w-5 h-5 text-gray-600" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="space-y-3 mb-6">
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={stock === 0 || isAddingToCart}
-                    className={`w-full py-3 px-4 bg-black text-white font-medium rounded-lg border border-transparent ${
-                      stock === 0 || isAddingToCart
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-gray-800'
-                    }`}
-                  >
-                    {isAddingToCart ? (
-                      <div className="flex items-center justify-center gap-3">
-                        <FaSpinner className="animate-spin w-5 h-5" />
-                        <span>Adding to Cart...</span>
-                      </div>
-                    ) : stock === 0 ? (
-                      'Out of Stock'
-                    ) : (
-                      <div className="flex items-center justify-center gap-3">
-                        <FaShoppingCart className="w-5 h-5" />
-                        <span>Add to Cart</span>
-                      </div>
-                    )}
-                  </button>
-
-                  <button
-                    ref={whatsappButtonRef}
-                    onClick={handleOrderOnWhatsApp}
-                    disabled={stock === 0}
-                    className={`w-full py-3 px-4 bg-green-600 text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 ${
-                      stock === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    <FaWhatsapp className="w-5 h-5" />
-                    <span>Order on WhatsApp</span>
-                  </button>
-                </div>
-
-                {/* Delivery Timeline */}
-                <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-                  <h3 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
-                    <FaCalendarAlt className="w-4 h-4" />
-                    Delivery Timeline
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FaBox className="w-4 h-4 text-gray-600" />
-                        <span className="font-medium text-gray-900">Ordered</span>
-                      </div>
-                      <span className="text-sm text-gray-600">{deliveryDates.ordered}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FaCheck className="w-4 h-4 text-gray-600" />
-                        <span className="font-medium text-gray-900">Order Ready</span>
-                      </div>
-                      <span className="text-sm text-gray-600">{deliveryDates.readyStart} - {deliveryDates.readyEnd}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FaTruck className="w-4 h-4 text-gray-600" />
-                        <span className="font-medium text-gray-900">Delivered</span>
-                      </div>
-                      <span className="text-sm text-gray-600">{deliveryDates.deliveredStart} - {deliveryDates.deliveredEnd}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Expandable Sections */}
-              <div className="space-y-4">
-                {/* Description Section */}
-                {(productData.description && productData.description.trim() !== '') && (
-                  <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-                    <button
-                      onClick={() => toggleSection('description')}
-                      className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-gray-900">Description</h3>
-                      </div>
-                      {expandedSections.description ? (
-                        <FaChevronUp className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <FaChevronDown className="w-4 h-4 text-gray-500" />
-                      )}
-                    </button>
-                    {expandedSections.description && (
-                      <div className="p-5 pt-0">
-                        <div className="p-4 bg-gray-50 rounded-lg">
-                          <div className="prose prose-sm max-w-none">
-                            <p className="text-gray-700 leading-relaxed tracking-wide text-justify">
-                              {productData.description}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                    {variantOriginalPrice && (
+                      <span className={`text-xs line-through ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                        {currency} {variantOriginalPrice.toFixed(2)}
+                      </span>
                     )}
                   </div>
-                )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
 
-                {/* Ingredients Section */}
-                {(ingredientsList.length > 0) && (
-                  <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-                    <button
-                      onClick={() => toggleSection('ingredients')}
-                      className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-gray-900">Ingredients</h3>
-                      </div>
-                      {expandedSections.ingredients ? (
-                        <FaChevronUp className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <FaChevronDown className="w-4 h-4 text-gray-500" />
-                      )}
-                    </button>
-                    {expandedSections.ingredients && (
-                      <div className="p-5 pt-0">
-                        {loadingProductDetails ? (
-                          <div className="flex items-center justify-center p-4">
-                            <FaSpinner className="animate-spin w-5 h-5 text-gray-400" />
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {ingredientsList.map((ingredient, index) => (
-                              <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                <FaCheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                                <span className="text-sm text-gray-700 font-medium tracking-wide">{ingredient}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+    {/* Stock Status */}
+    <div className="mb-6">{renderStockStatus()}</div>
 
-                {/* Benefits Section */}
-                {(benefitsList.length > 0) && (
-                  <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-                    <button
-                      onClick={() => toggleSection('benefits')}
-                      className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-gray-900">Benefits</h3>
-                      </div>
-                      {expandedSections.benefits ? (
-                        <FaChevronUp className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <FaChevronDown className="w-4 h-4 text-gray-500" />
-                      )}
-                    </button>
-                    {expandedSections.benefits && (
-                      <div className="p-5 pt-0">
-                        {loadingProductDetails ? (
-                          <div className="flex items-center justify-center p-4">
-                            <FaSpinner className="animate-spin w-5 h-5 text-gray-400" />
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {benefitsList.map((benefit, index) => (
-                              <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                <div className="w-4 h-4 flex-shrink-0 mt-0.5">
-                                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                                </div>
-                                <span className="text-sm text-gray-700 font-medium tracking-wide leading-relaxed">{benefit}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+    {/* Quantity Selector - Centered on Mobile */}
+    <div className="mb-6">
+      <p className="text-sm font-medium text-gray-800 mb-3 text-center sm:text-left">Quantity:</p>
+      <div className="flex items-center justify-center sm:justify-start gap-4">
+        <button
+          onClick={decrementQuantity}
+          disabled={quantity <= 1 || stock === 0}
+          className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 transition-colors"
+        >
+          <FaMinus className="w-3 h-3 sm:w-4 sm:h-4" />
+        </button>
+        <div className="text-center min-w-[40px]">
+          <span className="text-2xl font-bold text-gray-900">{quantity}</span>
+        </div>
+        <button
+          onClick={incrementQuantity}
+          disabled={quantity >= stock || stock === 0}
+          className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 transition-colors"
+        >
+          <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+        </button>
+      </div>
+    </div>
 
-                {/* How to Use Section */}
-                {(howToUseText && howToUseText.trim() !== '') && (
-                  <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-                    <button
-                      onClick={() => toggleSection('howToUse')}
-                      className="w-full p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-gray-900">How to Use</h3>
-                      </div>
-                      {expandedSections.howToUse ? (
-                        <FaChevronUp className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <FaChevronDown className="w-4 h-4 text-gray-500" />
-                      )}
-                    </button>
-                    {expandedSections.howToUse && (
-                      <div className="p-5 pt-0">
-                        {loadingProductDetails ? (
-                          <div className="flex items-center justify-center p-4">
-                            <FaSpinner className="animate-spin w-5 h-5 text-gray-400" />
-                          </div>
-                        ) : (
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <div className="prose prose-sm max-w-none">
-                              <p className="text-gray-700 leading-relaxed tracking-wide text-justify whitespace-pre-line">
-                                {howToUseText}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+    {/* Action Buttons - Stack on Mobile */}
+    <div className="space-y-3 mb-6">
+      <button
+        onClick={handleAddToCart}
+        disabled={stock === 0 || isAddingToCart}
+        className={`w-full py-3 px-4 bg-black text-white font-medium rounded-lg border border-transparent transition-all ${
+          stock === 0 || isAddingToCart
+            ? 'opacity-50 cursor-not-allowed' 
+            : 'hover:bg-gray-800 active:scale-[0.98]'
+        }`}
+      >
+        {isAddingToCart ? (
+          <div className="flex items-center justify-center gap-3">
+            <FaSpinner className="animate-spin w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-sm sm:text-base">Adding to Cart...</span>
+          </div>
+        ) : stock === 0 ? (
+          <span className="text-sm sm:text-base">Out of Stock</span>
+        ) : (
+          <div className="flex items-center justify-center gap-3">
+            <FaShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-sm sm:text-base">Add to Cart</span>
+          </div>
+        )}
+      </button>
+
+      <button
+        ref={whatsappButtonRef}
+        onClick={handleOrderOnWhatsApp}
+        disabled={stock === 0}
+        className={`w-full py-3 px-4 bg-green-600 text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 transition-all ${
+          stock === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700 active:scale-[0.98]'
+        }`}
+      >
+        <FaWhatsapp className="w-4 h-4 sm:w-5 sm:h-5" />
+        <span className="text-sm sm:text-base">Order on WhatsApp</span>
+      </button>
+    </div>
+
+    {/* Delivery Timeline - Responsive Grid */}
+    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+      <h3 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+        <FaCalendarAlt className="w-4 h-4 flex-shrink-0" />
+        <span className="text-sm sm:text-base">Delivery Timeline</span>
+      </h3>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FaBox className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 flex-shrink-0" />
+            <span className="text-xs sm:text-sm font-medium text-gray-900">Ordered</span>
+          </div>
+          <span className="text-xs sm:text-sm text-gray-600">{deliveryDates.ordered}</span>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 flex-shrink-0" />
+            <span className="text-xs sm:text-sm font-medium text-gray-900">Order Ready</span>
+          </div>
+          <span className="text-xs sm:text-sm text-gray-600">{deliveryDates.readyStart} - {deliveryDates.readyEnd}</span>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FaTruck className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 flex-shrink-0" />
+            <span className="text-xs sm:text-sm font-medium text-gray-900">Delivered</span>
+          </div>
+          <span className="text-xs sm:text-sm text-gray-600">{deliveryDates.deliveredStart} - {deliveryDates.deliveredEnd}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  {/* Expandable Sections */}
+  <div className="space-y-4">
+    {/* Description Section */}
+    {(productData.description && productData.description.trim() !== '') && (
+      <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+        <button
+          onClick={() => toggleSection('description')}
+          className="w-full p-4 sm:p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Description</h3>
+          </div>
+          {expandedSections.description ? (
+            <FaChevronUp className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+          ) : (
+            <FaChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+          )}
+        </button>
+        {expandedSections.description && (
+          <div className="p-4 sm:p-5 pt-0">
+            <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+              <div className="prose prose-xs sm:prose-sm max-w-none">
+                <p className="text-xs sm:text-sm text-gray-700 leading-relaxed text-justify">
+                  {productData.description}
+                </p>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Ingredients Section */}
+    {(ingredientsList.length > 0) && (
+      <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+        <button
+          onClick={() => toggleSection('ingredients')}
+          className="w-full p-4 sm:p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Ingredients</h3>
+          </div>
+          {expandedSections.ingredients ? (
+            <FaChevronUp className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+          ) : (
+            <FaChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+          )}
+        </button>
+        {expandedSections.ingredients && (
+          <div className="p-4 sm:p-5 pt-0">
+            {loadingProductDetails ? (
+              <div className="flex items-center justify-center p-4">
+                <FaSpinner className="animate-spin w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+              </div>
+            ) : (
+              <div className="space-y-2 sm:space-y-3">
+                {ingredientsList.map((ingredient, index) => (
+                  <div key={index} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <FaCheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm text-gray-700 font-medium">{ingredient}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Benefits Section */}
+    {(benefitsList.length > 0) && (
+      <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+        <button
+          onClick={() => toggleSection('benefits')}
+          className="w-full p-4 sm:p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Benefits</h3>
+          </div>
+          {expandedSections.benefits ? (
+            <FaChevronUp className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+          ) : (
+            <FaChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+          )}
+        </button>
+        {expandedSections.benefits && (
+          <div className="p-4 sm:p-5 pt-0">
+            {loadingProductDetails ? (
+              <div className="flex items-center justify-center p-4">
+                <FaSpinner className="animate-spin w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+              </div>
+            ) : (
+              <div className="space-y-2 sm:space-y-3">
+                {benefitsList.map((benefit, index) => (
+                  <div key={index} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="w-1 h-1 sm:w-2 sm:h-2 bg-green-600 rounded-full mt-1.5 sm:mt-2"></div>
+                    <span className="text-xs sm:text-sm text-gray-700 font-medium leading-relaxed">{benefit}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* How to Use Section */}
+    {(howToUseText && howToUseText.trim() !== '') && (
+      <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+        <button
+          onClick={() => toggleSection('howToUse')}
+          className="w-full p-4 sm:p-5 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">How to Use</h3>
+          </div>
+          {expandedSections.howToUse ? (
+            <FaChevronUp className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+          ) : (
+            <FaChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+          )}
+        </button>
+        {expandedSections.howToUse && (
+          <div className="p-4 sm:p-5 pt-0">
+            {loadingProductDetails ? (
+              <div className="flex items-center justify-center p-4">
+                <FaSpinner className="animate-spin w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+              </div>
+            ) : (
+              <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <div className="prose prose-xs sm:prose-sm max-w-none">
+                  <p className="text-xs sm:text-sm text-gray-700 leading-relaxed text-justify whitespace-pre-line">
+                    {howToUseText}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</div>
           </div>
 
           {/* Reviews Section */}
