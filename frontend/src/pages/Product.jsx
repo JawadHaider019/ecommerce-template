@@ -10,12 +10,9 @@ import {
   FaThumbsUp, 
   FaThumbsDown, 
   FaTimes, 
-  FaUserShield, 
   FaShoppingCart, 
   FaPlus, 
   FaMinus,
-  FaFlask,
-  FaInfoCircle,
   FaCheckCircle,
   FaSpinner,
   FaWhatsapp,
@@ -41,8 +38,7 @@ const Product = () => {
     backendUrl,   
     getCartAmount, 
     isFreeDeliveryAvailable,
-    getAmountForFreeDelivery,
-    loading: contextLoading // Add this if your context has a loading state
+    getAmountForFreeDelivery 
   } = useContext(ShopContext);
   
   const [productData, setProductData] = useState(null);
@@ -58,10 +54,8 @@ const Product = () => {
   const [uploading, setUploading] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [loadingProductDetails, setLoadingProductDetails] = useState(false);
-  const [dataFetched, setDataFetched] = useState(false);
   
   // Login Modal State
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -82,13 +76,14 @@ const Product = () => {
   const [availableSubcategories, setAvailableSubcategories] = useState([]);
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [loadingCategories, setLoadingCategories] = useState(false);
-  const [categoriesError, setCategoriesError] = useState(null);
   const [changingSubcategory, setChangingSubcategory] = useState(false);
 
   const backendURL = import.meta.env.VITE_BACKEND_URL || backendUrl;
   const addToCartCalledRef = useRef(false);
   const whatsappButtonRef = useRef(null);
-  const hasAttemptedFetch = useRef(false);
+
+  // SIMPLE LOADING STATE - JUST CHECK IF PRODUCTS EXIST
+  const isLoading = !products || products.length === 0 || !productData;
 
   // Delivery timeline dates
   const deliveryDates = useMemo(() => {
@@ -180,38 +175,9 @@ const Product = () => {
         setBackendCategories(transformedCategories);
         setCategoryIdMap(idToNameMap);
         setSubcategoryIdMap(subcategoryIdToNameMap);
-        setCategoriesError(null);
         
       } catch (error) {
-        setCategoriesError(error.message);
-        // Fallback
-        const categoryMap = {};
-        products.forEach(product => {
-          if (product && product.category) {
-            const categoryName = product.category;
-            const subcategoryName = product.subcategory;
-            
-            if (!categoryMap[categoryName]) {
-              categoryMap[categoryName] = {
-                name: categoryName,
-                subcategories: new Set()
-              };
-            }
-            
-            if (subcategoryName) {
-              categoryMap[categoryName].subcategories.add(subcategoryName);
-            }
-          }
-        });
-
-        const fallbackCategories = Object.values(categoryMap).map(cat => ({
-          name: cat.name,
-          subcategories: Array.from(cat.subcategories).map(sub => ({
-            name: sub
-          }))
-        }));
-        
-        setBackendCategories(fallbackCategories);
+        console.error('Error fetching categories:', error);
       } finally {
         setLoadingCategories(false);
       }
@@ -219,11 +185,8 @@ const Product = () => {
 
     if (backendURL) {
       fetchCategories();
-    } else {
-      setCategoriesError('Backend URL configuration missing');
-      setLoadingCategories(false);
     }
-  }, [backendURL, products]);
+  }, [backendURL]);
 
   // Helper functions
   const getCategoryName = useCallback((categoryId) => {
@@ -257,7 +220,7 @@ const Product = () => {
       const response = await fetch(`${backendURL}/api/product/single`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: productId })
+        body: JSON.stringify({ productId })
       });
       
       if (response.ok) {
@@ -303,11 +266,9 @@ const Product = () => {
         }));
         
         setReviews(productReviews);
-      } else {
-        toast.error('Failed to load reviews');
       }
     } catch (error) {
-      toast.error('Error loading reviews');
+      console.error('Error loading reviews:', error);
     } finally {
       setLoadingReviews(false);
     }
@@ -339,30 +300,15 @@ const Product = () => {
     }
   }, [productData, backendCategories]);
 
-  // Fetch product data and reviews - FIXED FOR PRODUCTION
+  // SIMPLIFIED PRODUCT DATA FETCHING
   useEffect(() => {
-    const loadProductData = async () => {
-      // Prevent multiple fetch attempts
-      if (hasAttemptedFetch.current && dataFetched) return;
-      
-      setLoading(true);
-      setError(null);
-      
-      if (!productId) {
-        setError('Product ID not found');
-        setLoading(false);
-        setDataFetched(true);
-        hasAttemptedFetch.current = true;
-        return;
-      }
+    if (!productId) {
+      setError('Product ID not found');
+      return;
+    }
 
-      // Check if products exist in context
-      if (!products || products.length === 0) {
-        // Wait for products to load - don't set loading false
-        console.log('Waiting for products to load...');
-        return;
-      }
-
+    // If products are loaded, find the product
+    if (products && products.length > 0) {
       const product = products.find((item) => item._id === productId);
       if (product) {
         setProductData(product);
@@ -370,8 +316,7 @@ const Product = () => {
         setError(null);
         
         // Fetch additional details
-        try {
-          const details = await fetchProductDetails(productId);
+        fetchProductDetails(productId).then(details => {
           if (details) {
             setProductData(prev => ({
               ...prev,
@@ -383,60 +328,14 @@ const Product = () => {
               ...(details.bestseller !== undefined && { bestseller: details.bestseller }),
             }));
           }
-        } catch (error) {
-          console.error('Error fetching product details:', error);
-        }
+        });
         
-        // Fetch reviews
-        try {
-          await fetchProductReviews(productId);
-        } catch (error) {
-          console.error('Error fetching reviews:', error);
-        }
-        
-        setLoading(false);
-        setDataFetched(true);
-        hasAttemptedFetch.current = true;
+        fetchProductReviews(productId);
       } else {
         setError('Product not found');
-        setLoading(false);
-        setDataFetched(true);
-        hasAttemptedFetch.current = true;
       }
-    };
-
-    loadProductData();
-  }, [productId, products, fetchProductDetails, fetchProductReviews]);
-
-  // Retry mechanism for production - checks if products load after initial render
-  useEffect(() => {
-    // If products are now available but we haven't fetched data yet
-    if (products?.length > 0 && productId && !dataFetched && !loading) {
-      console.log('Retrying product fetch...');
-      setLoading(true);
-      hasAttemptedFetch.current = false; // Reset to allow fetch
     }
-  }, [products, productId, dataFetched, loading]);
-
-  // Add a timeout to prevent infinite loading
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (loading && !dataFetched) {
-        console.log('Loading timeout - checking products...');
-        if (products?.length > 0) {
-          // Products are loaded but we haven't found the product
-          const productExists = products.some(p => p._id === productId);
-          if (!productExists) {
-            setError('Product not found');
-            setLoading(false);
-            setDataFetched(true);
-          }
-        }
-      }
-    }, 10000); // 10 second timeout
-
-    return () => clearTimeout(timeoutId);
-  }, [loading, dataFetched, products, productId]);
+  }, [productId, products, fetchProductDetails, fetchProductReviews]);
 
   // Handle subcategory change
   const handleSubcategoryChange = useCallback(async (e) => {
@@ -448,16 +347,13 @@ const Product = () => {
     setChangingSubcategory(true);
     
     try {
-      // Find a product with the same category but different subcategory
       const categoryId = productData.category;
       const category = backendCategories.find(cat => cat.id === categoryId);
       
       if (category) {
-        // Find the subcategory name
         const subcategory = category.subcategories.find(sub => sub.id === newSubcategoryId);
         const subcategoryName = subcategory ? subcategory.name : newSubcategoryId;
         
-        // Find a product in the same category with this subcategory
         const newProduct = products.find(p => 
           p.category === categoryId && 
           p.subcategory === newSubcategoryId &&
@@ -467,7 +363,6 @@ const Product = () => {
         if (newProduct) {
           navigate(`/product/${newProduct._id}`);
         } else {
-          // If no specific product found, navigate to category page with subcategory filter
           toast.info(`Viewing all ${subcategoryName} products`);
           navigate(`/collection?category=${encodeURIComponent(categoryId)}&subcategory=${encodeURIComponent(newSubcategoryId)}`);
         }
@@ -578,19 +473,6 @@ const Product = () => {
   const decrementQuantity = useCallback(() => {
     if (quantity > 1) setQuantity(prev => prev - 1);
   }, [quantity]);
-
-  const handleImageUpload = useCallback((e) => {
-    const files = Array.from(e.target.files);
-    if (files.length > 0) {
-      const imageData = files.map(file => ({ file, url: URL.createObjectURL(file) }));
-      setReviewImages((prevImages) => [...prevImages, ...imageData]);
-    }
-  }, []);
-
-  const removeReviewImage = useCallback((index) => {
-    if (reviewImages[index]?.url) URL.revokeObjectURL(reviewImages[index].url);
-    setReviewImages(prev => prev.filter((_, i) => i !== index));
-  }, [reviewImages]);
 
   const handleSubmitReview = useCallback(async () => {
     if (!user || !user._id) {
@@ -968,38 +850,48 @@ const Product = () => {
     showAllReviews ? filteredReviews : filteredReviews.slice(0, 5)
   , [showAllReviews, filteredReviews]);
 
-  // Error state
-  const ErrorState = useMemo(() => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="text-center max-w-lg">
-        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <span className="text-3xl text-red-600">⚠️</span>
+  // LOADING STATE
+  if (!products || products.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-black mx-auto mb-6"></div>
+          <p className="text-gray-600 text-lg">Loading products...</p>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">Product Not Found</h1>
-        <p className="text-gray-600 mb-8 text-lg">{error}</p>
-        <button 
-          onClick={() => window.history.back()}
-          className="bg-black text-white px-8 py-3 rounded-xl font-medium hover:bg-gray-800 w-full"
-        >
-          Go Back
-        </button>
       </div>
-    </div>
-  ), [error]);
+    );
+  }
 
-  // Loading state
-  const LoadingState = useMemo(() => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-black mx-auto mb-6"></div>
-        <p className="text-gray-600 text-lg">Loading product details...</p>
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center max-w-lg">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span className="text-3xl text-red-600">⚠️</span>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">Product Not Found</h1>
+          <p className="text-gray-600 mb-8 text-lg">{error}</p>
+          <button 
+            onClick={() => window.history.back()}
+            className="bg-black text-white px-8 py-3 rounded-xl font-medium hover:bg-gray-800 w-full"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
-    </div>
-  ), []);
+    );
+  }
 
-  // Show loading if context is still loading or product data is loading
-  if (error) return ErrorState;
-  if (loading || !productData || !dataFetched) return LoadingState;
+  if (!productData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-black mx-auto mb-6"></div>
+          <p className="text-gray-600 text-lg">Loading product details...</p>
+        </div>
+      </div>
+    );
+  }
 
   const ingredientsList = getIngredientsArray();
   const benefitsList = getBenefitsArray();
