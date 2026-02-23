@@ -761,7 +761,16 @@ const ProductSection = memo(({
         <InputField label="Cost Price" value={cost} onChange={setCost} />
         <InputField label="Selling Price *" value={price} onChange={setPrice} required />
         <InputField label="Discount Price" value={discountprice} onChange={setDiscountprice} />
-        <InputField label="Quantity *" value={quantity} onChange={setQuantity} required />
+        <InputField label="Quantity *" value={quantity} onChange={(value) => {
+    // Convert to integer, remove decimals
+    const intValue = parseInt(value) || 0;
+    setQuantity(intValue);
+  }} 
+  required 
+  type="number"
+  step="1"
+  min="0"
+/>
       </div>
 
       {/* Ingredients Section */}
@@ -1097,17 +1106,25 @@ const DealSection = memo(({
   );
 });
 
-const InputField = memo(({ label, value, onChange, required = false }) => {
+const InputField = memo(({ label, value, onChange, required = false, type = "number", step = "1", min = "0" }) => {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
       <input
-        type="number"
+        type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="0.00"
-        min="0"
-        step="0.01"
+        onChange={(e) => {
+          let newValue = e.target.value;
+          if (type === "number") {
+            // Remove any decimal points and convert to integer
+            newValue = newValue.replace(/[.,]/g, ''); // Remove commas and periods
+            newValue = newValue === '' ? '' : parseInt(newValue) || 0;
+          }
+          onChange(newValue);
+        }}
+        placeholder="0"
+        min={min}
+        step={step}
         required={required}
         className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black transition-colors text-sm sm:text-base"
       />
