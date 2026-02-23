@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { assets } from "../assets/assets";
-import LoginModal from '../components/Login'; // Import LoginModal
+import LoginModal from '../components/Login';
 
 const PlaceOrder = () => {
   const [loading, setLoading] = useState(false);
@@ -24,11 +24,12 @@ const PlaceOrder = () => {
   const [cityZipData, setCityZipData] = useState({});
   const [knownCitiesWithZips, setKnownCitiesWithZips] = useState({});
   
-  // Payment States - Both COD and Online
+  // Add state for category mappings
+  const [categoryIdMap, setCategoryIdMap] = useState({});
+  const [subcategoryIdMap, setSubcategoryIdMap] = useState({});
+  
+  // Payment States - COD Only
   const [paymentMethod, setPaymentMethod] = useState('COD');
-  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
-  const [previewImage, setPreviewImage] = useState(null);
-  const [isUploadingPayment, setIsUploadingPayment] = useState(false);
   
   // Guest checkout states
   const [isGuestCheckout, setIsGuestCheckout] = useState(false);
@@ -59,10 +60,49 @@ const PlaceOrder = () => {
   
   const navigate = useNavigate();
 
+  // Fetch categories to build ID-to-name mapping
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get(`${backendUrl}/api/categories`);
+        const data = response.data;
+        
+        let categories = data.data || data.categories || data;
+        if (!Array.isArray(categories)) return;
+
+        const idToNameMap = {};
+        const subcategoryIdToNameMap = {};
+
+        categories.forEach((cat) => {
+          const categoryId = cat._id || cat.id;
+          const categoryName = cat.name || cat.categoryName || cat.title || 'Category';
+
+          if (categoryId) idToNameMap[categoryId] = categoryName;
+
+          const subcategories = cat.subcategories || cat.subCategories || [];
+          subcategories.forEach((sub) => {
+            const subcategoryId = sub._id || sub.id;
+            const subcategoryName = sub.name || sub.subcategoryName || sub.title || sub || 'Subcategory';
+            if (subcategoryId) subcategoryIdToNameMap[subcategoryId] = subcategoryName;
+          });
+        });
+
+        setCategoryIdMap(idToNameMap);
+        setSubcategoryIdMap(subcategoryIdToNameMap);
+      } catch (error) {
+        // Silently handle error
+      }
+    };
+
+    fetchCategories();
+  }, [backendUrl]);
+
   // Form data state
   const [formData, setFormData] = useState(() => {
     const savedData = localStorage.getItem('orderFormData');
-    return savedData ? JSON.parse(savedData) : {
+    
+    // Base default data with all fields
+    const defaultData = {
       fullName: '',
       email: '',
       street: '',
@@ -71,6 +111,24 @@ const PlaceOrder = () => {
       zipcode: '',
       phone: ''
     };
+    
+    if (savedData) {
+      const parsedData = JSON.parse(savedData);
+      // Merge saved data with defaults to ensure all fields exist
+      return {
+        ...defaultData,
+        ...parsedData
+      };
+    }
+    
+    // If user is logged in, pre-fill with their data
+    if (user?.name && user?.email) {
+      defaultData.fullName = user.name || '';
+      defaultData.email = user.email || '';
+      defaultData.phone = user.phone || '';
+    }
+    
+    return defaultData;
   });
 
   // Get total amount using the same logic as CartTotal
@@ -100,16 +158,6 @@ const PlaceOrder = () => {
     
     checkAuth();
   }, [token, user]);
-
-  // Enhanced authentication and cart check
-  useEffect(() => {
-    const cartItemCount = (cartItems ? Object.keys(cartItems).length : 0) + 
-                         (cartDeals ? Object.keys(cartDeals).length : 0);
-    
-    if (cartItemCount === 0) {
-      // Cart is empty, will show empty state
-    }
-  }, [cartItems, cartDeals]);
 
   // Load user data as defaults for logged-in users
   useEffect(() => {
@@ -234,7 +282,7 @@ const PlaceOrder = () => {
     }
   }, [cityZipData, formData.zipcode, validationErrors.zipcode]);
 
-  // Validate address - UPDATED to always return valid
+  // Validate address
   const validateAddress = useCallback(async (city, state, zipcode) => {
     if (!city || !state) return { isValid: false, message: 'City and state are required' };
 
@@ -246,15 +294,23 @@ const PlaceOrder = () => {
       if (response.data.success) {
         return response.data.data;
       } else {
-        // Even if validation fails, allow with manual verification
+        // Even if validation fails, allow the order with manual verification
+        if (city && state && zipcode && /^\d{5}$/.test(zipcode)) {
+          return { 
+            isValid: true, 
+            message: 'Address accepted with manual verification',
+            requiresManualVerification: true
+          };
+        }
+        // Even if basic validation fails, still allow with warning
         return { 
           isValid: true, 
-          message: 'Address accepted with manual verification',
+          message: 'Address will be manually verified',
           requiresManualVerification: true
         };
       }
     } catch (error) {
-      // If API fails, always allow
+      // If API fails, always allow the order
       return { 
         isValid: true, 
         message: 'Address accepted (validation service unavailable)',
@@ -280,13 +336,6 @@ const PlaceOrder = () => {
       autoFillZipCode(formData.city);
     }
   }, [formData.city, formData.zipcode, cityZipData, autoFillZipCode]);
-
-  // SIMPLIFIED ZIP code validation - only check for 5 digits, no blocking
-  const validateZipCode = useCallback((zipcode) => {
-    if (!zipcode) return 'ZIP code is required';
-    if (!/^\d{5}$/.test(zipcode)) return 'ZIP code must be 5 digits';
-    return true;
-  }, []);
 
   // Save form data to localStorage
   useEffect(() => {
@@ -347,45 +396,50 @@ const PlaceOrder = () => {
     }
   }, []);
 
-  // Field validation - UPDATED to remove blocking ZIP validation
+  // Field validation
   const validateField = async (name, value) => {
     const errors = {};
     
     switch (name) {
       case 'fullName':
-        if (!value.trim()) errors.fullName = 'Customer name is required';
+        if (!value?.trim()) errors.fullName = 'Customer name is required';
         else if (value.trim().length < 2) errors.fullName = 'Customer name must be at least 2 characters';
         else if (!/^[a-zA-Z\s]{2,50}$/.test(value.trim())) errors.fullName = 'Customer name can only contain letters and spaces';
         break;
         
       case 'email':
-        if (!value.trim()) errors.email = 'Customer email is required';
+        if (!value?.trim()) errors.email = 'Customer email is required';
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errors.email = 'Please enter a valid email address';
         break;
         
       case 'street':
-        if (!value.trim()) errors.street = 'Street address is required';
+        if (!value?.trim()) errors.street = 'Street address is required';
         else if (value.trim().length < 5) errors.street = 'Please enter a complete street address';
         break;
         
       case 'city':
-        if (!value.trim()) errors.city = 'City is required';
+        if (!value?.trim()) errors.city = 'City is required';
         break;
         
       case 'state':
-        if (!value.trim()) errors.state = 'Province is required';
+        if (!value?.trim()) errors.state = 'Province is required';
         else if (!pakistanStates.includes(value)) errors.state = 'Please select a valid province';
         break;
         
       case 'zipcode':
-        // SIMPLIFIED: Only check for 5 digits, but don't block submission
-        if (!value.trim()) errors.zipcode = 'ZIP code is required';
+        if (!value?.trim()) errors.zipcode = 'ZIP code is required';
         else if (!/^\d{5}$/.test(value.trim())) errors.zipcode = 'ZIP code must be 5 digits';
         break;
         
       case 'phone':
-        if (!value.trim()) errors.phone = 'Phone number is required';
-        else if (!/^03\d{9}$/.test(value.replace(/\D/g, ''))) errors.phone = 'Please enter a valid Pakistani phone number (03XXXXXXXXX)';
+        if (!value?.trim()) {
+          errors.phone = 'Whatsapp number is required';
+        } else {
+          const digitsOnly = value.replace(/\D/g, '');
+          if (!/^03\d{9}$/.test(digitsOnly)) {
+            errors.phone = 'Please enter a valid Pakistani number (03XXXXXXXXX)';
+          }
+        }
         break;
     }
     
@@ -401,11 +455,6 @@ const PlaceOrder = () => {
       Object.assign(errors, fieldErrors);
     }
     
-    // Validate payment screenshot for online payments
-    if (paymentMethod === 'online' && !paymentScreenshot) {
-      errors.payment = 'Payment screenshot is required for online payments';
-    }
-    
     setValidationErrors(errors);
     
     // Allow submission even if there are ZIP code errors (they're just warnings now)
@@ -413,44 +462,6 @@ const PlaceOrder = () => {
     delete blockingErrors.zipcode; // Remove ZIP code errors from blocking validation
     
     return Object.keys(blockingErrors).length === 0;
-  };
-
-  // Payment screenshot upload functions
-  const handlePaymentScreenshot = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-      if (!validTypes.includes(file.type)) {
-        toast.error('Please upload a valid image file (JPG, PNG, WebP)');
-        return;
-      }
-      
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should be less than 5MB');
-        return;
-      }
-      
-      setPaymentScreenshot(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewImage(e.target.result);
-      };
-      reader.readAsDataURL(file);
-      
-      // Clear any previous payment errors
-      if (validationErrors.payment) {
-        setValidationErrors(prev => ({ ...prev, payment: '' }));
-      }
-    }
-  };
-
-  const removePaymentScreenshot = () => {
-    setPaymentScreenshot(null);
-    setPreviewImage(null);
   };
 
   const onChangeHandler = async (e) => {
@@ -494,7 +505,7 @@ const PlaceOrder = () => {
       }
     }
     
-    // Real-time ZIP validation - SIMPLIFIED
+    // Real-time ZIP validation
     if (name === 'zipcode' && value.length === 5 && /^\d{5}$/.test(value)) {
       setValidationErrors(prev => ({
         ...prev,
@@ -544,6 +555,91 @@ const PlaceOrder = () => {
     return [];
   };
 
+  // Helper function to extract category name using the category mappings
+  const getCategoryName = (productInfo) => {
+    // If category doesn't exist, return default
+    if (!productInfo.category) return 'Product';
+    
+    // If category is an object with a name property
+    if (typeof productInfo.category === 'object' && productInfo.category !== null) {
+      if (productInfo.category.name) {
+        return productInfo.category.name;
+      }
+      return 'Product';
+    }
+    
+    // If category is a string
+    if (typeof productInfo.category === 'string') {
+      const categoryString = productInfo.category;
+      
+      // Check if it looks like a MongoDB ID (24 hex characters)
+      const isMongoId = /^[0-9a-f]{24}$/i.test(categoryString);
+      
+      if (isMongoId) {
+        // Try to get from categoryIdMap first (from fetched categories)
+        if (categoryIdMap[categoryString]) {
+          return categoryIdMap[categoryString];
+        }
+        
+        // Try to get from categoryName field
+        if (productInfo.categoryName) {
+          return productInfo.categoryName;
+        }
+        
+        return 'Product';
+      }
+      
+      // If it contains "Product" and looks like it has an ID, clean it
+      if (categoryString.includes('Product') && categoryString.length > 10) {
+        return 'Product';
+      }
+      
+      // Try to clean any IDs from the string
+      const words = categoryString.split(' ');
+      const lastWord = words[words.length - 1];
+      if (lastWord && /^[0-9a-f]{24}$/i.test(lastWord)) {
+        words.pop();
+        return words.join(' ') || 'Product';
+      }
+      
+      // Return the category string if it's not an ID
+      return categoryString;
+    }
+    
+    return 'Product';
+  };
+
+  // Helper function to get subcategory name
+  const getSubcategoryName = (productInfo) => {
+    if (!productInfo.subcategory) return '';
+    
+    if (typeof productInfo.subcategory === 'object' && productInfo.subcategory !== null) {
+      if (productInfo.subcategory.name) {
+        return productInfo.subcategory.name;
+      }
+      return '';
+    }
+    
+    if (typeof productInfo.subcategory === 'string') {
+      const subcategoryString = productInfo.subcategory;
+      const isMongoId = /^[0-9a-f]{24}$/i.test(subcategoryString);
+      
+      if (isMongoId) {
+        if (subcategoryIdMap[subcategoryString]) {
+          return subcategoryIdMap[subcategoryString];
+        }
+        if (productInfo.subcategoryName) {
+          return productInfo.subcategoryName;
+        }
+        return '';
+      }
+      
+      return subcategoryString;
+    }
+    
+    return '';
+  };
+
   // Process cart items for order
   const processCartItems = () => {
     let orderItems = [];
@@ -558,13 +654,18 @@ const PlaceOrder = () => {
             const unitPrice = productInfo.discountprice > 0 ? productInfo.discountprice : productInfo.price;
             const itemTotal = unitPrice * quantity;
             
+            // Get proper category and subcategory names
+            const categoryName = getCategoryName(productInfo);
+            const subcategoryName = getSubcategoryName(productInfo);
+            
             orderItems.push({
               id: productInfo._id,
               name: productInfo.name,
               price: unitPrice,
               quantity: quantity,
-              image: productInfo.image?.[0],
-              category: productInfo.category,
+              image: productInfo.image?.[0] || assets.placeholder_image,
+              category: categoryName,
+              subcategory: subcategoryName,
               isFromDeal: false,
               description: productInfo.description,
               originalPrice: productInfo.price,
@@ -612,7 +713,7 @@ const PlaceOrder = () => {
     return { orderItems, calculatedAmount };
   };
 
-  // Handle user login for checkout - UPDATED to use LoginModal
+  // Handle user login for checkout
   const handleLoginForCheckout = () => {
     setAuthMode('login');
     setIsLoginModalOpen(true);
@@ -630,9 +731,49 @@ const PlaceOrder = () => {
     setShowGuestForm(false);
   };
 
-  // Main submit handler - supports both payment methods
+  // ✅ NEW: Clear cart function that works for both guest and logged-in users
+  const forceClearCart = () => {
+    // Clear React state
+    setCartItems({});
+    setCartDeals({});
+    
+    // Clear localStorage
+    localStorage.removeItem('cartItems');
+    localStorage.removeItem('cartDeals');
+    localStorage.removeItem('guestCheckoutData');
+    
+    // Call context clearCart if available (for logged-in users)
+    if (clearCart) {
+      clearCart();
+    }
+    
+    console.log('✅ Cart cleared after order placement');
+  };
+
+  // Main submit handler - supports both guest and logged-in
   const onSubmitHandler = async (e) => {
     e.preventDefault();
+    
+    // Explicit phone validation before anything else
+    if (!formData.phone || !formData.phone.trim()) {
+      toast.error('Whatsapp number is required');
+      setValidationErrors(prev => ({ 
+        ...prev, 
+        phone: 'Whatsapp number is required' 
+      }));
+      return;
+    }
+    
+    // Validate phone format
+    const digitsOnly = formData.phone.replace(/\D/g, '');
+    if (!/^03\d{9}$/.test(digitsOnly)) {
+      toast.error('Please enter a valid Whatsapp number');
+      setValidationErrors(prev => ({ 
+        ...prev, 
+        phone: 'Please enter a valid Pakistani number (03XXXXXXXXX)' 
+      }));
+      return;
+    }
     
     if (isGuestCheckout && !showGuestForm) {
       // Show guest form if not shown yet
@@ -683,82 +824,143 @@ const PlaceOrder = () => {
         customerDetails: {
           name: formData.fullName.trim(),
           email: formData.email.trim(),
-          phone: formData.phone
+          phone: digitsOnly
         },
-        paymentMethod: paymentMethod,
-        // For COD, payment is automatically verified (no advance payment)
-        // For online, payment status is pending until admin verification
-        paymentStatus: paymentMethod === 'COD' ? 'verified' : 'pending'
+        paymentMethod: 'COD',
+        paymentStatus: 'verified'
       };
 
-      // Determine API endpoint based on payment method and checkout type
+      // Determine API endpoint and headers based on checkout type
       let apiEndpoint;
-      let requestHeaders = {};
+      let requestHeaders = {
+        'Content-Type': 'application/json'
+      };
 
-      if (paymentMethod === 'online') {
-        // For online payments, use multipart/form-data to upload screenshot
-        requestHeaders = {
-          'Content-Type': 'multipart/form-data'
-        };
-        
-        if (isGuestCheckout) {
-          apiEndpoint = `${backendUrl}/api/order/guest/place-with-payment`;
-        } else {
-          if (!token) {
-            toast.error('Please login to continue');
-            setIsLoginModalOpen(true);
-            setAuthMode('login');
-            setLoading(false);
-            return;
-          }
-          apiEndpoint = `${backendUrl}/api/order/place-with-payment`;
-          requestHeaders.token = token;
-        }
-        
-        // Create FormData for online payment
-        const formDataObj = new FormData();
-        formDataObj.append('orderData', JSON.stringify(orderData));
-        if (paymentScreenshot) {
-          formDataObj.append('payment_screenshot', paymentScreenshot);
-        }
-        
-        const response = await axios.post(apiEndpoint, formDataObj, {
-          headers: requestHeaders
-        });
-        
-        handleOrderResponse(response.data, orderData);
-        
+      if (isGuestCheckout) {
+        // Guest checkout - no token required
+        apiEndpoint = `${backendUrl}/api/order/place`;
       } else {
-        // COD - no payment screenshot required
-        requestHeaders = {
-          'Content-Type': 'application/json'
-        };
-
-        if (isGuestCheckout) {
-          apiEndpoint = `${backendUrl}/api/order/guest/place`;
-        } else {
-          if (!token) {
-            toast.error('Please login to continue');
-            setIsLoginModalOpen(true);
-            setAuthMode('login');
-            setLoading(false);
-            return;
-          }
-          apiEndpoint = `${backendUrl}/api/order/place`;
-          requestHeaders.token = token;
+        // Logged-in user - token required
+        if (!token) {
+          toast.error('Please login to continue');
+          setIsLoginModalOpen(true);
+          setAuthMode('login');
+          setLoading(false);
+          return;
         }
+        apiEndpoint = `${backendUrl}/api/order/place`;
+        requestHeaders.token = token;
+      }
 
-        const response = await axios.post(apiEndpoint, orderData, {
-          headers: requestHeaders
-        });
+      // Submit order
+      const response = await axios.post(apiEndpoint, orderData, {
+        headers: requestHeaders
+      });
+      
+      if (response.data.success) {
+        // ✅ FORCE CLEAR CART FOR ALL USERS (both guest and logged-in)
+        forceClearCart();
         
-        handleOrderResponse(response.data, orderData);
+        // Clear form data
+        localStorage.removeItem('orderFormData');
+        
+        // Save guest order info for tracking
+        if (isGuestCheckout) {
+          // Prepare COMPLETE order data for localStorage with proper category
+          const completeGuestOrder = {
+            _id: response.data.orderId,
+            userId: null,
+            items: orderItems.map(item => ({
+              id: item.id || item._id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              image: item.image || assets.placeholder_image,
+              category: item.category,
+              subcategory: item.subcategory,
+              isFromDeal: item.isFromDeal || false,
+              dealImage: item.dealImage,
+              originalTotalPrice: item.originalTotalPrice,
+              savings: item.savings,
+              description: item.description
+            })),
+            amount: finalAmount,
+            deliveryCharges: deliveryCharge,
+            address: {
+              street: formData.street.trim(),
+              city: formData.city.trim(),
+              state: formData.state,
+              zipcode: formData.zipcode.trim()
+            },
+            paymentMethod: 'COD',
+            payment: false,
+            status: 'Order Placed',
+            date: Date.now(),
+            customerDetails: {
+              name: formData.fullName.trim(),
+              email: formData.email.trim(),
+              phone: digitsOnly
+            },
+            isGuest: true,
+            isRecent: true
+          };
+          
+          // Save to localStorage for immediate display
+          localStorage.setItem('recentGuestOrder', JSON.stringify(completeGuestOrder));
+          
+          // Also save to guestOrders list for persistence
+          const existingGuestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
+          const updatedGuestOrders = [completeGuestOrder, ...existingGuestOrders.filter(o => o._id !== completeGuestOrder._id)];
+          localStorage.setItem('guestOrders', JSON.stringify(updatedGuestOrders));
+          
+          // Save guest info for backend sync
+          localStorage.setItem('guestOrderInfo', JSON.stringify({
+            email: formData.email.trim(),
+            phone: digitsOnly,
+            timestamp: Date.now(),
+            customerName: formData.fullName.trim()
+          }));
+          
+          // Show guest success message
+          toast.success(
+            <div>
+              <p>Order placed successfully</p>
+            </div>
+          );
+          
+          // Navigate to guest tracking page
+          navigate('/orders', { 
+            state: { 
+              orderId: response.data.orderId,
+              guestId: response.data.guestId,
+              email: orderData.customerDetails.email
+            } 
+          });
+        } else {
+          // For logged-in users
+          toast.success(
+            <div>
+              <div className="font-semibold">🎉 Order Placed Successfully!</div>
+              <div className="text-sm mt-1">
+                Your order #<span className="font-medium">{response.data.orderId.slice(-6)}</span> has been placed.
+              </div>
+            </div>
+          );
+          navigate('/orders');
+        }
+      } else {
+        toast.error(response.data.message || 'Failed to place order');
       }
       
+      setLoading(false);
+      setIsValidatingAddress(false);
+
     } catch (error) {
       console.error('Order placement error:', error);
       
-      if (error.response?.status === 401 && !isGuestCheckout) {
+      if (error.code === 'ERR_NETWORK') {
+        toast.error('Network error. Please check your internet connection.');
+      } else if (error.response?.status === 401 && !isGuestCheckout) {
         // For logged-in users who got unauthorized
         setIsLoginModalOpen(true);
         setAuthMode('login');
@@ -770,56 +972,6 @@ const PlaceOrder = () => {
       setLoading(false);
       setIsValidatingAddress(false);
     }
-  };
-
-  // Helper function to handle order response
-  const handleOrderResponse = (data, orderData) => {
-    if (data.success) {
-      // Clear cart only for logged-in users
-      if (!isGuestCheckout) {
-        clearCart();
-      }
-      
-      // Save guest order info for tracking
-      if (isGuestCheckout) {
-        const guestOrderInfo = {
-          orderId: data.orderId,
-          guestId: data.guestId,
-          email: orderData.customerDetails.email,
-          timestamp: Date.now()
-        };
-        localStorage.setItem('guestOrderInfo', JSON.stringify(guestOrderInfo));
-        
-        // Show guest success message
-        toast.success(
-          <div>
-            <p>✅ Order placed successfully as guest!</p>
-            <p className="text-sm mt-1">
-              Save this order ID: <strong>{data.orderId}</strong>
-            </p>
-            <p className="text-sm">Check your email for tracking details.</p>
-          </div>
-        );
-        
-        // Navigate to guest tracking page
-        navigate('/orders', { 
-          state: { 
-            orderId: data.orderId,
-            guestId: data.guestId,
-            email: orderData.customerDetails.email
-          } 
-        });
-      } else {
-        // For logged-in users
-        toast.success(data.message || 'Order placed successfully!');
-        navigate('/orders');
-      }
-    } else {
-      toast.error(data.message || 'Failed to place order');
-    }
-    
-    setLoading(false);
-    setIsValidatingAddress(false);
   };
 
   // Check if cart is empty
@@ -856,7 +1008,7 @@ const PlaceOrder = () => {
         onChange={onChangeHandler}
         onBlur={onBlurHandler}
         name={name} 
-        value={formData[name]} 
+        value={formData[name] || ''} 
         className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
           validationErrors[name] 
             ? 'border-red-500 bg-red-50' 
@@ -883,7 +1035,7 @@ const PlaceOrder = () => {
         onChange={onChangeHandler}
         onBlur={onBlurHandler}
         name={name}
-        value={formData[name]}
+        value={formData[name] || ''}
         className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
           validationErrors[name] 
             ? 'border-red-500 bg-red-50' 
@@ -914,7 +1066,7 @@ const PlaceOrder = () => {
           onChange={onChangeHandler}
           onBlur={onBlurHandler}
           name="city"
-          value={formData.city}
+          value={formData.city || ''}
           list="city-suggestions"
           className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
             validationErrors.city 
@@ -958,7 +1110,7 @@ const PlaceOrder = () => {
           onChange={onChangeHandler}
           onBlur={onBlurHandler}
           name="zipcode" 
-          value={formData.zipcode} 
+          value={formData.zipcode || ''} 
           className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
             validationErrors.zipcode 
               ? 'border-yellow-500 bg-yellow-50' 
@@ -998,9 +1150,9 @@ const PlaceOrder = () => {
         <input 
           onChange={onChangeHandler}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-          onFocus={() => formData.street.length >= 3 && setShowSuggestions(true)}
+          onFocus={() => formData.street?.length >= 3 && setShowSuggestions(true)}
           name="street" 
-          value={formData.street} 
+          value={formData.street || ''} 
           className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
             validationErrors.street 
               ? 'border-red-500 bg-red-50' 
@@ -1041,24 +1193,19 @@ const PlaceOrder = () => {
     </div>
   );
 
-  // Render Payment Method Selection - Both COD and Online
+  // Render Payment Method Selection - COD Only
   const renderPaymentMethod = () => (
     <div className="mt-8">
       <h2 className="text-xl font-bold text-gray-900 mb-6">Payment Method</h2>
-      <div className="grid grid-cols-1  gap-4">
-        {/* COD Option - No advance payment */}
+      <div className="grid grid-cols-1 gap-4">
+        {/* COD Only */}
         <div 
           className={`border border-gray-300 rounded-xl p-4 cursor-pointer transition-all ${
             paymentMethod === 'COD' 
               ? 'border-gray-900 bg-gray-50' 
               : 'hover:border-gray-400'
           }`}
-          onClick={() => {
-            setPaymentMethod('COD');
-            // Clear any payment screenshot when switching to COD
-            setPaymentScreenshot(null);
-            setPreviewImage(null);
-          }}
+          onClick={() => setPaymentMethod('COD')}
         >
           <div className="flex items-center gap-3">
             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -1068,143 +1215,13 @@ const PlaceOrder = () => {
             </div>
             <div>
               <p className="font-semibold text-gray-900">Cash on Delivery</p>
+              <p className="text-sm text-gray-600 mt-1">Pay when you receive your order</p>
             </div>
           </div>
-        </div>
-        
-        {/* Online Payment Option */}
-        {/* <div 
-          className={`border border-gray-300 rounded-xl p-4 cursor-pointer transition-all ${
-            paymentMethod === 'online' 
-              ? 'border-gray-900 bg-gray-50' 
-              : 'hover:border-gray-400'
-          }`}
-          onClick={() => setPaymentMethod('online')}
-        >
-          <div className="flex items-center gap-3">
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-              paymentMethod === 'online' ? 'border-gray-900 bg-gray-900' : 'border-gray-400'
-            }`}>
-              {paymentMethod === 'online' && <div className="w-2 h-2 bg-white rounded-full"></div>}
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900">Online Payment</p>
-              <p className="text-sm text-gray-600 mt-1">Pay via EasyPaisa/JazzCash</p>
-            </div>
-          </div>
-        </div> */}
-      </div>
-    </div>
-  );
-
-  // Render EasyPaisa Payment Section for Online Payments
-  const renderEasyPaisaPayment = () => (
-    <div className="mt-6">
-      <div className="bg-white p-6 border border-gray-300 rounded-3xl">
-        <h3 className="text-lg font-bold text-gray-900 mb-6">Online Payment Details</h3>
-        
-        <div className="space-y-4 mb-6 p-4 bg-gray-50 rounded-3xl">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Total Amount:</span>
-            <span className="font-bold text-gray-900">{currency} {totalAmount.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">EasyPaisa Number:</span>
-            <span className="font-semibold text-gray-900">0348 3450302</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Account:</span>
-            <span className="font-semibold text-gray-900">Muhammad Ahmad</span>
-          </div>
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <p className="text-sm text-yellow-700">
-              <strong>Note:</strong> Payment will be verified by admin before processing.
-            </p>
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Upload Payment Screenshot <span className="text-red-500">*</span>
-          </label>
-          
-          {!previewImage ? (
-            <div className="border-2 border-dashed border-gray-300 rounded-3xl p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePaymentScreenshot}
-                className="hidden"
-                id="payment-screenshot"
-              />
-              <label 
-                htmlFor="payment-screenshot" 
-                className="cursor-pointer block"
-              >
-                <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                  <span className="text-xl text-gray-600">📁</span>
-                </div>
-                <p className="text-sm font-semibold text-gray-800 mb-1">
-                  Upload Payment Screenshot
-                </p>
-                <p className="text-xs text-gray-500 mb-3">
-                  JPG, PNG, WebP files (Max 5MB)
-                </p>
-                <button 
-                  type="button"
-                  className="bg-black text-white px-4 py-2 rounded text-sm font-medium hover:bg-gray-800 transition-colors"
-                >
-                  Choose File
-                </button>
-              </label>
-            </div>
-          ) : (
-            <div className="border border-gray-300 rounded-3xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-gray-800">Payment Screenshot</p>
-                <button
-                  type="button"
-                  onClick={removePaymentScreenshot}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium"
-                >
-                  Remove
-                </button>
-              </div>
-              <div className="flex justify-center">
-                <img 
-                  src={previewImage} 
-                  alt="Payment screenshot" 
-                  className="max-w-full h-auto max-h-40 rounded border border-gray-200"
-                />
-              </div>
-            </div>
-          )}
-          
-          {validationErrors.payment && (
-            <p className="text-red-600 text-sm mt-3 bg-red-50 p-3 rounded">
-              {validationErrors.payment}
-            </p>
-          )}
-        </div>
-
-        <div className="text-sm text-gray-600 space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
-          <p className="flex items-start gap-2">
-            <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-            <span>Send <span className="font-semibold text-gray-900">{currency} {totalAmount.toFixed(2)}</span> to EasyPaisa account</span>
-          </p>
-          <p className="flex items-start gap-2">
-            <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-            <span>Take a clear screenshot of the payment confirmation</span>
-          </p>
-          <p className="flex items-start gap-2">
-            <span className="text-gray-500 mt-0.5 flex-shrink-0">•</span>
-            <span>Upload screenshot above for verification</span>
-          </p>
         </div>
       </div>
     </div>
   );
-
 
   // Render guest checkout header section
   const renderGuestCheckoutHeader = () => {
@@ -1320,9 +1337,7 @@ const PlaceOrder = () => {
 
                   {renderPaymentMethod()}
                   
-                  {/* Conditional Payment Section */}
-                  {paymentMethod === 'COD' ?  ' ': renderEasyPaisaPayment()}
-                  
+               
                 </form>
               </div>
 
@@ -1339,18 +1354,13 @@ const PlaceOrder = () => {
                     type='submit' 
                     onClick={onSubmitHandler}
                     className={`w-full bg-black text-white px-6 py-4 font-semibold rounded-3xl hover:bg-gray-800 transition-colors ${
-                      loading || !isDataReady || isValidatingAddress || isUploadingPayment
+                      loading || !isDataReady || isValidatingAddress
                         ? 'opacity-50 cursor-not-allowed' 
                         : ''
                     }`}
-                    disabled={loading || !isDataReady || isValidatingAddress || isUploadingPayment}
+                    disabled={loading || !isDataReady || isValidatingAddress}
                   >
-                    {isUploadingPayment ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Uploading Payment...
-                      </span>
-                    ) : isValidatingAddress ? (
+                    {isValidatingAddress ? (
                       <span className="flex items-center justify-center gap-2">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                         Validating Address...
@@ -1362,12 +1372,10 @@ const PlaceOrder = () => {
                       </span>
                     ) : !isDataReady ? (
                       'Loading...'
-                    ) : paymentMethod === 'online' && !paymentScreenshot ? (
-                      'Upload Payment to Place Order'
-                    ) : paymentMethod === 'COD' ? (
-                      'Place Order'
+                    ) : isGuestCheckout ? (
+                      `Place Order`
                     ) : (
-                      'Place Order '
+                      `Place Order`
                     )}
                   </button>
                   

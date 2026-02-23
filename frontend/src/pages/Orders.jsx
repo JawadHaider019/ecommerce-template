@@ -10,20 +10,19 @@ import {
   FaShippingFast,
   FaMotorcycle,
   FaCheckCircle,
-  FaTimesCircle,
   FaMapMarkerAlt,
   FaCreditCard,
-  FaInfoCircle,
-  FaImage,
-  FaTag,
+  FaUser,
+  FaShoppingBag,
+  FaSyncAlt,
   FaCalendarAlt,
   FaReceipt,
   FaChevronRight,
   FaSpinner,
   FaTruck,
   FaBoxOpen,
-  FaUser,
-  FaShoppingBag,
+  FaTag,
+  FaImage,
   FaQuestionCircle
 } from 'react-icons/fa';
 
@@ -57,13 +56,18 @@ const STATUS_CONFIG = {
     icon: FaCheckCircle, 
     color: 'bg-green-50 text-green-700 border-green-200',
     stepColor: 'bg-green-500'
+  },
+  'Cancelled': { 
+    icon: FaClock, 
+    color: 'bg-red-50 text-red-700 border-red-200',
+    stepColor: 'bg-red-500'
   }
 };
 
 // Status steps for progress tracking
 const STATUS_STEPS = ['Order Placed', 'Packing', 'Shipped', 'Out for delivery', 'Delivered'];
 
-// Image URL resolver (from second component)
+// Helper functions (from second component)
 const resolveImageUrl = (image, backendUrl) => {
   if (!image) return assets.placeholder_image;
   
@@ -83,8 +87,6 @@ const resolveImageUrl = (image, backendUrl) => {
       url = image;
     } else if (image.startsWith('/uploads/') && backendUrl) {
       url = `${backendUrl}${image}`;
-    } else if (image in assets) {
-      url = assets[image];
     } else if (image.startsWith('http')) {
       url = image;
     } else {
@@ -102,7 +104,7 @@ const resolveImageUrl = (image, backendUrl) => {
   return url;
 };
 
-// Enhanced: Get product image with better fallbacks (from second component)
+// Enhanced product image fetching (from second component)
 const getProductImageById = async (productId, productName, backendUrl) => {
   if (!productId && !productName) return assets.placeholder_image;
   
@@ -112,7 +114,6 @@ const getProductImageById = async (productId, productName, backendUrl) => {
     if (cachedProducts) {
       const products = JSON.parse(cachedProducts);
       
-      // Try by ID first
       if (productId) {
         const cachedProduct = products.find(p => p._id === productId);
         if (cachedProduct?.image?.[0]) {
@@ -120,7 +121,6 @@ const getProductImageById = async (productId, productName, backendUrl) => {
         }
       }
       
-      // Try by name if ID not found
       if (productName) {
         const cachedProduct = products.find(p => 
           p.name?.toLowerCase() === productName?.toLowerCase() || 
@@ -132,7 +132,7 @@ const getProductImageById = async (productId, productName, backendUrl) => {
       }
     }
     
-    // Second try: Fetch from backend by ID
+    // Try to fetch from backend
     if (productId) {
       try {
         const response = await axios.get(`${backendUrl}/api/products/${productId}`);
@@ -140,45 +140,8 @@ const getProductImageById = async (productId, productName, backendUrl) => {
           return resolveImageUrl(response.data.data.image[0], backendUrl);
         }
       } catch (error) {
-        console.log("Failed to fetch product by ID, trying by name:", error);
+        console.log("Failed to fetch product by ID");
       }
-    }
-    
-    // Third try: Search by name
-    if (productName) {
-      try {
-        const response = await axios.get(`${backendUrl}/api/products/search`, {
-          params: { name: productName }
-        });
-        if (response.data.success && response.data.data?.[0]?.image?.[0]) {
-          return resolveImageUrl(response.data.data[0].image[0], backendUrl);
-        }
-      } catch (error) {
-        console.log("Failed to fetch product by name:", error);
-      }
-    }
-    
-    // Fourth try: Get all products and search locally
-    try {
-      const response = await axios.get(`${backendUrl}/api/products`);
-      if (response.data.success && response.data.data) {
-        const products = response.data.data;
-        
-        // Cache products for future use
-        localStorage.setItem('productCache', JSON.stringify(products));
-        
-        // Search for product
-        const product = products.find(p => 
-          (productId && p._id === productId) || 
-          (productName && p.name?.toLowerCase().includes(productName?.toLowerCase()))
-        );
-        
-        if (product?.image?.[0]) {
-          return resolveImageUrl(product.image[0], backendUrl);
-        }
-      }
-    } catch (error) {
-      console.log("Failed to fetch all products:", error);
     }
     
   } catch (error) {
@@ -188,49 +151,36 @@ const getProductImageById = async (productId, productName, backendUrl) => {
   return assets.placeholder_image;
 };
 
-// Helper function to parse date correctly
+// Date handling functions (from second component)
 const parseOrderDate = (dateValue) => {
-  if (!dateValue) return new Date(); // Return current date if no date provided
+  if (!dateValue) return new Date();
   
   try {
-    // Check if it's already a Date object
-    if (dateValue instanceof Date) {
-      return dateValue;
-    }
+    if (dateValue instanceof Date) return dateValue;
+    if (typeof dateValue === 'number') return new Date(dateValue);
     
-    // Check if it's a number (timestamp)
-    if (typeof dateValue === 'number') {
-      return new Date(dateValue);
-    }
-    
-    // Check if it's a string that can be parsed as a number
     if (typeof dateValue === 'string') {
-      // Try to parse as number first
       const parsedNumber = Number(dateValue);
       if (!isNaN(parsedNumber) && dateValue.trim() !== '') {
         return new Date(parsedNumber);
       }
       
-      // Try to parse as ISO string or other date string
       const parsedDate = new Date(dateValue);
       if (!isNaN(parsedDate.getTime())) {
         return parsedDate;
       }
     }
     
-    // Fallback to current date
     return new Date();
   } catch (error) {
-    console.error("Error parsing date:", error, dateValue);
-    return new Date(); // Return current date as fallback
+    console.error("Error parsing date:", error);
+    return new Date();
   }
 };
 
-// Helper function to format date for display
 const formatOrderDate = (dateValue) => {
   const date = parseOrderDate(dateValue);
   
-  // Check if date is valid and not epoch (1970)
   if (isNaN(date.getTime()) || date.getFullYear() === 1970) {
     return 'Date not available';
   }
@@ -238,18 +188,19 @@ const formatOrderDate = (dateValue) => {
   return date.toLocaleDateString('en-US', {
     day: 'numeric',
     month: 'short',
-    year: 'numeric'
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   });
 };
 
-// Helper function to get timestamp for sorting
 const getOrderTimestamp = (order) => {
   const dateValue = order.orderPlacedAt || order.date || order.createdAt;
   const date = parseOrderDate(dateValue);
   return date.getTime();
 };
 
-// Order Item Component (Enhanced with better image loading)
+// Order Item Component (from second component)
 const OrderItem = memo(({ item, currency, backendUrl }) => {
   const [imageUrl, setImageUrl] = useState(assets.placeholder_image);
   const [loading, setLoading] = useState(true);
@@ -263,26 +214,20 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
       try {
         let url = assets.placeholder_image;
         
-        // Priority 1: Direct image from item
         if (item.image) {
           if (Array.isArray(item.image) && item.image.length > 0) {
             url = resolveImageUrl(item.image[0], backendUrl);
           } else {
             url = resolveImageUrl(item.image, backendUrl);
           }
-        }
-        // Priority 2: Deal image
-        else if (item.isFromDeal && item.dealImage) {
+        } else if (item.isFromDeal && item.dealImage) {
           url = resolveImageUrl(item.dealImage, backendUrl);
-        }
-        // Priority 3: Try to get product image
-        else if (item.id || item.name) {
+        } else if (item.id || item.name) {
           url = await getProductImageById(item.id, item.name, backendUrl);
         }
         
         setImageUrl(url);
         
-        // Test if image loads
         const img = new Image();
         img.onload = () => {
           setLoading(false);
@@ -296,7 +241,6 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
         img.src = url;
         
       } catch (error) {
-        console.error("Error loading order item image:", error);
         setLoading(false);
         setImageError(true);
         setImageUrl(assets.placeholder_image);
@@ -306,26 +250,12 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
     loadImage();
   }, [item, backendUrl]);
 
-  const totalPrice = useMemo(() => 
-    ((item.price || 0) * (item.quantity || 1)).toFixed(2),
-    [item.price, item.quantity]
-  );
-
-  const unitPrice = useMemo(() => 
-    (item.price || 0).toFixed(2),
-    [item.price]
-  );
-
-  // Check if it's a deal with savings
+  const totalPrice = ((item.price || 0) * (item.quantity || 1)).toFixed(2);
+  const unitPrice = (item.price || 0).toFixed(2);
   const isDeal = item.isFromDeal === true;
-  const hasSavings = item.savings > 0;
-  const originalPrice = item.originalTotalPrice || (item.price || 0) * (item.quantity || 1);
-  const savings = hasSavings ? item.savings : 0;
-  const showSavings = isDeal && hasSavings && originalPrice > (item.price || 0) * (item.quantity || 1);
 
   return (
     <div className="flex gap-4 p-4 hover:bg-gray-50/50 transition-colors duration-200 rounded-xl">
-      {/* Image */}
       <div className="flex-shrink-0">
         <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
           {loading ? (
@@ -343,7 +273,6 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
               src={imageUrl}
               alt={item.name || 'Product'}
               loading="lazy"
-              decoding="async"
             />
           )}
           
@@ -355,7 +284,6 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
         </div>
       </div>
 
-      {/* Details */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -372,7 +300,6 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
           </span>
         </div>
 
-        {/* Item Details */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-gray-600">
@@ -383,15 +310,6 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
               <span className="text-xs">Quantity:</span>
               <span className="font-medium text-gray-900">{item.quantity || 1}</span>
             </div>
-            
-            {showSavings && (
-              <div className="flex items-center gap-2 text-green-600">
-                <span className="text-xs">Save:</span>
-                <span className="font-medium text-xs">
-                  {currency}{savings.toFixed(2)}
-                </span>
-              </div>
-            )}
           </div>
           
           {item.description && (
@@ -405,9 +323,11 @@ const OrderItem = memo(({ item, currency, backendUrl }) => {
   );
 });
 
-// Status Progress Bar
+// Status Progress Bar (from second component)
 const StatusProgress = memo(({ status }) => {
   const currentStepIndex = STATUS_STEPS.indexOf(status);
+  
+  if (currentStepIndex === -1) return null;
   
   return (
     <div className="mt-4">
@@ -432,7 +352,6 @@ const StatusProgress = memo(({ status }) => {
         })}
       </div>
       
-      {/* Progress Line */}
       <div className="relative -top-4">
         <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200"></div>
         <div 
@@ -444,25 +363,19 @@ const StatusProgress = memo(({ status }) => {
   );
 });
 
-// Order Card Component (with guest handling)
-const OrderCard = memo(({ order, currency, backendUrl }) => {
+// Order Card Component (from second component UI)
+const OrderCard = memo(({ order, currency, backendUrl, isGuest = false }) => {
   const [showDetails, setShowDetails] = useState(false);
   
-  const { totalAmount, formattedDate, statusConfig, isGuestOrder } = useMemo(() => {
+  const { totalAmount, formattedDate, statusConfig } = useMemo(() => {
     const subtotal = order.items?.reduce((sum, item) => 
       sum + ((item.price || 0) * (item.quantity || 1)), 0
     ) || 0;
     const totalAmount = subtotal + (order.deliveryCharges || 0);
-    
-    // Use the helper function to format date correctly
     const formattedDate = formatOrderDate(order.orderPlacedAt || order.date || order.createdAt);
-    
     const config = STATUS_CONFIG[order.status] || STATUS_CONFIG['Order Placed'];
     
-    // Check if order is from guest
-    const isGuest = order.orderType === 'guest' || order.isGuest || (!order.userId && order.customerDetails?.email);
-    
-    return { totalAmount, formattedDate, statusConfig: config, isGuestOrder: isGuest };
+    return { totalAmount, formattedDate, statusConfig: config };
   }, [order]);
 
   const StatusIcon = statusConfig.icon;
@@ -482,7 +395,7 @@ const OrderCard = memo(({ order, currency, backendUrl }) => {
                 <FaCalendarAlt className="w-3 h-3" />
                 {formattedDate}
               </div>
-              {isGuestOrder && (
+              {isGuest && (
                 <span className="inline-flex items-center px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-md">
                   <FaUser className="w-3 h-3 mr-1" />
                   Guest
@@ -558,13 +471,7 @@ const OrderCard = memo(({ order, currency, backendUrl }) => {
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Payment Method:</span>
                     <span className="font-medium text-gray-900 capitalize">
-                      {order.paymentMethod === 'online' ? 'Online Payment' : 'Cash on Delivery'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Payment Status:</span>
-                    <span className="font-medium text-gray-900 capitalize">
-                      {order.paymentStatus || 'Pending'}
+                      {order.paymentMethod || 'COD'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -573,14 +480,6 @@ const OrderCard = memo(({ order, currency, backendUrl }) => {
                       {currency}{(order.deliveryCharges || 0).toFixed(2)}
                     </span>
                   </div>
-                  {isGuestOrder && order.customerDetails?.email && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Guest Email:</span>
-                      <span className="font-medium text-gray-900">
-                        {order.customerDetails.email}
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -594,18 +493,12 @@ const OrderCard = memo(({ order, currency, backendUrl }) => {
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2 text-gray-600">
               <FaCreditCard className="w-4 h-4" />
-              <span className="capitalize">{order.paymentMethod}</span>
+              <span className="capitalize">{order.paymentMethod || 'COD'}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600">
               <FaTruck className="w-4 h-4" />
-              <span>{order.address?.city}</span>
+              <span>{order.address?.city || 'N/A'}</span>
             </div>
-            {isGuestOrder && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <FaUser className="w-4 h-4" />
-                <span>Guest Order</span>
-              </div>
-            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -623,148 +516,164 @@ const OrderCard = memo(({ order, currency, backendUrl }) => {
   );
 });
 
-// Main Orders Component (with guest handling integration)
+// Guest helper functions (from first component)
+const loadGuestInfo = () => {
+  try {
+    const guestInfo = localStorage.getItem('guestOrderInfo');
+    if (guestInfo) return JSON.parse(guestInfo);
+  } catch (error) {
+    console.error('Error loading guest info:', error);
+  }
+  return null;
+};
+
+const loadGuestOrdersFromStorage = () => {
+  try {
+    const guestOrders = localStorage.getItem('guestOrders');
+    if (guestOrders) return JSON.parse(guestOrders);
+  } catch (error) {
+    console.error('Error loading guest orders:', error);
+  }
+  return [];
+};
+
+// Main Orders Component (with first component's functionality)
 const Orders = () => {
   const { backendUrl, token, currency } = useContext(ShopContext);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [guestInfo, setGuestInfo] = useState(null);
+  
+  const isMounted = useRef(true);
 
-  // Load all orders with guest handling (from second component)
+  // Load guest info from localStorage on mount
   useEffect(() => {
-    let mounted = true;
-    let controller = new AbortController();
+    const info = loadGuestInfo();
+    if (info) {
+      setGuestInfo(info);
+      setIsGuestMode(true);
+    }
+  }, []);
 
-  const loadData = async () => {
-  try {
-    if (mounted) setLoading(true);
+  // Fetch orders from backend
+  const fetchOrders = useCallback(async (showIndicator = false) => {
+    if (!isMounted.current) return;
     
-    if (token) {
-      // Logged-in user: Load from backend
-      try {
-        // FIX: Changed from POST to GET and corrected endpoint
-        const response = await axios.get(
-          backendUrl + '/api/order/user',  // Changed from /api/order/userorders
-          { 
-            headers: { token },
-            timeout: 10000,
-            signal: controller.signal
-          }
+    if (showIndicator) setRefreshing(true);
+    
+    try {
+      let newOrders = [];
+
+      if (token) {
+        const response = await axios.post(
+          backendUrl + '/api/order/userorders',
+          {},
+          { headers: { token } }
         );
 
-        if (mounted && response.data.success) {
-          const sortedOrders = (response.data.orders || [])
-            .filter(order => order.status !== "Cancelled")
-            .sort((a, b) => {
-              // Use the helper function for consistent date comparison
-              return getOrderTimestamp(b) - getOrderTimestamp(a);
-            });
+        if (response.data.success) {
+          newOrders = response.data.orders || [];
+        }
+      } else if (guestInfo) {
+        const response = await axios.post(
+          backendUrl + '/api/order/guest-orders',
+          { email: guestInfo.email, phone: guestInfo.phone }
+        );
 
-          setOrders(sortedOrders);
+        if (response.data.success) {
+          newOrders = response.data.orders || [];
         }
-      } catch (error) {
-        console.error("Error loading user orders:", error);
-        
-        // Add detailed error logging
-        if (error.response) {
-          console.error("Response status:", error.response.status);
-          console.error("Response data:", error.response.data);
-          if (error.response.status === 401) {
-            toast.error("Session expired. Please login again.");
-          } else if (error.response.status === 404) {
-            toast.error("Could not load orders. Please try again later.");
-          }
-        } else if (error.request) {
-          console.error("No response received:", error.request);
-          toast.error("Network error. Please check your connection.");
-        }
-        
-        if (mounted) {
-          setOrders([]); // Clear orders on error
-        }
+      } else {
+        newOrders = loadGuestOrdersFromStorage();
       }
-    } else {
-      // Guest user: Try to load from backend first using localStorage info
-      const guestOrderInfo = localStorage.getItem('guestOrderInfo');
-      let guestOrders = [];
-      
-      if (guestOrderInfo) {
-        try {
-          const { email, orderId } = JSON.parse(guestOrderInfo);
-          
-          // Try to get the order
-          if (orderId && email) {
-            const trackResponse = await axios.post(
-              backendUrl + '/api/order/guest/track',
-              { orderId, email },
-              { timeout: 10000, signal: controller.signal }
-            );
 
-            if (mounted && trackResponse.data.success) {
-              guestOrders = [trackResponse.data.order];
-            }
-          }
-        } catch (error) {
-          console.log("Could not fetch guest orders from backend:", error);
-        }
-      }
+      // Filter orders - keep cancelled orders for 24 hours
+      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
       
-      // Also check localStorage for any saved guest orders
-      try {
-        const savedGuestOrders = localStorage.getItem('guestOrders');
-        if (savedGuestOrders) {
-          const parsedOrders = JSON.parse(savedGuestOrders);
-          // Merge with backend orders
-          parsedOrders.forEach(savedOrder => {
-            if (!guestOrders.some(order => order._id === savedOrder._id)) {
-              guestOrders.push(savedOrder);
-            }
-          });
-        }
-      } catch (error) {
-        console.error("Error loading guest orders from localStorage:", error);
-      }
-      
-      // Check for recent guest order
-      try {
-        const recentOrder = localStorage.getItem('recentGuestOrder');
-        if (recentOrder) {
-          const parsedOrder = JSON.parse(recentOrder);
-          if (!guestOrders.some(order => order._id === parsedOrder._id)) {
-            guestOrders.unshift(parsedOrder);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading recent guest order:", error);
-      }
-      
-      // Sort guest orders by date using the helper function
-      const sortedGuestOrders = guestOrders
-        .filter(order => order && order.status !== "Cancelled")
+      newOrders = newOrders
+        .filter(order => {
+          if (order.status !== "Cancelled") return true;
+          return parseInt(order.date) > oneDayAgo;
+        })
         .sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a));
 
-      if (mounted) {
-        setOrders(sortedGuestOrders);
+      if (isMounted.current) {
+        setOrders(newOrders);
+        setLastUpdated(new Date());
+        
+        if (showIndicator) {
+          toast.success(newOrders.length > 0 
+            ? `Found ${newOrders.length} orders!` 
+            : 'No orders found'
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      if (showIndicator) toast.error('Failed to fetch orders');
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
       }
     }
-  } catch (error) {
-    console.error("Error in loadData:", error);
-    if (mounted) {
-      setOrders([]);
-      toast.error("An unexpected error occurred");
-    }
-  } finally {
-    if (mounted) setLoading(false);
-  }
-};
-    loadData();
+  }, [backendUrl, token, guestInfo]);
 
-    return () => {  
-      mounted = false;
-      controller.abort();
+  // Initial load
+  useEffect(() => {
+    isMounted.current = true;
+    fetchOrders();
+    
+    return () => { isMounted.current = false; };
+  }, [fetchOrders]);
+
+  // Polling for real-time updates (first component's functionality)
+  useEffect(() => {
+    if (!guestInfo && !token) return;
+
+    const intervalId = setInterval(() => {
+      fetchOrders(false);
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [fetchOrders, guestInfo, token]);
+
+  // Refresh on visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchOrders(false);
+      }
     };
-  }, [backendUrl, token]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchOrders]);
 
-  // Loading state (from first component design)
+  // Refresh on focus
+  useEffect(() => {
+    const handleFocus = () => fetchOrders(false);
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchOrders]);
+
+  // Manual refresh handler
+  const handleRefresh = () => fetchOrders(true);
+
+  // Format last updated time
+  const getLastUpdatedText = () => {
+    if (!lastUpdated) return '';
+    const now = new Date();
+    const diff = Math.floor((now - lastUpdated) / 1000);
+    
+    if (diff < 10) return 'Just now';
+    if (diff < 60) return `${diff} seconds ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    return lastUpdated.toLocaleTimeString();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20 pb-16">
@@ -784,7 +693,6 @@ const Orders = () => {
     );
   }
 
-  // Empty state (from first component design)
   if (!loading && orders.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20 pb-16">
@@ -795,7 +703,7 @@ const Orders = () => {
           </div>
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FaBoxOpen className="w-12 h-12 text-gray-400" />
+              <FaShoppingBag className="w-12 h-12 text-gray-400" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">No Orders Yet</h3>
             <p className="text-gray-600 mb-8 max-w-md mx-auto">
@@ -819,9 +727,31 @@ const Orders = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-20 pb-16">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Header (from first component design) */}
+        {/* Header with refresh button */}
         <div className="text-center mb-12">
-          <Title text1="My" text2="Orders" />
+          <div className="flex justify-between items-center">
+            <Title text1="My" text2="Orders" />
+            
+            <div className="flex items-center gap-3">
+              {lastUpdated && (
+                <span className="text-xs text-gray-500">
+                  Updated {getLastUpdatedText()}
+                </span>
+              )}
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
+                  refreshing 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              >
+                <FaSyncAlt className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+          </div>
           <p className="text-gray-600 mt-4">Track and manage all your orders in one place</p>
         </div>
 
@@ -833,11 +763,12 @@ const Orders = () => {
               order={order}
               currency={currency}
               backendUrl={backendUrl}
+              isGuest={isGuestMode}
             />
           ))}
         </div>
 
-        {/* Footer Note (from first component design) */}
+        {/* Footer Note */}
         <div className="mt-12 text-center">
           <p className="text-sm text-gray-500">
             Need help with an order? Contact our support team for assistance.

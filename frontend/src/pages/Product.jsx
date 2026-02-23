@@ -768,6 +768,28 @@ const variantProducts = useMemo(() => {
     }
   }, [isAddingToCart, stock, quantity, productData, getCartAmount, getAmountForFreeDelivery, isFreeDeliveryAvailable, currency]);
 
+
+const handleBuyNow = useCallback(() => {
+  if (stock === 0) {
+    toast.error('This product is out of stock');
+    return;
+  }
+  
+  // Show loading state
+  setIsAddingToCart(true);
+  
+  // Add to cart first
+  addToCart(productData._id, quantity);
+  
+  // Small delay to ensure cart is updated
+  setTimeout(() => {
+    // Navigate to checkout page
+    navigate('/place-order');
+    setIsAddingToCart(false);
+  }, 500);
+  
+}, [productData, quantity, stock, addToCart, navigate]);
+
   const renderRating = useCallback((ratingValue = 0) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -1146,6 +1168,28 @@ const variantProducts = useMemo(() => {
           </div>
         )}
       </button>
+      {/* Buy Now Button - Direct checkout */}
+<button
+  onClick={handleBuyNow}
+  disabled={stock === 0 || isAddingToCart}
+  className={`w-full py-3 px-4 bg-[#355337] text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 transition-all ${
+    stock === 0 || isAddingToCart 
+      ? 'opacity-50 cursor-not-allowed' 
+      : 'hover:bg-[#426444] active:scale-[0.98]'
+  }`}
+>
+  {isAddingToCart ? (
+    <div className="flex items-center justify-center gap-3">
+      <FaSpinner className="animate-spin w-4 h-4 sm:w-5 sm:h-5" />
+      <span className="text-sm sm:text-base">Processing...</span>
+    </div>
+  ) : (
+    <>
+      <FaBox className="w-4 h-4 sm:w-5 sm:h-5" />
+      <span className="text-sm sm:text-base">Buy Now</span>
+    </>
+  )}
+</button>
 
       <button
         ref={whatsappButtonRef}
