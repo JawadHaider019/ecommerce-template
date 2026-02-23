@@ -81,6 +81,7 @@ const Product = () => {
   const backendURL = import.meta.env.VITE_BACKEND_URL || backendUrl;
   const addToCartCalledRef = useRef(false);
   const buyNowButtonRef = useRef(null);
+  const [shakeOffset, setShakeOffset] = useState(0);
 
   // SIMPLE LOADING STATE - JUST CHECK IF PRODUCTS EXIST
   const isLoading = !products || products.length === 0 || !productData;
@@ -115,17 +116,66 @@ const Product = () => {
     }));
   }, []);
   
+  // Add this state at the top with your other states
+
+
+// Add this useEffect to create the shaking animation
 useEffect(() => {
-  const button = buyNowButtonRef.current;
-  if (!button) return;
+  let animationFrame;
+  let startTime;
+  let isShaking = true;
   
-  button.classList.add('animate-float-shake');
-  console.log('Button classes after adding:', button.className);
+  const animate = (timestamp) => {
+    if (!startTime) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    
+    if (isShaking) {
+      // Create a smooth shaking pattern
+      // 0-0.8s: shaking, 0.8-3s: pause
+      const cycleTime = elapsed % 3000; // 3 second cycle
+      
+      if (cycleTime < 800) { // Shake for first 800ms
+        // Create smooth sine wave movement
+        const progress = cycleTime / 800; // 0 to 1 during shake
+        const shakeIntensity = Math.sin(progress * Math.PI * 4) * 3; // Smooth oscillation
+        
+        // Calculate offset with easing
+        let offset = 0;
+        if (progress < 0.25) {
+          // Ease in
+          offset = shakeIntensity * (progress * 4);
+        } else if (progress > 0.75) {
+          // Ease out
+          offset = shakeIntensity * ((1 - progress) * 4);
+        } else {
+          // Full intensity
+          offset = shakeIntensity;
+        }
+        
+        setShakeOffset(offset);
+      } else {
+        // Pause - no movement
+        setShakeOffset(0);
+      }
+      
+      animationFrame = requestAnimationFrame(animate);
+    }
+  };
+  
+  animationFrame = requestAnimationFrame(animate);
   
   return () => {
-    button.classList.remove('animate-float-shake');
+    isShaking = false;
+    cancelAnimationFrame(animationFrame);
   };
 }, []);
+
+// Calculate shadow based on shake intensity
+const getBoxShadow = () => {
+  const intensity = Math.abs(shakeOffset) / 3;
+  return `0 ${4 + intensity * 8}px ${6 + intensity * 12}px rgba(53, 83, 55, ${0.1 + intensity * 0.2})`;
+};
+
   // Fetch categories from backend
   useEffect(() => {
     const fetchCategories = async () => {
@@ -922,23 +972,10 @@ const handleBuyNow = useCallback(() => {
   const benefitsList = getBenefitsArray();
   const howToUseText = getHowToUseText();
 
-const style = `
-@keyframes floatShake {
-  0% { transform: translateX(0); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-  10% { transform: translateX(-2px); box-shadow: 0 8px 12px rgba(53, 83, 55, 0.2); }
-  20% { transform: translateX(2px); box-shadow: 0 12px 18px rgba(53, 83, 55, 0.3); }
-  30% { transform: translateX(-2px); box-shadow: 0 8px 12px rgba(53, 83, 55, 0.2); }
-  40% { transform: translateX(0); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-  90% { transform: translateX(2px); box-shadow: 0 8px 12px rgba(53, 83, 55, 0.2); }
-  100% { transform: translateX(0); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-}
-.animate-float-shake {
-  animation: floatShake 2s ease-in infinite;
-}
-`;
+
   return (
     <>
-      <style>{style}</style>
+      
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-8xl mx-auto px-2 py-6 md:py-8">
           {/* Product Header */}
@@ -1170,9 +1207,14 @@ const style = `
 
 <button
   onClick={handleBuyNow}
-   ref={buyNowButtonRef} 
+  ref={buyNowButtonRef}
   disabled={stock === 0 || isAddingToCart}
-  className={`w-full py-3 px-4 bg-[#355337] text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 transition-all ${
+  style={{
+    transform: `translateX(${shakeOffset}px)`,
+    boxShadow: getBoxShadow(),
+    transition: 'transform 0.05s linear, box-shadow 0.1s ease'
+  }}
+  className={`w-full py-3 px-4 bg-[#355337] text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 ${
     stock === 0 || isAddingToCart 
       ? 'opacity-50 cursor-not-allowed' 
       : 'hover:bg-[#426444] active:scale-[0.98]'
