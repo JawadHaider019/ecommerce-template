@@ -80,7 +80,7 @@ const Product = () => {
 
   const backendURL = import.meta.env.VITE_BACKEND_URL || backendUrl;
   const addToCartCalledRef = useRef(false);
-  const whatsappButtonRef = useRef(null);
+  const buyNowButtonRef = useRef(null);
 
   // SIMPLE LOADING STATE - JUST CHECK IF PRODUCTS EXIST
   const isLoading = !products || products.length === 0 || !productData;
@@ -114,22 +114,18 @@ const Product = () => {
       [section]: !prev[section]
     }));
   }, []);
-
-  // Add shaking animation to WhatsApp button
-  useEffect(() => {
-    const button = whatsappButtonRef.current;
-    if (!button) return;
-
-    const interval = setInterval(() => {
-      button.classList.add('animate-shake');
-      setTimeout(() => {
-        button.classList.remove('animate-shake');
-      }, 1000);
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, []);
-
+  
+useEffect(() => {
+  const button = buyNowButtonRef.current;
+  if (!button) return;
+  
+  button.classList.add('animate-float-shake');
+  console.log('Button classes after adding:', button.className);
+  
+  return () => {
+    button.classList.remove('animate-float-shake');
+  };
+}, []);
   // Fetch categories from backend
   useEffect(() => {
     const fetchCategories = async () => {
@@ -926,18 +922,20 @@ const handleBuyNow = useCallback(() => {
   const benefitsList = getBenefitsArray();
   const howToUseText = getHowToUseText();
 
-  // Add CSS for shake animation
-  const style = `
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-      20%, 40%, 60%, 80% { transform: translateX(2px); }
-    }
-    .animate-shake {
-      animation: shake 0.5s ease-in-out;
-    }
-  `;
-
+const style = `
+@keyframes floatShake {
+  0% { transform: translateX(0); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  10% { transform: translateX(-2px); box-shadow: 0 8px 12px rgba(53, 83, 55, 0.2); }
+  20% { transform: translateX(2px); box-shadow: 0 12px 18px rgba(53, 83, 55, 0.3); }
+  30% { transform: translateX(-2px); box-shadow: 0 8px 12px rgba(53, 83, 55, 0.2); }
+  40% { transform: translateX(0); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  90% { transform: translateX(2px); box-shadow: 0 8px 12px rgba(53, 83, 55, 0.2); }
+  100% { transform: translateX(0); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+}
+.animate-float-shake {
+  animation: floatShake 2s ease-in infinite;
+}
+`;
   return (
     <>
       <style>{style}</style>
@@ -1169,8 +1167,10 @@ const handleBuyNow = useCallback(() => {
         )}
       </button>
       {/* Buy Now Button - Direct checkout */}
+
 <button
   onClick={handleBuyNow}
+   ref={buyNowButtonRef} 
   disabled={stock === 0 || isAddingToCart}
   className={`w-full py-3 px-4 bg-[#355337] text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 transition-all ${
     stock === 0 || isAddingToCart 
@@ -1192,7 +1192,6 @@ const handleBuyNow = useCallback(() => {
 </button>
 
       <button
-        ref={whatsappButtonRef}
         onClick={handleOrderOnWhatsApp}
         disabled={stock === 0}
         className={`w-full py-3 px-4 bg-green-600 text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 transition-all ${
