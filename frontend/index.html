@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     
+    <!-- ✅ FIREFOX FIX: Add compatibility meta -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="format-detection" content="telephone=no" />
+    
     <!-- ✅ CRITICAL: Favicon Setup -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -39,18 +43,21 @@
     
     <title>Pure Clay - Pakistan's Leading Organic Foods Brand | Olive Oil & Natural Products</title>
 
-    <!-- ✅ Critical CSS Inline -->
+    <!-- ✅ Critical CSS Inline with Firefox fixes -->
     <style>
       /* Critical above-the-fold styles */
       #root {
         min-height: 100vh;
+        display: block; /* Firefox fix */
       }
       
-      /* Skeleton loading states */
+      /* Skeleton loading states - Firefox optimized */
       .skeleton {
         background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
         background-size: 200% 100%;
         animation: loading 1.5s infinite;
+        /* Firefox animation prefix */
+        -moz-animation: loading 1.5s infinite;
       }
       
       @keyframes loading {
@@ -58,20 +65,47 @@
         100% { background-position: -200% 0; }
       }
       
-      /* Ensure content is visible immediately */
+      /* Firefox-specific keyframes */
+      @-moz-keyframes loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      
+      /* Ensure content is visible immediately - Firefox fix */
       .critical-visible {
         opacity: 1 !important;
         visibility: visible !important;
+        display: block !important; /* Firefox fix */
       }
       
-      /* Basic layout to prevent CLS */
+      /* Basic layout to prevent CLS - Firefox compatible */
       body {
         margin: 0;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: #ffffff;
+        color: #000000;
+        /* Ensure body is visible in Firefox */
+        display: block;
+        opacity: 1;
+      }
+      
+      /* Firefox flexbox fallback */
+      .flex {
+        display: -webkit-box;
+        display: -moz-box;
+        display: -ms-flexbox;
+        display: -webkit-flex;
+        display: flex;
+      }
+      
+      /* Firefox grid fallback */
+      .grid {
+        display: -moz-grid;
+        display: -ms-grid;
+        display: grid;
       }
     </style>
 
-    
     <!-- ✅ Preconnect to important origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -109,7 +143,7 @@
   <body>
     <!-- ✅ Skeleton screen for immediate visual feedback -->
     <div id="root">
-      <div style="min-height: 100vh; display: flex; flex-direction: column;">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; opacity: 1; visibility: visible;">
         <!-- Header skeleton -->
         <div style="height: 70px; background: #f8f9fa; border-bottom: 1px solid #e9ecef;" class="skeleton"></div>
         
@@ -122,41 +156,78 @@
       </div>
     </div>
 
-    <!-- ✅ Defer non-critical scripts -->
-    <script type="module" src="/src/main.jsx" defer></script>
-    
-    <!-- ✅ Load non-critical CSS after page load -->
+    <!-- ✅ Firefox-safe script loading -->
     <script>
+      // Firefox detection
+      const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+      
+      // Add Firefox class to body for CSS targeting
+      if (isFirefox) {
+        document.body.classList.add('firefox');
+        document.documentElement.classList.add('firefox');
+      }
+      
       // Load non-critical CSS after page load
       function loadNonCriticalCSS() {
         const link = document.createElement('link');
         link.rel = 'stylesheet';
-        link.href = '/src/index.css'; // Your main CSS file
+        link.href = '/src/index.css';
+        link.type = 'text/css'; // Explicit type for Firefox
         document.head.appendChild(link);
       }
       
-      // Load when the page is idle
+      // Load when the page is idle or after paint
       if ('requestIdleCallback' in window) {
-        requestIdleCallback(loadNonCriticalCSS);
+        requestIdleCallback(loadNonCriticalCSS, { timeout: 2000 });
       } else {
-        // Fallback for older browsers
-        window.addEventListener('load', loadNonCriticalCSS);
+        // Fallback for older browsers including Firefox
+        window.addEventListener('load', function() {
+          setTimeout(loadNonCriticalCSS, 100);
+        });
       }
       
-      // Remove skeleton when app loads
+      // Remove skeleton when app loads - Firefox optimized
       window.addEventListener('DOMContentLoaded', function() {
-        const skeleton = document.querySelector('#root > div');
+        const root = document.getElementById('root');
+        const skeleton = root?.firstChild;
+        
         if (skeleton) {
-          setTimeout(() => {
-            skeleton.style.opacity = '0';
-            setTimeout(() => {
-              if (skeleton.parentNode) {
-                skeleton.parentNode.removeChild(skeleton);
-              }
-            }, 300);
-          }, 100);
+          // Give React a moment to render
+          setTimeout(function() {
+            // Check if React has rendered content
+            if (root && root.children.length > 1) {
+              skeleton.style.opacity = '0';
+              skeleton.style.transition = 'opacity 0.3s ease';
+              
+              setTimeout(function() {
+                if (skeleton.parentNode) {
+                  skeleton.parentNode.removeChild(skeleton);
+                }
+              }, 300);
+            }
+          }, 500);
         }
       });
+      
+      // Emergency fallback: Force remove skeleton after 3 seconds
+      setTimeout(function() {
+        const root = document.getElementById('root');
+        const skeleton = root?.firstChild;
+        if (skeleton && skeleton.tagName === 'DIV' && skeleton.className.includes('skeleton')) {
+          skeleton.style.display = 'none';
+        }
+      }, 3000);
     </script>
+    
+    <!-- ✅ Load main script with Firefox compatibility -->
+    <script type="module" src="/src/main.jsx" defer></script>
+    
+    <!-- ✅ Firefox-specific noscript fallback -->
+    <noscript>
+      <div style="padding: 2rem; text-align: center;">
+        <h2>JavaScript is required to run this application.</h2>
+        <p>Please enable JavaScript in your browser settings.</p>
+      </div>
+    </noscript>
   </body>
 </html>

@@ -3,7 +3,7 @@ import { assets } from '../assets/assets';
 
 const Loader = () => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
       <div className="relative flex items-center justify-center">
         {/* Thin animated border */}
         <div className="w-32 h-32 rounded-full border-2 border-gray-300 border-t-black animate-spin"></div>
