@@ -156,7 +156,7 @@
       </div>
     </div>
 
-    <!-- ✅ Firefox-safe script loading -->
+    <!-- ✅ FIXED: Remove /src/index.css loading - Vite handles this automatically -->
     <script>
       // Firefox detection
       const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
@@ -165,25 +165,6 @@
       if (isFirefox) {
         document.body.classList.add('firefox');
         document.documentElement.classList.add('firefox');
-      }
-      
-      // Load non-critical CSS after page load
-      function loadNonCriticalCSS() {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = '/src/index.css';
-        link.type = 'text/css'; // Explicit type for Firefox
-        document.head.appendChild(link);
-      }
-      
-      // Load when the page is idle or after paint
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(loadNonCriticalCSS, { timeout: 2000 });
-      } else {
-        // Fallback for older browsers including Firefox
-        window.addEventListener('load', function() {
-          setTimeout(loadNonCriticalCSS, 100);
-        });
       }
       
       // Remove skeleton when app loads - Firefox optimized
