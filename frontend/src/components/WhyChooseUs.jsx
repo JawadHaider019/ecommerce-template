@@ -1,44 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { assets } from "../assets/assets";
 import Title from './Title';
 
 const WhyChooseUs = () => {
-  // Memoized image component to prevent unnecessary re-renders
-  const CenteredImage = useMemo(() => {
-    const handleImageError = (e) => {
-      e.target.style.display = 'none';
-      // Use standard optional chaining without assignment
-      const nextSibling = e.target.nextSibling;
-      if (nextSibling) {
-        nextSibling.style.display = 'block';
-      }
-    };
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
-    return (
-      <div className="flex justify-center px-2 sm:px-0">
-        <div className="w-full max-w-3xl">
-          <img
-            src={assets.whyus}
-            alt="Pure Clay Natural Products - Organic and chemical-free wellness products"
-            className="w-full h-48 xs:h-56 sm:h-64 md:h-72 lg:h-80 xl:h-96 object-cover border border-gray-200 rounded-3xl shadow-md sm:shadow-lg transition-all duration-300 hover:shadow-xl"
-            loading="lazy"
-            decoding="async"
-            width={800}
-            height={400}
-            onError={handleImageError}
-          />
-          {/* Fallback placeholder - hidden by default */}
-          <div 
-            className="hidden w-full h-48 xs:h-56 sm:h-64 md:h-72 lg:h-80 xl:h-96 bg-gradient-to-r from-green-50 to-emerald-100 border border-gray-200 rounded-3xl shadow-md sm:shadow-lg flex items-center justify-center"
-          >
-            <div className="text-center text-gray-600">
-              <div className="text-lg font-semibold mb-2">Pure Clay Products</div>
-              <div className="text-sm">Natural & Organic Wellness</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  // Pre-calculate fixed heights for each breakpoint
+  const imageHeights = {
+    base: '192px',    // h-48
+    xs: '224px',      // xs:h-56
+    sm: '256px',      // sm:h-64
+    md: '288px',      // md:h-72
+    lg: '320px',      // lg:h-80
+    xl: '384px'       // xl:h-96
+  };
+
+  // Preload image
+  useEffect(() => {
+    const img = new Image();
+    img.src = assets.whyus;
+    img.onload = () => setImageLoaded(true);
+    img.onerror = () => setImageError(true);
   }, []);
 
   // Memoized description text
@@ -62,8 +45,51 @@ const WhyChooseUs = () => {
           {descriptionText}
         </div>
 
-        {/* Centered Landscape Image */}
-        {CenteredImage}
+        {/* Centered Landscape Image - With FIXED dimensions */}
+        <div className="flex justify-center px-2 sm:px-0">
+          <div className="w-full max-w-3xl">
+            {/* Container with fixed aspect ratio */}
+            <div 
+              className="relative w-full overflow-hidden rounded-3xl shadow-md sm:shadow-lg transition-all duration-300 hover:shadow-xl"
+              style={{ 
+                aspectRatio: '16/9',
+                backgroundColor: '#f9fafb' // Light gray placeholder
+              }}
+            >
+              {/* Loading placeholder */}
+              {!imageLoaded && !imageError && (
+                <div className="absolute inset-0 bg-gradient-to-r from-gray-100 to-gray-200 animate-pulse" />
+              )}
+              
+              {/* Actual Image */}
+              {(imageLoaded || !imageError) && (
+                <img
+                  src={assets.whyus}
+                  alt="Pure Clay Natural Products - Organic and chemical-free wellness products"
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+                    imageLoaded ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  loading="lazy"
+                  decoding="async"
+                  width={800}
+                  height={450} // 16:9 ratio
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageError(true)}
+                />
+              )}
+
+              {/* Error fallback - always same size */}
+              {imageError && (
+                <div className="absolute inset-0 bg-gradient-to-r from-green-50 to-emerald-100 flex items-center justify-center">
+                  <div className="text-center text-gray-600">
+                    <div className="text-lg font-semibold mb-2">Pure Clay Products</div>
+                    <div className="text-sm">Natural & Organic Wellness</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { assets } from "../assets/assets";
 
 const Hero = () => {
-  // Show fallback banner IMMEDIATELY - no loading state
+  // Show fallback banner IMMEDIATELY
   const [banners, setBanners] = useState([
     {
       _id: 'fallback',
@@ -34,14 +34,18 @@ const Hero = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
-  // Preload the fallback image to ensure instant display
+  // FIX 1: Pre-calculate fixed heights to prevent shifts
+  const HERO_CONTAINER_HEIGHT = 'h-[100vh] md:h-screen'; // Keep your exact height
+  const TRANSLATE_VALUE = '-translate-y-9 md:-translate-y-[2.7rem]'; // Your exact translate
+
+  // Preload fallback image
   useEffect(() => {
     const img = new Image();
     img.src = assets.hero_img;
     img.loading = 'eager';
   }, []);
 
-  // Fetch banners in background (after initial render)
+  // Fetch banners in background
   useEffect(() => {
     if (!backendUrl) return;
 
@@ -54,30 +58,29 @@ const Hero = () => {
         if (response.ok) {
           const data = await response.json();
           if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-            // Preload banner images before updating state
-            const bannersToLoad = data.data;
-            bannersToLoad.forEach((banner, index) => {
-              if (index < 3) { // Preload first 3 banners
+            // Preload first banner image before updating
+            const preloadPromises = data.data.slice(0, 3).map(banner => {
+              return new Promise((resolve) => {
                 const img = new Image();
                 img.src = banner.imageUrl;
-              }
+                img.onload = resolve;
+              });
             });
             
-            // Replace fallback with real banners
-            setBanners(bannersToLoad);
+            await Promise.race(preloadPromises); // Wait for first image
+            setBanners(data.data); // Update without layout shift
           }
         }
       } catch (error) {
-        // Keep fallback banner on error
+        // Keep fallback
       }
     };
 
-    // Small delay to ensure fallback shows first
     const timer = setTimeout(fetchBanners, 50);
     return () => clearTimeout(timer);
   }, [backendUrl]);
 
-  // Fetch business details in background
+  // Fetch business details
   useEffect(() => {
     if (!backendUrl) return;
 
@@ -94,14 +97,14 @@ const Hero = () => {
           }
         }
       } catch (error) {
-        // Silently fail - keep default
+        // Silently fail
       }
     };
 
     setTimeout(fetchBusinessDetails, 200);
   }, [backendUrl]);
 
-  // Social media icons component
+  // Social Media Component - FIXED: Always renders with reserved space
   const SocialMediaIcons = ({ layout = 'row', className = "", iconSize = 20 }) => {
     const platforms = [
       { key: 'whatsapp', icon: FaWhatsapp, label: 'WhatsApp' },
@@ -115,19 +118,18 @@ const Hero = () => {
         <div className={`flex flex-col items-center gap-4 ${className}`}>
           {platforms.map((platform) => {
             const socialUrl = businessInfo.socialMedia?.[platform.key];
-            const isActive = !!socialUrl;
             const Icon = platform.icon;
             
             return (
               <a
                 key={platform.key}
-                href={isActive ? socialUrl : "#"}
-                target={isActive ? "_blank" : "_self"}
-                rel={isActive ? "noopener noreferrer" : ""}
+                href={socialUrl || "#"}
+                target={socialUrl ? "_blank" : "_self"}
+                rel={socialUrl ? "noopener noreferrer" : ""}
                 className={`text-white hover:text-white/90 transition-colors duration-300 transform hover:scale-110 ${
-                  !isActive ? 'opacity-50 cursor-not-allowed' : ''
+                  !socialUrl ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
-                onClick={!isActive ? (e) => e.preventDefault() : undefined}
+                onClick={!socialUrl ? (e) => e.preventDefault() : undefined}
               >
                 <Icon size={iconSize} />
               </a>
@@ -141,19 +143,18 @@ const Hero = () => {
       <div className={`flex items-center gap-4 ${className}`}>
         {platforms.map((platform) => {
           const socialUrl = businessInfo.socialMedia?.[platform.key];
-          const isActive = !!socialUrl;
           const Icon = platform.icon;
           
           return (
             <a
               key={platform.key}
-              href={isActive ? socialUrl : "#"}
-              target={isActive ? "_blank" : "_self"}
-              rel={isActive ? "noopener noreferrer" : ""}
+              href={socialUrl || "#"}
+              target={socialUrl ? "_blank" : "_self"}
+              rel={socialUrl ? "noopener noreferrer" : ""}
               className={`text-white/80 hover:text-white transition-colors duration-300 transform hover:scale-110 ${
-                !isActive ? 'opacity-50 cursor-not-allowed' : ''
+                !socialUrl ? 'opacity-50 cursor-not-allowed' : ''
               }`}
-              onClick={!isActive ? (e) => e.preventDefault() : undefined}
+              onClick={!socialUrl ? (e) => e.preventDefault() : undefined}
             >
               <Icon size={iconSize} />
             </a>
@@ -163,7 +164,7 @@ const Hero = () => {
     );
   };
 
-  // Slider settings
+  // Slider settings (YOUR EXACT SETTINGS)
   const sliderSettings = {
     dots: false,
     infinite: banners.length > 1,
@@ -179,70 +180,79 @@ const Hero = () => {
     beforeChange: (_, next) => setCurrentSlide(next),
   };
 
-  // Banner Item Component - SIMPLE and FAST
+  // FIXED Banner Item Component - Preserves your styling but prevents CLS
   const BannerItem = ({ banner, index }) => {
     return (
       <section className="relative w-full h-full">
-        {/* Background Image Container */}
-        <div className="w-full h-[100vh] md:h-screen rounded-3xl md:rounded-4xl mx-auto overflow-hidden">
-          {/* IMAGE - Shows instantly with no opacity transition */}
+        {/* Background Image Container - Your exact classes */}
+        <div className={`w-full ${HERO_CONTAINER_HEIGHT} rounded-3xl md:rounded-4xl mx-auto overflow-hidden`}>
+          {/* IMAGE - With dimensions to prevent CLS */}
           <img
             src={banner.imageUrl}
             alt={banner.headingLine1 || "Premium Banner"}
-            className="w-full h-full object-cover opacity-100" // Always 100% opacity
-            loading="eager"
+            className="w-full h-full object-cover opacity-100"
+            loading={index === 0 ? "eager" : "lazy"}
             decoding="async"
-            width={1920}
-            height={1080}
+            width="1920"
+            height="1080"
+            // Critical: These attributes prevent layout shift
+            style={{ aspectRatio: '16/9', objectFit: 'cover' }}
           />
         </div>
 
-        {/* Overlays */}
+        {/* Overlays - Your exact classes */}
         <div className="absolute inset-0 bg-black/30 z-2 rounded-3xl md:rounded-4xl"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30 z-3 rounded-3xl md:rounded-4xl"></div>
 
-        {/* Content */}
+        {/* Content - With reserved spaces to prevent shifts */}
         <div className="absolute inset-0 z-10 flex items-center justify-center">
           <div className="text-center px-4 md:px-6 max-w-7xl md:max-w-8xl">
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white uppercase mb-4 md:mb-6">
-              {banner.headingLine1}
-              {banner.headingLine2 && (
-                <> <span className="font-bold">{banner.headingLine2}</span></>
-              )}
-            </h1>
+            
+            {/* FIX: Reserved space for headline */}
+            <div className="min-h-[120px] md:min-h-[180px] flex items-center justify-center">
+              <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white uppercase mb-4 md:mb-6">
+                {banner.headingLine1}
+                {banner.headingLine2 && (
+                  <> <span className="font-bold">{banner.headingLine2}</span></>
+                )}
+              </h1>
+            </div>
           
-            {/* Subtext */}
-            {banner.subtext && (
-              <p className="text-base sm:text-lg md:text-xl text-white/90 font-light max-w-xs sm:max-w-sm md:max-w-2xl mx-auto leading-relaxed mb-6 md:mb-10 px-2">
-                {banner.subtext}
-              </p>
-            )}
+            {/* FIX: Reserved space for subtext */}
+            <div className="min-h-[60px] md:min-h-[80px] flex items-center justify-center">
+              {banner.subtext && (
+                <p className="text-base sm:text-lg md:text-xl text-white/90 font-light max-w-xs sm:max-w-sm md:max-w-2xl mx-auto leading-relaxed mb-6 md:mb-10 px-2">
+                  {banner.subtext}
+                </p>
+              )}
+            </div>
 
-            {/* CTA Button */}
-            {banner.buttonText && banner.redirectUrl && (
-              <div className="relative z-30">
-                <Link
-                  to={banner.redirectUrl}
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 text-white border border-white/50 rounded-full transition-all duration-300 hover:bg-white/10 hover:border-white/80 group"
-                >
-                  <span className="text-xs md:text-sm font-medium tracking-wider uppercase">
-                    {banner.buttonText}
-                  </span>
-                  <IoIosArrowForward size={14} className="transition-transform group-hover:translate-x-1" />
-                </Link>
-              </div>
-            )}
+            {/* FIX: Reserved space for CTA button */}
+            <div className="min-h-[56px] md:min-h-[64px] flex items-center justify-center">
+              {banner.buttonText && banner.redirectUrl && (
+                <div className="relative z-30">
+                  <Link
+                    to={banner.redirectUrl}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-4 text-white border border-white/50 rounded-full transition-all duration-300 hover:bg-white/10 hover:border-white/80 group"
+                  >
+                    <span className="text-xs md:text-sm font-medium tracking-wider uppercase">
+                      {banner.buttonText}
+                    </span>
+                    <IoIosArrowForward size={14} className="transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </div>
+              )}
+            </div>
 
-            {/* Mobile Social Media */}
+            {/* Mobile Social Media - Always rendered */}
             <div className="mt-6 md:mt-8 md:hidden flex justify-center">
               <SocialMediaIcons layout="row" iconSize={20} />
             </div>
           </div>
         </div>
 
-        {/* Desktop Social Media */}
+        {/* Desktop Social Media - Fixed position */}
         <div className="absolute bottom-4 md:bottom-8 left-4 md:left-12 z-10 hidden md:flex flex-col gap-3 md:gap-4">
           <SocialMediaIcons layout="column" iconSize={18} />
         </div>
@@ -257,7 +267,7 @@ const Hero = () => {
     );
   };
 
-  // Custom Dots Component
+  // Custom Dots Component (Your exact styling)
   const CustomDots = () => {
     if (banners.length <= 1) return null;
 
@@ -285,20 +295,28 @@ const Hero = () => {
   };
 
   return (
-    <div className="relative w-full transform -translate-y-9 md:-translate-y-[2.7rem]">
+    <div className={`relative w-full transform ${TRANSLATE_VALUE}`}>
       <style>{`
         .slick-slide > div {
           border-radius: 1.5rem;
+          height: 100%;
         }
         .slick-list {
           border-radius: 1.5rem;
+          height: 100% !important;
+        }
+        .slick-track {
+          height: 100% !important;
+        }
+        .slick-slider {
+          height: 100%;
         }
       `}</style>
       
-      <div className="transform -translate-y-9 md:-translate-y-[2.7rem] relative">
+      <div className={`transform ${TRANSLATE_VALUE} relative`}>
         <Slider ref={sliderRef} {...sliderSettings}>
           {banners.map((banner, index) => (
-            <div key={banner._id || `banner-${index}`} className="px-0 mx-0">
+            <div key={banner._id || `banner-${index}`} className="px-0 mx-0 h-full">
               <BannerItem banner={banner} index={index} />
             </div>
           ))}

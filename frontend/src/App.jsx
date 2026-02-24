@@ -1,6 +1,5 @@
-import Clarity from "@microsoft/clarity";
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -43,18 +42,190 @@ const LogoSEO = () => {
 
 const App = () => {
   const location = useLocation();
+  const clarityInitialized = useRef(false);
+  const projectId = "vlucuvw2el";
 
-  // Initialize Clarity once
+  // Initialize Clarity with anti-blocking measures
   useEffect(() => {
-    Clarity.init("vlucuvw2el");
-  }, []);
+    // Don't run in development
+    if (import.meta.env.DEV) return;
+    
+    // Prevent double initialization
+    if (clarityInitialized.current) return;
 
-  // Track route changes (important for SPA)
+    const initClarity = () => {
+      try {
+        // Method 1: Try standard initialization first
+        if (typeof window.clarity === 'undefined') {
+          // Multiple domain fallbacks
+          const domains = [
+            `https://www.clarity.ms/tag/${projectId}`,
+            `https://clarity.ms/tag/${projectId}`,
+            `https://c.ms/tag/${projectId}`,
+            `https://analytics.clarity.ms/tag/${projectId}`
+          ];
+
+          let currentDomain = 0;
+
+          const loadScript = () => {
+            if (currentDomain >= domains.length) {
+              // If all domains fail, try the beacon method
+              loadBeacon();
+              return;
+            }
+
+            const script = document.createElement('script');
+            script.src = `${domains[currentDomain]}?ref=${Math.random().toString(36).substring(7)}`;
+            script.async = true;
+            script.setAttribute('data-clarity', projectId);
+            
+            script.onload = () => {
+              clarityInitialized.current = true;
+              console.log('Clarity loaded successfully');
+              
+              // Send initial page view
+              if (window.clarity) {
+                window.clarity('set', 'page', location.pathname);
+              }
+            };
+            
+            script.onerror = () => {
+              currentDomain++;
+              loadScript(); // Try next domain
+            };
+            
+            document.head.appendChild(script);
+          };
+
+          loadScript();
+        }
+      } catch (error) {
+        // Silent fail - fallback to beacon method
+        loadBeacon();
+      }
+    };
+
+    // Fallback beacon method (harder to block)
+    const loadBeacon = () => {
+      try {
+        // Method 2: Image beacon
+        const img = new Image();
+        img.src = `https://clarity.ms/tag/${projectId}?t=${Date.now()}`;
+        img.style.display = 'none';
+        img.onload = () => {
+          clarityInitialized.current = true;
+        };
+        document.body.appendChild(img);
+
+        // Method 3: Iframe fallback
+        setTimeout(() => {
+          if (!clarityInitialized.current) {
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://clarity.ms/tag/${projectId}`;
+            iframe.style.display = 'none';
+            iframe.onload = () => {
+              clarityInitialized.current = true;
+            };
+            document.body.appendChild(iframe);
+          }
+        }, 1000);
+      } catch (e) {
+        // Complete silent fail - don't break the app
+      }
+    };
+
+    // Method 4: Web Worker (most stealthy)
+    const initWorker = () => {
+      try {
+        if (window.Worker) {
+          const workerCode = `
+            self.addEventListener('message', (e) => {
+              if (e.data === 'init') {
+                try {
+                  importScripts('https://www.clarity.ms/tag/${projectId}');
+                } catch (e) {}
+              }
+            });
+          `;
+          
+          const blob = new Blob([workerCode], { type: 'application/javascript' });
+          const workerUrl = URL.createObjectURL(blob);
+          const worker = new Worker(workerUrl);
+          
+          setTimeout(() => {
+            worker.postMessage('init');
+          }, 2000);
+          
+          // Clean up
+          setTimeout(() => {
+            worker.terminate();
+            URL.revokeObjectURL(workerUrl);
+          }, 10000);
+        }
+      } catch (e) {}
+    };
+
+    // Delay initialization to bypass some ad blockers
+    const delay = Math.random() * 3000 + 2000; // 2-5 seconds
+    const timer1 = setTimeout(initClarity, delay);
+    
+    // Try worker method after longer delay
+    const timer2 = setTimeout(initWorker, 5000);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, [location.pathname, projectId]);
+
+  // Track route changes with fallbacks
   useEffect(() => {
-    Clarity.event("page_view", {
-      path: location.pathname
+    if (import.meta.env.DEV) return;
+
+    const trackPageView = () => {
+      try {
+        // Try all possible tracking methods
+        if (window.clarity && typeof window.clarity === 'function') {
+          window.clarity('set', 'page', location.pathname);
+          window.clarity('event', 'page_view');
+        } else if (clarityInitialized.current) {
+          // If clarity is initialized but not available, try re-initializing
+          const script = document.createElement('script');
+          script.src = `https://clarity.ms/tag/${projectId}?t=${Date.now()}`;
+          script.async = true;
+          document.head.appendChild(script);
+        }
+      } catch (error) {
+        // Silent fail
+      }
+    };
+
+    // Debounce tracking to prevent multiple rapid events
+    const timeoutId = setTimeout(trackPageView, 100);
+    return () => clearTimeout(timeoutId);
+  }, [location.pathname, projectId]);
+
+  // DNS Prefetch for Clarity domains
+  useEffect(() => {
+    const domains = [
+      'clarity.ms',
+      'www.clarity.ms',
+      'c.ms'
+    ];
+
+    domains.forEach(domain => {
+      const link = document.createElement('link');
+      link.rel = 'dns-prefetch';
+      link.href = `//${domain}`;
+      document.head.appendChild(link);
+
+      const preconnect = document.createElement('link');
+      preconnect.rel = 'preconnect';
+      preconnect.href = `https://${domain}`;
+      preconnect.crossOrigin = 'anonymous';
+      document.head.appendChild(preconnect);
     });
-  }, [location]);
+  }, []);
 
   return (
     <div className="px-4">

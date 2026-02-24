@@ -92,12 +92,12 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
     return { actualPrice, discountPercentage, showDiscount };
   }, [price, discount]);
 
-  // Memoized rating display
+  // FIX 1: Smart rating display - only reserve space when needed
   const ratingDisplay = useMemo(() => {
     if (rating <= 0) return null;
     
     return (
-      <div className="flex items-center gap-1 mb-3">
+      <div className="flex items-center gap-1 mb-2">
         {renderRating(rating)}
         <span className="text-xs text-gray-500 ml-1">({rating.toFixed(1)})</span>
       </div>
@@ -115,10 +115,28 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
     );
   }, [showDiscount, discountPercentage]);
 
+  // FIX 2: Dynamic height based on content
+  const getContentHeight = useMemo(() => {
+    let height = 0;
+    height += 40; // Base padding
+    
+    // Title height (approx 20px per line)
+    const titleLines = Math.ceil(name.length / 25); // Rough estimate
+    height += titleLines * 20;
+    
+    // Rating height if exists
+    if (rating > 0) height += 24; // Rating + gap
+    
+    // Price section height
+    height += 40; // Price + button
+    
+    return height;
+  }, [name, rating]);
+
   return (
     <div 
       onClick={handleClick} 
-      className="cursor-pointer bg-white rounded-2xl border border-black/50 p-2 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col h-[420px] w-full max-w-[320px] mx-auto group"
+      className="cursor-pointer bg-white rounded-2xl border border-black/50 p-2 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col w-full max-w-[320px] mx-auto group"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -128,18 +146,19 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
         }
       }}
       aria-label={`View ${name} product details`}
+      style={{ minHeight: `${getContentHeight}px` }}
     >
-      {/* Image Section */}
-      <div className="relative overflow-hidden rounded-xl mb-4 flex-shrink-0">
+      {/* Image Section - Fixed aspect ratio prevents shift */}
+      <div className="relative overflow-hidden rounded-xl mb-3 flex-shrink-0">
         {discountBadge}
-        <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden group-hover:shadow-md transition-shadow duration-300">
+        <div className="w-full aspect-square bg-gray-50 rounded-xl overflow-hidden group-hover:shadow-md transition-shadow duration-300">
           <div className="relative w-full h-full">
-            {/* Placeholder */}
+            {/* Placeholder with exact dimensions */}
             {!isImageLoaded && (
               <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse" />
             )}
             
-            {/* Actual Image */}
+            {/* Actual Image with width/height attributes */}
             <img
               ref={imageRef}
               className={`w-full h-full object-cover transition-all duration-500 ${
@@ -160,38 +179,43 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
         </div>
       </div>
       
-      {/* Content Section */}
+      {/* Content Section - Compact spacing */}
       <div className="flex flex-col flex-1">
-        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 text-base leading-tight flex-1 group-hover:text-gray-700 transition-colors">
+        {/* Title - Always visible */}
+        <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm leading-tight mb-1 group-hover:text-gray-700 transition-colors">
           {name}
         </h3>
         
+        {/* Rating - Only appears when needed, no reserved space */}
         {ratingDisplay}
         
-        <div className="flex items-center justify-between mt-auto pt-2">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <p className="text-lg font-bold text-gray-900">
-                {currency} {actualPrice}
-              </p>
-              {showDiscount && (
-                <p className="text-sm text-gray-500 line-through">
-                  {currency} {price}
+        {/* Price and Button - Fixed at bottom */}
+        <div className="mt-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <p className="text-base font-bold text-gray-900">
+                  {currency} {actualPrice}
                 </p>
-              )}
+                {showDiscount && (
+                  <p className="text-xs text-gray-500 line-through">
+                    {currency} {price}
+                  </p>
+                )}
+              </div>
             </div>
+            
+            <button 
+              className="w-8 h-8 bg-black rounded-full flex items-center justify-center transition-all duration-300 group-hover:bg-black group-hover:scale-110 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 flex-shrink-0"
+              aria-label="View product details"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClick();
+              }}
+            >
+              <FaArrowRight size={12} className="text-white transition-transform group-hover:translate-x-0.5" />
+            </button>
           </div>
-          
-          <button 
-            className="w-9 h-9 bg-black rounded-full flex items-center justify-center transition-all duration-300 group-hover:bg-black group-hover:scale-110 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 flex-shrink-0"
-            aria-label="View product details"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClick();
-            }}
-          >
-            <FaArrowRight size={14} className="text-white transition-transform group-hover:translate-x-0.5" />
-          </button>
         </div>
       </div>
     </div>
