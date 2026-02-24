@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState, useCallback } from "react";
+import { useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { ShopContext } from "../context/ShopContext";
 import Title from '../components/Title';
 import { assets } from "../assets/assets";
@@ -25,7 +25,10 @@ const Cart = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [expandedDeals, setExpandedDeals] = useState({});
   const [hasOutOfStockItems, setHasOutOfStockItems] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState({});
+  
   const navigate = useNavigate();
+  const modalRef = useRef(null);
 
   // Stock checking - only check actual stock from backend
   const getProductStockInfo = useCallback((productId, quantity) => {
@@ -224,44 +227,47 @@ const Cart = () => {
     }
   };
 
-  // Stock status rendering
+  // Stock status rendering - FIX: Fixed height container
   const renderStockStatus = (availableStock, currentQuantity, isOutOfStock) => {
+    // Base container with fixed height
+    const containerClass = "min-h-[60px]";
+    
     if (isOutOfStock) {
       return (
-        <div>
+        <div className={containerClass}>
           <p className="text-red-500 font-medium">Out of Stock</p>
         </div>
       );
     } else if (currentQuantity > availableStock) {
       return (
-        <div>
+        <div className={containerClass}>
           <p className="text-red-500 font-medium">Only {availableStock} available</p>
           <p className="text-red-400 text-sm mt-1">Quantity adjusted to available stock</p>
         </div>
       );
     } else if (availableStock < 5) {
       return (
-        <div>
+        <div className={containerClass}>
           <p className="text-red-500 font-medium">Only {availableStock} item{availableStock !== 1 ? 's' : ''} left!</p>
           <p className="text-red-400 text-sm mt-1">Hurry, low stock</p>
         </div>
       );
     } else if (availableStock < 10) {
       return (
-        <div>
+        <div className={containerClass}>
           <p className="text-orange-500">{availableStock} items left</p>
           <p className="text-orange-400 text-sm mt-1">Limited stock available</p>
         </div>
       );
     } else if (availableStock < 20) {
       return (
-        <div>
+        <div className={containerClass}>
           <p className="text-yellow-600">Limited items left</p>
         </div>
       );
     } else {
       return (
-        <div>
+        <div className={containerClass}>
           <p className="text-green-500 font-medium">In Stock</p>
           <p className="text-green-600 text-sm mt-1">Available for immediate shipping</p>
         </div>
@@ -288,12 +294,27 @@ const Cart = () => {
   const handleViewDetails = (item) => {
     setSelectedItem(item);
     setShowDetailsModal(true);
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
   };
 
   const handleCloseDetails = () => {
     setShowDetailsModal(false);
     setSelectedItem(null);
+    // Restore body scroll
+    document.body.style.overflow = 'auto';
   };
+
+  // Close modal on escape key
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && showDetailsModal) {
+        handleCloseDetails();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [showDetailsModal]);
 
   const toggleDealExpansion = (dealId) => {
     setExpandedDeals(prev => ({
@@ -316,13 +337,13 @@ const Cart = () => {
     navigate('/place-order');
   };
 
-  // Fixed Quantity Controls component
+  // Fixed Quantity Controls component - FIX: Fixed width
   const QuantityControls = ({ item, itemType }) => {
     const itemData = getItemDisplayData(item);
     
     if (itemData.isOutOfStock) {
       return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 min-w-[120px]">
           <div className="flex items-center border rounded-3xl border-red-300 bg-red-50 text-red-700 px-3 py-2">
             <span className="text-sm font-medium">Out of Stock</span>
           </div>
@@ -360,7 +381,7 @@ const Cart = () => {
     const isDecrementDisabled = item.quantity <= 1;
 
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 min-w-[120px]">
         <div className="flex items-center border rounded-lg border-black/50 bg-white">
           <button
             onClick={handleDecrement}
@@ -379,9 +400,7 @@ const Cart = () => {
             min={1}
             max={maxQuantity}
             disabled={itemData.isOutOfStock}
-            className={`w-16 rounded border-2 border-black/50 px-2 py-1 text-center text-sm ${
-              itemData.isOutOfStock ? 'bg-gray-100 cursor-not-allowed' : ''
-            }`}
+            className="w-16 rounded border-2 border-black/50 px-2 py-1 text-center text-sm"
           />
           
           <button
@@ -395,7 +414,7 @@ const Cart = () => {
           </button>
         </div>
         
-        <div className="text-xs">
+        <div className="text-xs min-h-[40px]">
           {renderStockStatus(itemData.availableStock, item.quantity, itemData.isOutOfStock)}
         </div>
       </div>
@@ -421,7 +440,7 @@ const Cart = () => {
     }).filter(Boolean);
   };
 
-  // Render product details modal
+  // Render product details modal - FIX: Fixed position with backdrop
   const renderProductDetails = (itemData) => {
     const product = itemData.fullData;
     
@@ -429,11 +448,20 @@ const Cart = () => {
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <img
-              src={itemData.image}
-              alt={itemData.name}
-              className="w-full h-48 md:h-64 object-cover"
-            />
+            {/* FIX: Fixed aspect ratio for modal image */}
+            <div className="aspect-square w-full max-h-64 relative">
+              {!imagesLoaded[itemData.image] && (
+                <div className="absolute inset-0 bg-gray-100 animate-pulse rounded-lg" />
+              )}
+              <img
+                src={itemData.image}
+                alt={itemData.name}
+                className={`absolute inset-0 w-full h-full object-cover rounded-lg transition-opacity duration-300 ${
+                  imagesLoaded[itemData.image] ? 'opacity-100' : 'opacity-0'
+                }`}
+                onLoad={() => setImagesLoaded(prev => ({ ...prev, [itemData.image]: true }))}
+              />
+            </div>
           </div>
           
           <div className="space-y-4">
@@ -442,7 +470,7 @@ const Cart = () => {
               <p className="text-gray-700 leading-relaxed">{itemData.description || "No description available."}</p>
             </div>
 
-            <div className="p-3 rounded border">
+            <div className="p-3 rounded border min-h-[80px]">
               {renderStockStatus(itemData.availableStock, selectedItem.quantity, itemData.isOutOfStock)}
             </div>
 
@@ -503,11 +531,20 @@ const Cart = () => {
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <img
-              src={itemData.image}
-              alt={itemData.name}
-              className="w-full h-48 md:h-64 object-cover"
-            />
+            {/* FIX: Fixed aspect ratio for modal image */}
+            <div className="aspect-square w-full max-h-64 relative">
+              {!imagesLoaded[itemData.image] && (
+                <div className="absolute inset-0 bg-gray-100 animate-pulse rounded-lg" />
+              )}
+              <img
+                src={itemData.image}
+                alt={itemData.name}
+                className={`absolute inset-0 w-full h-full object-cover rounded-lg transition-opacity duration-300 ${
+                  imagesLoaded[itemData.image] ? 'opacity-100' : 'opacity-0'
+                }`}
+                onLoad={() => setImagesLoaded(prev => ({ ...prev, [itemData.image]: true }))}
+              />
+            </div>
           </div>
           
           <div className="space-y-4">
@@ -516,7 +553,7 @@ const Cart = () => {
               <p className="text-gray-700 leading-relaxed">{itemData.description || "No description available."}</p>
             </div>
 
-            <div className="p-3 rounded border">
+            <div className="p-3 rounded border min-h-[80px]">
               {renderStockStatus(itemData.availableStock, selectedItem.quantity, itemData.isOutOfStock)}
             </div>
 
@@ -583,6 +620,20 @@ const Cart = () => {
                     product.isOutOfStock ? 'bg-red-50' : 'bg-white'
                   }`}>
                     <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {/* FIX: Fixed size for product image */}
+                      <div className="w-10 h-10 flex-shrink-0 relative">
+                        {!imagesLoaded[product.image?.[0]] && (
+                          <div className="absolute inset-0 bg-gray-100 animate-pulse rounded" />
+                        )}
+                        <img
+                          src={product.image?.[0] || assets.placeholder_image}
+                          alt={product.name}
+                          className={`absolute inset-0 w-full h-full object-cover rounded transition-opacity duration-300 ${
+                            imagesLoaded[product.image?.[0]] ? 'opacity-100' : 'opacity-0'
+                          }`}
+                          onLoad={() => product.image?.[0] && setImagesLoaded(prev => ({ ...prev, [product.image[0]]: true }))}
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className={`font-medium text-sm truncate ${
                           product.isOutOfStock ? 'text-gray-500' : 'text-black'
@@ -609,7 +660,6 @@ const Cart = () => {
                             </span>
                           )}
                         </div>
-
                       </div>
                     </div>
                     
@@ -633,7 +683,7 @@ const Cart = () => {
     );
   };
 
-  // Render details modal
+  // Render details modal - FIX: Fixed position with backdrop
   const renderDetailsModal = () => {
     if (!selectedItem) return null;
 
@@ -642,13 +692,17 @@ const Cart = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto border rounded-3xl border-black/50">
+        <div 
+          ref={modalRef}
+          className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto border rounded-3xl border-black/50"
+        >
           <div className="p-6">
             <div className="flex justify-between items-start mb-6 border-b border-black/50 pb-4">
               <h2 className="text-2xl font-bold text-black">{itemData.name}</h2>
               <button 
                 onClick={handleCloseDetails}
-                className="text-gray-500 hover:text-black text-2xl font-bold transition-colors"
+                className="text-gray-500 hover:text-black text-2xl font-bold transition-colors w-8 h-8 flex items-center justify-center"
+                aria-label="Close modal"
               >
                 ×
               </button>
@@ -661,7 +715,7 @@ const Cart = () => {
     );
   };
 
-  // Render deal products in main cart view
+  // Render deal products in main cart view - FIX: Fixed height with placeholder
   const renderDealProducts = (deal) => {
     const dealProducts = getDealProducts(deal);
     if (dealProducts.length === 0) return null;
@@ -685,11 +739,20 @@ const Cart = () => {
                 product.isOutOfStock ? 'bg-red-50' : ''
               }`}>
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <img
-                    src={product.image?.[0] || assets.placeholder_image}
-                    alt={product.name}
-                    className="w-10 h-10 object-cover flex-shrink-0"
-                  />
+                  {/* FIX: Fixed size for product image */}
+                  <div className="w-10 h-10 flex-shrink-0 relative">
+                    {!imagesLoaded[product.image?.[0]] && (
+                      <div className="absolute inset-0 bg-gray-100 animate-pulse rounded" />
+                    )}
+                    <img
+                      src={product.image?.[0] || assets.placeholder_image}
+                      alt={product.name}
+                      className={`absolute inset-0 w-full h-full object-cover rounded transition-opacity duration-300 ${
+                        imagesLoaded[product.image?.[0]] ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      onLoad={() => product.image?.[0] && setImagesLoaded(prev => ({ ...prev, [product.image[0]]: true }))}
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className={`font-medium text-xs truncate ${
                       product.isOutOfStock ? 'text-gray-500' : 'text-black'
@@ -716,7 +779,7 @@ const Cart = () => {
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 text-xs">
+                    <div className="mt-1 min-h-[20px]">
                       {renderStockStatus(product.availableStock, product.quantity, product.isOutOfStock)}
                     </div>
                   </div>
@@ -740,22 +803,31 @@ const Cart = () => {
     );
   };
 
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, []);
+
   return (
-    <div className=" pt-8 md:pt-14 px-4 md:px-0">
+    <div className="pt-8 md:pt-14 px-4 md:px-0">
       <div className="mb-6 md:mb-8 text-3xl text-center">
         <Title text1={'Your'} text2={'Cart'} />
       </div>
 
       <div>
         {productCartData.length === 0 && dealCartData.length === 0 ? (
-          <div className="text-center py-12 md:py-16 border rounded-3xl border-black/50 bg-gray-50">
-            <p className="text-gray-600 text-lg mb-4">Your cart is empty</p>
-            <button
-              onClick={() => navigate('/')}
-              className="bg-black border rounded-3xl text-white px-8 py-3 hover:bg-gray-800 transition-colors font-medium"
-            >
-              CONTINUE SHOPPING
-            </button>
+          <div className="text-center py-12 md:py-16 border rounded-3xl border-black/50 bg-gray-50 min-h-[300px] flex items-center justify-center">
+            <div>
+              <p className="text-gray-600 text-lg mb-4">Your cart is empty</p>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-black border rounded-3xl text-white px-8 py-3 hover:bg-gray-800 transition-colors font-medium"
+              >
+                CONTINUE SHOPPING
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -777,12 +849,19 @@ const Cart = () => {
                         } p-4`}
                       >
                         <div className="flex flex-col sm:flex-row gap-4">
-                          <div className="relative">
+                          {/* FIX: Fixed image dimensions */}
+                          <div className="relative w-20 h-20 flex-shrink-0">
+                            {!imagesLoaded[itemData.image] && (
+                              <div className="absolute inset-0 bg-gray-100 animate-pulse rounded" />
+                            )}
                             <img
-                              className="w-20 h-20 object-cover flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+                              className={`absolute inset-0 w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity ${
+                                imagesLoaded[itemData.image] ? 'opacity-100' : 'opacity-0'
+                              }`}
                               src={itemData.image}
                               alt={itemData.name}
                               onClick={() => handleViewDetails(item)}
+                              onLoad={() => setImagesLoaded(prev => ({ ...prev, [itemData.image]: true }))}
                             />
                             {itemData.isOutOfStock && (
                               <div className="absolute top-0 left-0 bg-red-600 text-white text-xs px-2 py-1 font-bold">
@@ -892,12 +971,19 @@ const Cart = () => {
                       >
                         <div className="p-4">
                           <div className="flex flex-col sm:flex-row gap-4">
-                            <div className="relative">
+                            {/* FIX: Fixed image dimensions */}
+                            <div className="relative w-20 h-20 flex-shrink-0">
+                              {!imagesLoaded[itemData.image] && (
+                                <div className="absolute inset-0 bg-gray-100 animate-pulse rounded" />
+                              )}
                               <img
-                                className="w-20 h-20 object-cover flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+                                className={`absolute inset-0 w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity ${
+                                  imagesLoaded[itemData.image] ? 'opacity-100' : 'opacity-0'
+                                }`}
                                 src={itemData.image}
                                 alt={itemData.name}
                                 onClick={() => handleViewDetails(item)}
+                                onLoad={() => setImagesLoaded(prev => ({ ...prev, [itemData.image]: true }))}
                               />
                               {itemData.isOutOfStock && (
                                 <div className="absolute top-0 left-0 bg-red-600 text-white text-xs px-2 py-1 font-bold">
@@ -954,7 +1040,7 @@ const Cart = () => {
                                     )}
                                   </div>
 
-                                  <div className="mb-3">
+                                  <div className="mb-3 min-h-[60px]">
                                     {renderStockStatus(itemData.availableStock, item.quantity, itemData.isOutOfStock)}
                                   </div>
                                 </div>
@@ -1037,16 +1123,16 @@ const Cart = () => {
               <button
                 onClick={handleProceedToCheckout}
                 disabled={hasOutOfStockItems}
-                className={` border rounded-3xl px-8 py-4 font-semibold transition-colors w-full md:w-auto text-base ${
+                className={`border rounded-3xl px-8 py-4 font-semibold transition-colors w-full md:w-auto text-base ${
                   hasOutOfStockItems
                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     : 'bg-black text-white hover:bg-gray-800 active:bg-gray-900'
                 }`}
               >
-               PROCEED TO CHECKOUT
+                PROCEED TO CHECKOUT
               </button>
               {hasOutOfStockItems && (
-                <p className="text-red-600 text-sm mt-2">
+                <p className="text-red-600 text-sm mt-2 min-h-[24px]">
                   Please remove out-of-stock items before checkout
                 </p>
               )}

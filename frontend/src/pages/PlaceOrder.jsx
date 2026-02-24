@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useContext, useEffect, useCallback } from 'react';
+import { useState, useContext, useEffect, useCallback, useRef } from 'react';
 import Title from '../components/Title';
 import CartTotal from '../components/CartTotal';
 import { ShopContext } from '../context/ShopContext';
@@ -23,6 +23,12 @@ const PlaceOrder = () => {
   const [isValidatingAddress, setIsValidatingAddress] = useState(false);
   const [cityZipData, setCityZipData] = useState({});
   const [knownCitiesWithZips, setKnownCitiesWithZips] = useState({});
+  
+  // Add ref for suggestions to handle clicks outside
+  const suggestionsRef = useRef(null);
+  
+  // Add state for tracking if fields have been blurred (for error display)
+  const [touchedFields, setTouchedFields] = useState({});
   
   // Add state for category mappings
   const [categoryIdMap, setCategoryIdMap] = useState({});
@@ -59,6 +65,17 @@ const PlaceOrder = () => {
   } = useContext(ShopContext);
   
   const navigate = useNavigate();
+
+  // Handle click outside suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch categories to build ID-to-name mapping
   useEffect(() => {
@@ -528,6 +545,7 @@ const PlaceOrder = () => {
 
   const onBlurHandler = async (e) => {
     const { name, value } = e.target;
+    setTouchedFields(prev => ({ ...prev, [name]: true }));
     const errors = await validateField(name, value);
     setValidationErrors(prev => ({ ...prev, ...errors }));
   };
@@ -998,179 +1016,220 @@ const PlaceOrder = () => {
     );
   }
 
-  // Render methods with clean, simple styling
-  const renderInputField = (name, type = 'text', placeholder, label, required = true) => (
-    <div className="w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <input 
-        onChange={onChangeHandler}
-        onBlur={onBlurHandler}
-        name={name} 
-        value={formData[name] || ''} 
-        className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
-          validationErrors[name] 
-            ? 'border-red-500 bg-red-50' 
-            : 'bg-white hover:border-gray-400'
-        }`} 
-        type={type}
-        placeholder={placeholder}
-        required={required}
-      />
-      {validationErrors[name] && (
-        <p className="text-red-600 text-sm mt-2">
-          {validationErrors[name]}
-        </p>
-      )}
-    </div>
-  );
-
-  const renderSelectField = (name, options, placeholder, label, required = true) => (
-    <div className="w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <select
-        onChange={onChangeHandler}
-        onBlur={onBlurHandler}
-        name={name}
-        value={formData[name] || ''}
-        className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
-          validationErrors[name] 
-            ? 'border-red-500 bg-red-50' 
-            : 'bg-white hover:border-gray-400'
-        }`}
-        required={required}
-      >
-        <option value="">{placeholder}</option>
-        {options.map(option => (
-          <option key={option} value={option}>{option}</option>
-        ))}
-      </select>
-      {validationErrors[name] && (
-        <p className="text-red-600 text-sm mt-2">
-          {validationErrors[name]}
-        </p>
-      )}
-    </div>
-  );
-
-  const renderCityInput = () => (
-    <div className="w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        City <span className="text-red-500">*</span>
-      </label>
-      <div className="relative">
-        <input
-          onChange={onChangeHandler}
-          onBlur={onBlurHandler}
-          name="city"
-          value={formData.city || ''}
-          list="city-suggestions"
-          className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
-            validationErrors.city 
-              ? 'border-red-500 bg-red-50' 
-              : 'bg-white hover:border-gray-400'
-          } ${!formData.state ? 'opacity-50 cursor-not-allowed' : ''}`}
-          type="text"
-          placeholder={formData.state ? "Select from list or type your city" : "Select province first"}
-          required
-          disabled={!formData.state}
-        />
-        
-        {isLoadingCities && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
-          </div>
-        )}
+  // CLS-OPTIMIZED render methods
+  const renderInputField = (name, type = 'text', placeholder, label, required = true) => {
+    const hasError = validationErrors[name] && touchedFields[name];
+    
+    return (
+      <div className="w-full">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <div className="relative min-h-[50px]">
+          <input 
+            onChange={onChangeHandler}
+            onBlur={onBlurHandler}
+            name={name} 
+            value={formData[name] || ''} 
+            className={`w-full px-3 py-3 border rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
+              hasError 
+                ? 'border-red-500 bg-red-50' 
+                : 'border-gray-300 bg-white hover:border-gray-400'
+            }`} 
+            type={type}
+            placeholder={placeholder}
+            required={required}
+          />
+        </div>
+        {/* Fixed height for error messages - prevents layout shift */}
+        <div className="min-h-[24px] mt-2">
+          {hasError && (
+            <p className="text-red-600 text-sm">
+              {validationErrors[name]}
+            </p>
+          )}
+        </div>
       </div>
-      
-      <datalist id="city-suggestions">
-        {cities.map(city => (
-          <option key={city} value={city} />
-        ))}
-      </datalist>
-      
-      {validationErrors.city && (
-        <p className="text-red-600 text-sm mt-2">
-          {validationErrors.city}
-        </p>
-      )}
-    </div>
-  );
+    );
+  };
 
-  const renderZipCodeInput = () => (
-    <div className="w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        ZIP Code <span className="text-red-500">*</span>
-      </label>
-      <div className="relative">
-        <input 
-          onChange={onChangeHandler}
-          onBlur={onBlurHandler}
-          name="zipcode" 
-          value={formData.zipcode || ''} 
-          className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
-            validationErrors.zipcode 
-              ? 'border-yellow-500 bg-yellow-50' 
-              : 'bg-white hover:border-gray-400'
-          }`} 
-          type="number"
-          placeholder="5-digit ZIP code"
-          required
-        />
-        {formData.zipcode && cityZipData[formData.city] === formData.zipcode && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center">
-              <span className="text-white text-xs">✓</span>
+  const renderSelectField = (name, options, placeholder, label, required = true) => {
+    const hasError = validationErrors[name] && touchedFields[name];
+    
+    return (
+      <div className="w-full">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <div className="relative min-h-[50px]">
+          <select
+            onChange={onChangeHandler}
+            onBlur={onBlurHandler}
+            name={name}
+            value={formData[name] || ''}
+            className={`w-full px-3 py-3 border rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
+              hasError 
+                ? 'border-red-500 bg-red-50' 
+                : 'border-gray-300 bg-white hover:border-gray-400'
+            }`}
+            required={required}
+          >
+            <option value="">{placeholder}</option>
+            {options.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+        {/* Fixed height for error messages */}
+        <div className="min-h-[24px] mt-2">
+          {hasError && (
+            <p className="text-red-600 text-sm">
+              {validationErrors[name]}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderCityInput = () => {
+    const hasError = validationErrors.city && touchedFields.city;
+    
+    return (
+      <div className="w-full">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          City <span className="text-red-500">*</span>
+        </label>
+        <div className="relative min-h-[50px]">
+          <input
+            onChange={onChangeHandler}
+            onBlur={onBlurHandler}
+            name="city"
+            value={formData.city || ''}
+            list="city-suggestions"
+            className={`w-full px-3 py-3 border rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
+              hasError 
+                ? 'border-red-500 bg-red-50' 
+                : 'border-gray-300 bg-white hover:border-gray-400'
+            } ${!formData.state ? 'opacity-50 cursor-not-allowed' : ''}`}
+            type="text"
+            placeholder={formData.state ? "Select from list or type your city" : "Select province first"}
+            required
+            disabled={!formData.state}
+          />
+          
+          {isLoadingCities && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        
+        <datalist id="city-suggestions">
+          {cities.map(city => (
+            <option key={city} value={city} />
+          ))}
+        </datalist>
+        
+        {/* Fixed height for error messages */}
+        <div className="min-h-[24px] mt-2">
+          {hasError && (
+            <p className="text-red-600 text-sm">
+              {validationErrors.city}
+            </p>
+          )}
+        </div>
       </div>
-      {validationErrors.zipcode && (
-        <p className="text-yellow-600 text-sm mt-2">
-          ⚠️ {validationErrors.zipcode} - Order can still be placed
-        </p>
-      )}
-      {formData.zipcode && /^\d{5}$/.test(formData.zipcode) && !validationErrors.zipcode && (
-        <p className="text-green-600 text-sm mt-2">
-          ✓ Valid ZIP code format
-        </p>
-      )}
-    </div>
-  );
+    );
+  };
 
-  const renderAddressInput = () => (
-    <div className="w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Street Address <span className="text-red-500">*</span>
-      </label>
-      <div className="relative">
-        <input 
-          onChange={onChangeHandler}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-          onFocus={() => formData.street?.length >= 3 && setShowSuggestions(true)}
-          name="street" 
-          value={formData.street || ''} 
-          className={`w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
-            validationErrors.street 
-              ? 'border-red-500 bg-red-50' 
-              : 'bg-white hover:border-gray-400'
-          }`} 
-          type="text"
-          placeholder="House number, street, area"
-          required
-        />
+  const renderZipCodeInput = () => {
+    const hasError = validationErrors.zipcode && touchedFields.zipcode;
+    
+    return (
+      <div className="w-full">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          ZIP Code <span className="text-red-500">*</span>
+        </label>
+        <div className="relative min-h-[50px]">
+          <input 
+            onChange={onChangeHandler}
+            onBlur={onBlurHandler}
+            name="zipcode" 
+            value={formData.zipcode || ''} 
+            className={`w-full px-3 py-3 border rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
+              hasError 
+                ? 'border-yellow-500 bg-yellow-50' 
+                : 'border-gray-300 bg-white hover:border-gray-400'
+            }`} 
+            type="number"
+            placeholder="5-digit ZIP code"
+            required
+          />
+          {formData.zipcode && cityZipData[formData.city] === formData.zipcode && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center">
+                <span className="text-white text-xs">✓</span>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Fixed height for messages */}
+        <div className="min-h-[40px] mt-2">
+          {hasError && (
+            <p className="text-yellow-600 text-sm">
+              ⚠️ {validationErrors.zipcode} - Order can still be placed
+            </p>
+          )}
+          {formData.zipcode && /^\d{5}$/.test(formData.zipcode) && !hasError && (
+            <p className="text-green-600 text-sm">
+              ✓ Valid ZIP code format
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAddressInput = () => {
+    const hasError = validationErrors.street && touchedFields.street;
+    
+    return (
+      <div className="w-full">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Street Address <span className="text-red-500">*</span>
+        </label>
+        <div className="relative min-h-[50px]">
+          <input 
+            onChange={onChangeHandler}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            onFocus={() => formData.street?.length >= 3 && setShowSuggestions(true)}
+            name="street" 
+            value={formData.street || ''} 
+            className={`w-full px-3 py-3 border rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors ${
+              hasError 
+                ? 'border-red-500 bg-red-50' 
+                : 'border-gray-300 bg-white hover:border-gray-400'
+            }`} 
+            type="text"
+            placeholder="House number, street, area"
+            required
+          />
+          
+          {isSearchingAddress && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
+            </div>
+          )}
+        </div>
         
-        {isSearchingAddress && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
-          </div>
-        )}
-        
+        {/* Suggestions dropdown - absolutely positioned, doesn't affect layout */}
         {showSuggestions && addressSuggestions.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-3xl shadow-lg max-h-48 overflow-y-auto">
+          <div 
+            ref={suggestionsRef}
+            className="absolute z-50 w-full md:w-[calc(50%-2rem)] mt-1 bg-white border border-gray-300 rounded-3xl shadow-lg max-h-48 overflow-y-auto"
+            style={{ maxWidth: 'calc(100% - 2rem)' }}
+          >
             {addressSuggestions.map((suggestion, index) => (
               <div
                 key={index}
@@ -1184,14 +1243,18 @@ const PlaceOrder = () => {
             ))}
           </div>
         )}
+        
+        {/* Fixed height for error messages */}
+        <div className="min-h-[24px] mt-2">
+          {hasError && (
+            <p className="text-red-600 text-sm">
+              {validationErrors.street}
+            </p>
+          )}
+        </div>
       </div>
-      {validationErrors.street && (
-        <p className="text-red-600 text-sm mt-2">
-          {validationErrors.street}
-        </p>
-      )}
-    </div>
-  );
+    );
+  };
 
   // Render Payment Method Selection - COD Only
   const renderPaymentMethod = () => (
@@ -1298,8 +1361,8 @@ const PlaceOrder = () => {
     <>
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-6xl mx-auto px-4">
-          {/* Header */}
-          <div className="mb-8">
+          {/* Header - Fixed height */}
+          <div className="mb-8 min-h-[80px]">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
             <p className="text-gray-600">Complete your order with delivery information</p>
           </div>
@@ -1336,8 +1399,6 @@ const PlaceOrder = () => {
                   </div>
 
                   {renderPaymentMethod()}
-                  
-               
                 </form>
               </div>
 
@@ -1348,7 +1409,7 @@ const PlaceOrder = () => {
                   <CartTotal/>
                 </div>
               
-                {/* Place Order Button */}
+                {/* Place Order Button - Fixed height container */}
                 <div className="p-8">
                   <button 
                     type='submit' 
@@ -1372,68 +1433,73 @@ const PlaceOrder = () => {
                       </span>
                     ) : !isDataReady ? (
                       'Loading...'
-                    ) : isGuestCheckout ? (
-                      `Place Order`
                     ) : (
-                      `Place Order`
+                      'Place Order'
                     )}
                   </button>
                   
-                  {isGuestCheckout && (
-                    <p className="text-center text-gray-600 text-sm mt-4">
-                      By placing this order, you agree to our Terms of Service. 
-                      Your order will be stored for 30 days.
-                    </p>
-                  )}
+                  {/* Fixed height for terms text */}
+                  <div className="min-h-[40px] mt-4">
+                    {isGuestCheckout && (
+                      <p className="text-center text-gray-600 text-sm">
+                        By placing this order, you agree to our Terms of Service. 
+                        Your order will be stored for 30 days.
+                      </p>
+                    )}
+                  </div>
                 </div>
-                
-          
               </div>
             </div>
           ) : isGuestCheckout ? (
-            // Show continue button for guest checkout
-            <div className="bg-white rounded-3xl border border-gray-300 p-8 text-center">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Ready to Checkout?</h3>
-              <p className="text-gray-600 mb-6">
-                Continue as guest to place your order. You'll be able to track it using your email and order ID.
-              </p>
-              <button
-                onClick={handleGuestCheckout}
-                className="bg-black text-white px-8 py-4 rounded-3xl font-semibold hover:bg-gray-800 transition-colors"
-              >
-                Continue as Guest
-              </button>
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <p className="text-gray-600 mb-4">Or create an account for:</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-gray-50 rounded-xl">
-                    <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm">📦</span>
+            // Show continue button for guest checkout - Fixed height container
+            <div className="bg-white rounded-3xl border border-gray-300 p-8 min-h-[400px]">
+              <div className="h-full flex flex-col justify-center">
+                <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">Ready to Checkout?</h3>
+                <p className="text-gray-600 mb-6 text-center">
+                  Continue as guest to place your order. You'll be able to track it using your email and order ID.
+                </p>
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleGuestCheckout}
+                    className="bg-black text-white px-8 py-4 rounded-3xl font-semibold hover:bg-gray-800 transition-colors"
+                  >
+                    Continue as Guest
+                  </button>
+                </div>
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <p className="text-gray-600 mb-4 text-center">Or create an account for:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-gray-50 rounded-xl">
+                      <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm">📦</span>
+                      </div>
+                      <p className="text-sm font-medium">Order History</p>
                     </div>
-                    <p className="text-sm font-medium">Order History</p>
+                    <div className="text-center p-4 bg-gray-50 rounded-xl">
+                      <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm">🚚</span>
+                      </div>
+                      <p className="text-sm font-medium">Fast Checkout</p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 rounded-xl">
+                      <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm">🔔</span>
+                      </div>
+                      <p className="text-sm font-medium">Order Updates</p>
+                    </div>
                   </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-xl">
-                    <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm">🚚</span>
-                    </div>
-                    <p className="text-sm font-medium">Fast Checkout</p>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-xl">
-                    <div className="w-8 h-8 mx-auto mb-2 bg-black rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm">🔔</span>
-                    </div>
-                    <p className="text-sm font-medium">Order Updates</p>
+                  <div className="flex justify-center mt-6">
+                    <button
+                      onClick={() => {
+                        setAuthMode('signup');
+                        setIsLoginModalOpen(true);
+                      }}
+                      className="border border-gray-300 px-6 py-3 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Create Account
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    setAuthMode('signup');
-                    setIsLoginModalOpen(true);
-                  }}
-                  className="mt-6 w-full border border-gray-300 px-6 py-3 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Create Account
-                </button>
               </div>
             </div>
           ) : null}
