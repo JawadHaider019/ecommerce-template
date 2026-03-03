@@ -1,6 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import productModel from '../models/productModel.js';
-import { notifyNewProduct } from '../controllers/newsletterController.js';
+// 🚫 REMOVED: import { notifyNewProduct } from '../controllers/newsletterController.js';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -88,16 +88,15 @@ const addProduct = async (req, res) => {
     const product = new productModel(productData);
     await product.save();
 
-    // ✅ ADDED: Send newsletter notification if product is published
-    if (status === 'published') {
-      try {
-        await notifyNewProduct(product);
-        console.log('📢 New product notification sent to subscribers');
-      } catch (notificationError) {
-        console.error('❌ Failed to send product notification:', notificationError);
-        // Don't fail the whole request if notification fails
-      }
-    }
+    // 🚫 REMOVED: Product notification code
+    // if (status === 'published') {
+    //   try {
+    //     await notifyNewProduct(product);
+    //     console.log('📢 New product notification sent to subscribers');
+    //   } catch (notificationError) {
+    //     console.error('❌ Failed to send product notification:', notificationError);
+    //   }
+    // }
 
     res.json({ 
       success: true, 
@@ -363,16 +362,15 @@ const updateProduct = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    // ✅ ADDED: Send newsletter notification if status changed to published
-    if (status === 'published' && existingProduct.status !== 'published') {
-      try {
-        await notifyNewProduct(updatedProduct);
-        console.log('📢 New product notification sent to subscribers');
-      } catch (notificationError) {
-        console.error('❌ Failed to send product notification:', notificationError);
-        // Don't fail the whole request if notification fails
-      }
-    }
+    // 🚫 REMOVED: Product notification code
+    // if (status === 'published' && existingProduct.status !== 'published') {
+    //   try {
+    //     await notifyNewProduct(updatedProduct);
+    //     console.log('📢 New product notification sent to subscribers');
+    //   } catch (notificationError) {
+    //     console.error('❌ Failed to send product notification:', notificationError);
+    //   }
+    // }
 
     res.json({ 
       success: true, 
@@ -423,16 +421,15 @@ const updateProductStatus = async (req, res) => {
       { new: true }
     );
 
-    // ✅ ADDED: Send newsletter notification when status changes to published
-    if (status === 'published' && existingProduct.status !== 'published') {
-      try {
-        await notifyNewProduct(updatedProduct);
-        console.log('📢 New product notification sent to subscribers');
-      } catch (notificationError) {
-        console.error('❌ Failed to send product notification:', notificationError);
-        // Don't fail the whole request if notification fails
-      }
-    }
+    // 🚫 REMOVED: Product notification code
+    // if (status === 'published' && existingProduct.status !== 'published') {
+    //   try {
+    //     await notifyNewProduct(updatedProduct);
+    //     console.log('📢 New product notification sent to subscribers');
+    //   } catch (notificationError) {
+    //     console.error('❌ Failed to send product notification:', notificationError);
+    //   }
+    // }
 
     res.json({ 
       success: true, 

@@ -1,7 +1,7 @@
 import { v2 as cloudinary } from "cloudinary";
 import dealModel from "../models/dealModel.js";
 import DealType from "../models/DealtypeModel.js";
-import { notifyNewDeal } from '../controllers/newsletterController.js'; // CORRECTED IMPORT
+// 🚫 REMOVED: import { notifyNewDeal } from '../controllers/newsletterController.js';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -107,16 +107,15 @@ const addDeal = async (req, res) => {
     console.log("Deal saved successfully with dealType");
     console.log("Saved deal document:", populatedDeal);
 
-    // ✅ ADDED: Send newsletter notification if deal is published
-    if (status === 'published') {
-      try {
-        await notifyNewDeal(populatedDeal);
-        console.log('📢 New deal notification sent to subscribers');
-      } catch (notificationError) {
-        console.error('❌ Failed to send deal notification:', notificationError);
-        // Don't fail the whole request if notification fails
-      }
-    }
+    // 🚫 REMOVED: Deal notification code
+    // if (status === 'published') {
+    //   try {
+    //     await notifyNewDeal(populatedDeal);
+    //     console.log('📢 New deal notification sent to subscribers');
+    //   } catch (notificationError) {
+    //     console.error('❌ Failed to send deal notification:', notificationError);
+    //   }
+    // }
 
     res.json({ 
       success: true, 
@@ -295,16 +294,15 @@ const updateDeal = async (req, res) => {
     console.log("✅ DEAL UPDATED SUCCESSFULLY");
     console.log("Final image count:", finalImages.length);
 
-    // ✅ ADDED: Send newsletter notification if status changed to published
-    if (status === 'published' && existingDeal.status !== 'published') {
-      try {
-        await notifyNewDeal(updatedDeal);
-        console.log('📢 New deal notification sent to subscribers');
-      } catch (notificationError) {
-        console.error('❌ Failed to send deal notification:', notificationError);
-        // Don't fail the whole request if notification fails
-      }
-    }
+    // 🚫 REMOVED: Deal notification code
+    // if (status === 'published' && existingDeal.status !== 'published') {
+    //   try {
+    //     await notifyNewDeal(updatedDeal);
+    //     console.log('📢 New deal notification sent to subscribers');
+    //   } catch (notificationError) {
+    //     console.error('❌ Failed to send deal notification:', notificationError);
+    //   }
+    // }
 
     res.json({
       success: true,
@@ -366,16 +364,15 @@ const updateDealStatus = async (req, res) => {
 
     console.log("Deal status updated successfully:", updatedDeal);
 
-    // ✅ ADDED: Send newsletter notification when status changes to published
-    if (status === 'published' && existingDeal.status !== 'published') {
-      try {
-        await notifyNewDeal(updatedDeal);
-        console.log('📢 New deal notification sent to subscribers');
-      } catch (notificationError) {
-        console.error('❌ Failed to send deal notification:', notificationError);
-        // Don't fail the whole request if notification fails
-      }
-    }
+    // 🚫 REMOVED: Deal notification code
+    // if (status === 'published' && existingDeal.status !== 'published') {
+    //   try {
+    //     await notifyNewDeal(updatedDeal);
+    //     console.log('📢 New deal notification sent to subscribers');
+    //   } catch (notificationError) {
+    //     console.error('❌ Failed to send deal notification:', notificationError);
+    //   }
+    // }
 
     res.json({ 
       success: true, 

@@ -4,7 +4,7 @@ import {
   unsubscribe,
   getSubscribers,
   getStats,
-  sendNotification,
+  // 🚫 REMOVED: sendNotification,
   checkSubscriberPreferences
 } from '../controllers/newsletterController.js';
 
@@ -18,7 +18,6 @@ router.post('/unsubscribe', unsubscribe);
 router.get('/subscribers', getSubscribers);
 router.get('/stats', getStats);
 router.get('/preferences-stats', checkSubscriberPreferences);
-router.post('/notify', sendNotification);
-
+// 🚫 REMOVED: router.post('/notify', sendNotification);
 
 export default router;

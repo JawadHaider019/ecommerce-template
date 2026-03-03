@@ -3,6 +3,7 @@ import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
 import notificationModel from "../models/notifcationModel.js";
 import Comment from "../models/commentModel.js";
+import { sendOrderConfirmationEmail } from '../services/emailService.js';
 
 // 🆕 Notification Types
 const NOTIFICATION_TYPES = {
@@ -344,6 +345,8 @@ const reduceInventory = async (validatedItems) => {
   }
 };
 
+
+
 // 🆕 MAIN ORDER PLACEMENT FUNCTION (Handles both logged-in and guest users)
 const placeOrder = async (req, res) => {
   try {
@@ -446,6 +449,7 @@ const placeOrder = async (req, res) => {
       userId: orderData.userId,
       isGuest: orderData.isGuest,
       customerName: orderData.customerDetails.name,
+      customerEmail: orderData.customerDetails.email, // Log email for debugging
       totalItems: orderData.items.length
     });
 
@@ -454,6 +458,29 @@ const placeOrder = async (req, res) => {
     await newOrder.save();
 
     console.log(`✅ Order created: ${newOrder._id} for ${isGuest ? 'Guest' : 'User'}: ${newOrder.customerDetails.name}`);
+
+    // ✅ SEND ORDER CONFIRMATION EMAIL
+    const customerEmail = newOrder.customerDetails?.email;
+    
+    if (customerEmail) {
+      console.log(`📧 Attempting to send order confirmation email to: ${customerEmail}`);
+      
+      // Use try-catch specifically for email to not block order success
+      try {
+        const emailSent = await sendOrderConfirmationEmail(newOrder);
+        
+        if (emailSent) {
+          console.log(`✅ Order confirmation email sent successfully to ${customerEmail}`);
+        } else {
+          console.log(`⚠️ Order confirmation email failed to send to ${customerEmail} (email service issue)`);
+        }
+      } catch (emailError) {
+        console.error(`❌ Error sending order confirmation email:`, emailError.message);
+        // Don't throw error - order is still successful
+      }
+    } else {
+      console.log(`⚠️ No email found for order ${newOrder._id}. Skipping confirmation email.`);
+    }
 
     // Clear cart only for logged-in users
     if (userId) {

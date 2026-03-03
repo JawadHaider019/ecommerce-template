@@ -1,9 +1,7 @@
 import Newsletter from '../models/NewsletterModel.js';
 import { 
-  sendWelcomeEmail, 
-  sendNewProductNotification, 
-  sendNewDealNotification, 
-  sendNewBlogNotification 
+  sendNewBlogNotification,
+
 } from '../services/emailService.js';
 
 // Subscribe to newsletter
@@ -208,141 +206,13 @@ export const getStats = async (req, res) => {
   }
 };
 
-// Send notification for new products, deals, and blogs
-export const sendNotification = async (req, res) => {
-  try {
-    const { type, title, content, productId, blogId, dealId, imageUrl } = req.body;
+// 🚫 REMOVED: sendNotification function (handles product/deal/blog notifications)
 
-    console.log('🚀 ========== NEWSLETTER NOTIFICATION TRIGGERED ==========');
-    console.log('📢 Notification Details:', { 
-      type, 
-      title, 
-      contentLength: content?.length,
-      productId, 
-      blogId, 
-      dealId,
-      imageUrl 
-    });
+// 🚫 REMOVED: notifyNewProduct function
 
-    if (!type || !title || !content) {
-      console.log('❌ Missing required fields');
-      return res.status(400).json({
-        success: false,
-        message: 'Type, title, and content are required'
-      });
-    }
+// 🚫 REMOVED: notifyNewDeal function
 
-    let sentCount = 0;
-
-    // Use the specific notification functions
-    switch (type) {
-      case 'new_product':
-        sentCount = await notifyNewProduct({
-          _id: productId,
-          name: title,
-          description: content,
-          image: imageUrl
-        });
-        break;
-
-      case 'new_deal':
-        sentCount = await notifyNewDeal({
-          _id: dealId,
-          dealName: title,
-          dealDescription: content,
-          dealImages: imageUrl ? [imageUrl] : []
-        });
-        break;
-
-      case 'new_blog':
-        sentCount = await notifyNewBlog({
-          _id: blogId,
-          title: title,
-          excerpt: content,
-          imageUrl: imageUrl
-        });
-        break;
-
-      default:
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid notification type'
-        });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Notification sent successfully to ${sentCount} subscribers`,
-      data: {
-        sent: sentCount,
-        type: type,
-        title: title
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Send notification error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to send notification. Please try again later.',
-      error: error.message
-    });
-  }
-};
-
-// Send notification when new product is added
-export const notifyNewProduct = async (product) => {
-  try {
-    const subscribers = await Newsletter.find({
-      isActive: true,
-      'preferences.newProducts': true
-    });
-
-    if (subscribers.length === 0) {
-      console.log('📭 No subscribers for new product notifications');
-      return 0;
-    }
-
-    console.log(`📢 Sending new product notification to ${subscribers.length} subscribers`);
-
-    const sentCount = await sendNewProductNotification(subscribers, product);
-    
-    console.log(`✅ New product notification sent to ${sentCount} subscribers`);
-    return sentCount;
-
-  } catch (error) {
-    console.error('❌ Error sending new product notification:', error);
-    throw error;
-  }
-};
-
-// Send notification when new deal is added
-export const notifyNewDeal = async (deal) => {
-  try {
-    const subscribers = await Newsletter.find({
-      isActive: true,
-      'preferences.promotions': true
-    });
-
-    if (subscribers.length === 0) {
-      console.log('📭 No subscribers for deal notifications');
-      return 0;
-    }
-
-    console.log(`📢 Sending new deal notification to ${subscribers.length} subscribers`);
-
-    const sentCount = await sendNewDealNotification(subscribers, deal);
-    
-    console.log(`✅ New deal notification sent to ${sentCount} subscribers`);
-    return sentCount;
-
-  } catch (error) {
-    console.error('❌ Error sending new deal notification:', error);
-    throw error;
-  }
-};
-
-// Send notification when new blog is published
+// ✅ KEPT: Send notification when new blog is published
 export const notifyNewBlog = async (blog) => {
   try {
     const subscribers = await Newsletter.find({
@@ -417,4 +287,3 @@ const getPreferenceStats = async () => {
     total: subscribers.length
   };
 };
-
