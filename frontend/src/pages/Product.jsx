@@ -3,15 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import RelatedProduct from '../components/RelatedProduct';
 import LoginModal from '../components/Login';
-import { 
-  FaStar, 
-  FaStarHalf, 
-  FaRegStar, 
-  FaThumbsUp, 
-  FaThumbsDown, 
-  FaTimes, 
-  FaShoppingCart, 
-  FaPlus, 
+import {
+  FaStar,
+  FaStarHalf,
+  FaRegStar,
+  FaThumbsUp,
+  FaThumbsDown,
+  FaTimes,
+  FaShoppingCart,
+  FaPlus,
   FaMinus,
   FaCheckCircle,
   FaSpinner,
@@ -27,20 +27,20 @@ import {
 import { toast } from 'react-toastify';
 
 const Product = () => {
-  const { productId } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
-  const { 
-    products, 
-    currency, 
-    addToCart, 
-    user, 
-    token, 
-    backendUrl,   
-    getCartAmount, 
+  const {
+    products,
+    currency,
+    addToCart,
+    user,
+    token,
+    backendUrl,
+    getCartAmount,
     isFreeDeliveryAvailable,
-    getAmountForFreeDelivery 
+    getAmountForFreeDelivery
   } = useContext(ShopContext);
-  
+
   const [productData, setProductData] = useState(null);
   const [image, setImage] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -56,11 +56,11 @@ const Product = () => {
   const [error, setError] = useState(null);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [loadingProductDetails, setLoadingProductDetails] = useState(false);
-  
+
   // Login Modal State
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
-  
+
   // Expandable sections state
   const [expandedSections, setExpandedSections] = useState({
     description: true,
@@ -95,11 +95,11 @@ const Product = () => {
     readyDate.setDate(today.getDate() + 1);
     const deliveredDate = new Date(today);
     deliveredDate.setDate(today.getDate() + 3);
-    
+
     const formatDate = (date) => {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
-    
+
     return {
       ordered: formatDate(orderedDate),
       readyStart: formatDate(readyDate),
@@ -116,24 +116,24 @@ const Product = () => {
       [section]: !prev[section]
     }));
   }, []);
-  
+
   // Add shaking animation (this is fine - transform doesn't cause CLS)
   useEffect(() => {
     let animationFrame;
     let startTime;
     let isShaking = true;
-    
+
     const animate = (timestamp) => {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
-      
+
       if (isShaking) {
         const cycleTime = elapsed % 3000;
-        
+
         if (cycleTime < 800) {
           const progress = cycleTime / 800;
           const shakeIntensity = Math.sin(progress * Math.PI * 4) * 3;
-          
+
           let offset = 0;
           if (progress < 0.25) {
             offset = shakeIntensity * (progress * 4);
@@ -142,18 +142,18 @@ const Product = () => {
           } else {
             offset = shakeIntensity;
           }
-          
+
           setShakeOffset(offset);
         } else {
           setShakeOffset(0);
         }
-        
+
         animationFrame = requestAnimationFrame(animate);
       }
     };
-    
+
     animationFrame = requestAnimationFrame(animate);
-    
+
     return () => {
       isShaking = false;
       cancelAnimationFrame(animationFrame);
@@ -172,10 +172,10 @@ const Product = () => {
       try {
         const response = await fetch(`${backendURL}/api/categories`);
         if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-        
+
         const data = await response.json();
         let categories = data;
-        
+
         if (data.data && Array.isArray(data.data)) categories = data.data;
         if (data.categories && Array.isArray(data.categories)) categories = data.categories;
         if (!Array.isArray(categories)) throw new Error('Categories data is not an array');
@@ -186,15 +186,15 @@ const Product = () => {
         const transformedCategories = categories.map((cat) => {
           const categoryId = cat._id || cat.id;
           const categoryName = cat.name || cat.categoryName || cat.title || 'Category';
-          
+
           if (categoryId) idToNameMap[categoryId] = categoryName;
 
           const subcategories = (cat.subcategories || cat.subCategories || []).map((sub) => {
             const subcategoryId = sub._id || sub.id;
             const subcategoryName = sub.name || sub.subcategoryName || sub.title || sub || 'Subcategory';
-            
+
             if (subcategoryId) subcategoryIdToNameMap[subcategoryId] = subcategoryName;
-            
+
             return {
               id: subcategoryId,
               name: subcategoryName
@@ -211,7 +211,7 @@ const Product = () => {
         setBackendCategories(transformedCategories);
         setCategoryIdMap(idToNameMap);
         setSubcategoryIdMap(subcategoryIdToNameMap);
-        
+
       } catch (error) {
         console.error('Error fetching categories:', error);
       } finally {
@@ -236,29 +236,29 @@ const Product = () => {
   const maskEmail = useCallback((email) => {
     if (!email || typeof email !== 'string') return 'Unknown User';
     if (email.includes('***@') || !email.includes('@')) return email;
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return email;
-    
+
     const [localPart, domain] = email.split('@');
     if (localPart.length === 1) return `${localPart}***@${domain}`;
-    
+
     const firstChar = localPart[0];
     const maskedLocalPart = firstChar + '***';
     return `${maskedLocalPart}@${domain}`;
   }, []);
 
-  const fetchProductDetails = useCallback(async (productId) => {
-    if (!productId || !backendURL) return null;
-    
+  const fetchProductDetails = useCallback(async (slug) => {
+    if (!slug || !backendURL) return null;
+
     setLoadingProductDetails(true);
     try {
       const response = await fetch(`${backendURL}/api/product/single`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId })
+        body: JSON.stringify({ slug })
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         return data.product;
@@ -272,12 +272,12 @@ const Product = () => {
     }
   }, [backendURL]);
 
-  const fetchProductReviews = useCallback(async (productId) => {
-    if (!productId || !backendURL) return;
+  const fetchProductReviews = useCallback(async (pid) => {
+    if (!pid || !backendURL) return;
 
     setLoadingReviews(true);
     try {
-      const response = await fetch(`${backendURL}/api/comments?productId=${productId}`);
+      const response = await fetch(`${backendURL}/api/comments?productId=${pid}`);
       if (response.ok) {
         const comments = await response.json();
         const productReviews = comments.map(comment => ({
@@ -300,7 +300,7 @@ const Product = () => {
             date: new Date(comment.reply.date).toLocaleDateString()
           } : null
         }));
-        
+
         setReviews(productReviews);
       }
     } catch (error) {
@@ -315,10 +315,10 @@ const Product = () => {
     if (productData?.category && backendCategories.length > 0) {
       const categoryId = productData.category;
       const category = backendCategories.find(cat => cat.id === categoryId);
-      
+
       if (category && category.subcategories && category.subcategories.length > 0) {
         setAvailableSubcategories(category.subcategories);
-        
+
         // Set initial selected subcategory to current product's subcategory
         if (productData.subcategory) {
           const subcatId = productData.subcategory;
@@ -338,21 +338,27 @@ const Product = () => {
 
   // SIMPLIFIED PRODUCT DATA FETCHING
   useEffect(() => {
-    if (!productId) {
-      setError('Product ID not found');
+    if (!slug) {
+      setError('Product not found');
       return;
     }
 
     // If products are loaded, find the product
     if (products && products.length > 0) {
-      const product = products.find((item) => item._id === productId);
+      const product = products.find((item) => item.slug === slug || item._id === slug);
       if (product) {
+        // If accessed via ID, redirect to slug for SEO
+        if (product.slug && slug !== product.slug) {
+          navigate(`/product/${product.slug}`, { replace: true });
+          return;
+        }
+
         setProductData(product);
         setImage(product.image?.[0] || '');
         setError(null);
-        
+
         // Fetch additional details
-        fetchProductDetails(productId).then(details => {
+        fetchProductDetails(slug).then(details => {
           if (details) {
             setProductData(prev => ({
               ...prev,
@@ -365,35 +371,35 @@ const Product = () => {
             }));
           }
         });
-        
-        fetchProductReviews(productId);
+
+        fetchProductReviews(product._id);
       } else {
         setError('Product not found');
       }
     }
-  }, [productId, products, fetchProductDetails, fetchProductReviews]);
+  }, [slug, products, fetchProductDetails, fetchProductReviews]);
 
   // Handle subcategory change (for radio buttons)
   const handleSubcategoryChange = useCallback(async (subcategoryId) => {
     if (!subcategoryId || !productData?.category || changingSubcategory) return;
-    
+
     // If it's the same as current, do nothing
     if (subcategoryId === selectedSubcategory) return;
-    
+
     setSelectedSubcategory(subcategoryId);
-    
+
     try {
       const categoryId = productData.category;
-      
+
       // Find the product with this subcategory
-      const newProduct = products.find(p => 
-        p.category === categoryId && 
+      const newProduct = products.find(p =>
+        p.category === categoryId &&
         p.subcategory === subcategoryId
       );
-      
+
       if (newProduct) {
         // Instant navigation - no delay
-        navigate(`/product/${newProduct._id}`);
+        navigate(`/product/${newProduct.slug}`);
       }
     } catch (error) {
       console.error('Error changing subcategory:', error);
@@ -404,11 +410,11 @@ const Product = () => {
   // Variant products memo
   const variantProducts = useMemo(() => {
     if (!productData?.category || !products.length) return {};
-    
+
     const variants = {};
     availableSubcategories.forEach(subcat => {
-      const variant = products.find(p => 
-        p.category === productData.category && 
+      const variant = products.find(p =>
+        p.category === productData.category &&
         p.subcategory === subcat.id
       );
       if (variant) {
@@ -441,7 +447,7 @@ const Product = () => {
   const renderStockStatus = useCallback(() => {
     // FIX: Always render with fixed height
     const baseClass = "p-4 rounded-xl min-h-[88px]";
-    
+
     if (stock === 0) {
       return (
         <div className={`${baseClass} bg-red-50 border border-red-200`}>
@@ -542,7 +548,7 @@ const Product = () => {
     try {
       const formData = new FormData();
       formData.append('targetType', 'product');
-      formData.append('productId', productId);
+      formData.append('productId', productData?._id);
       formData.append('userId', user._id);
       formData.append('content', comment);
       formData.append('rating', rating);
@@ -595,7 +601,7 @@ const Product = () => {
     } finally {
       setUploading(false);
     }
-  }, [user, rating, comment, reviewImages, productId, token, backendURL]);
+  }, [user, rating, comment, reviewImages, productData?._id, token, backendURL]);
 
   const getUserInteractionStatus = useCallback((review) => {
     if (!user || !user._id) return { hasLiked: false, hasDisliked: false };
@@ -724,16 +730,16 @@ const Product = () => {
 
   const handleOrderOnWhatsApp = useCallback(() => {
     if (!productData) return;
-    
+
     const message = `Assalam O Alaikum! I would like to order:\n\n` +
-                   `*Product:* ${productData.name}\n` +
-                   `*Quantity:* ${quantity}\n` +
-                   `*Price:* ${currency} ${(productData.discountprice || productData.price) * quantity}\n\n` +
-                   `Please let me know the next steps.`;
-    
+      `*Product:* ${productData.name}\n` +
+      `*Quantity:* ${quantity}\n` +
+      `*Price:* ${currency} ${(productData.discountprice || productData.price) * quantity}\n\n` +
+      `Please let me know the next steps.`;
+
     const encodedMessage = encodeURIComponent(message);
     const phoneNumber = "923260325457";
-    
+
     window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, '_blank');
   }, [productData, quantity, currency]);
 
@@ -743,13 +749,13 @@ const Product = () => {
       toast.error('This product is out of stock');
       return;
     }
-    
+
     const finalQuantity = Math.min(quantity, stock);
     if (finalQuantity !== quantity) {
       setQuantity(finalQuantity);
       toast.info(`Quantity adjusted to available stock: ${finalQuantity}`);
     }
-    
+
     setIsAddingToCart(true);
     addToCartCalledRef.current = true;
 
@@ -757,12 +763,12 @@ const Product = () => {
       const currentCartAmount = getCartAmount?.() || 0;
       const productAmount = (productData.discountprice || productData.price) * finalQuantity;
       const totalAmountAfterAdd = currentCartAmount + productAmount;
-      
+
       addToCart(productData._id, finalQuantity);
-      
+
       const isFreeDelivery = isFreeDeliveryAvailable?.(totalAmountAfterAdd) || false;
       const amountNeeded = getAmountForFreeDelivery?.(totalAmountAfterAdd) || 0;
-      
+
       if (isFreeDelivery) {
         toast.success(
           <div className="flex items-center gap-2">
@@ -795,7 +801,7 @@ const Product = () => {
           { autoClose: 3000, className: 'bg-green-50 border border-green-200' }
         );
       }
-      
+
       setQuantity(1);
     } catch (error) {
       toast.error('Failed to add product to cart');
@@ -812,20 +818,20 @@ const Product = () => {
       toast.error('This product is out of stock');
       return;
     }
-    
+
     // Show loading state
     setIsAddingToCart(true);
-    
+
     // Add to cart first
     addToCart(productData._id, quantity);
-    
+
     // Small delay to ensure cart is updated
     setTimeout(() => {
       // Navigate to checkout page
       navigate('/place-order');
       setIsAddingToCart(false);
     }, 500);
-    
+
   }, [productData, quantity, stock, addToCart, navigate]);
 
   const renderRating = useCallback((ratingValue = 0) => {
@@ -861,12 +867,12 @@ const Product = () => {
 
   // Product calculations
   const { hasDiscount, actualPrice, originalPrice, discountPercentage } = useMemo(() => {
-    const hasDisc = productData?.discountprice !== undefined && 
-                   productData?.discountprice !== null && 
-                   productData?.discountprice !== productData?.price;
+    const hasDisc = productData?.discountprice !== undefined &&
+      productData?.discountprice !== null &&
+      productData?.discountprice !== productData?.price;
     const actual = hasDisc ? productData?.discountprice : productData?.price;
     const original = hasDisc ? productData?.price : null;
-    const discountPct = hasDisc 
+    const discountPct = hasDisc
       ? Math.round(((productData?.price - productData?.discountprice) / productData?.price) * 100)
       : null;
 
@@ -909,13 +915,13 @@ const Product = () => {
     return { averageRating: avgRating, ratingBreakdown: breakdown };
   }, [reviews]);
 
-  const filteredReviews = useMemo(() => 
+  const filteredReviews = useMemo(() =>
     filterRating ? reviews.filter((review) => review.rating === filterRating) : reviews
-  , [reviews, filterRating]);
+    , [reviews, filterRating]);
 
-  const displayedReviews = useMemo(() => 
+  const displayedReviews = useMemo(() =>
     showAllReviews ? filteredReviews : filteredReviews.slice(0, 5)
-  , [showAllReviews, filteredReviews]);
+    , [showAllReviews, filteredReviews]);
 
   // LOADING STATE
   if (!products || products.length === 0) {
@@ -938,7 +944,7 @@ const Product = () => {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-3">Product Not Found</h1>
           <p className="text-gray-600 mb-8 text-lg">{error}</p>
-          <button 
+          <button
             onClick={() => window.history.back()}
             className="bg-black text-white px-8 py-3 rounded-xl font-medium hover:bg-gray-800 w-full"
           >
@@ -997,23 +1003,22 @@ const Product = () => {
                   )}
                   {productData.bestseller && (
                     <div className="absolute top-2 right-2 md:top-4 md:right-4 z-10 bg-black text-white px-2 py-1 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-semibold shadow">
-                      <FaTag className="inline mr-1 md:mr-2 text-xs md:text-sm" /> 
+                      <FaTag className="inline mr-1 md:mr-2 text-xs md:text-sm" />
                       <span className="hidden xs:inline">BESTSELLER</span>
                       <span className="xs:hidden">BEST</span>
                     </div>
                   )}
-                  
+
                   {/* Placeholder while loading */}
                   {!imagesLoaded[image] && (
                     <div className="absolute inset-0 bg-gray-100 animate-pulse" />
                   )}
-                  
+
                   <img
                     src={image || productData.image?.[0]}
                     alt={productData.name}
-                    className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-300 ${
-                      imagesLoaded[image] ? 'opacity-100' : 'opacity-0'
-                    }`}
+                    className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-300 ${imagesLoaded[image] ? 'opacity-100' : 'opacity-0'
+                      }`}
                     loading="eager"
                     onLoad={() => setImagesLoaded(prev => ({ ...prev, [image]: true }))}
                     onError={(e) => {
@@ -1036,11 +1041,10 @@ const Product = () => {
                       <img
                         src={item}
                         alt={`${productData.name} thumbnail ${index + 1}`}
-                        className={`absolute inset-0 w-full h-full object-cover rounded-lg cursor-pointer border-2 transition-colors ${
-                          image === item 
-                            ? 'border-black' 
-                            : 'border-gray-200 hover:border-gray-300'
-                        } ${imagesLoaded[item] ? 'opacity-100' : 'opacity-0'}`}
+                        className={`absolute inset-0 w-full h-full object-cover rounded-lg cursor-pointer border-2 transition-colors ${image === item
+                          ? 'border-black'
+                          : 'border-gray-200 hover:border-gray-300'
+                          } ${imagesLoaded[item] ? 'opacity-100' : 'opacity-0'}`}
                         onClick={() => setImage(item)}
                         loading="lazy"
                         onLoad={() => setImagesLoaded(prev => ({ ...prev, [item]: true }))}
@@ -1077,7 +1081,7 @@ const Product = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1">
                         {renderRating(averageRating)}
@@ -1099,16 +1103,16 @@ const Product = () => {
                         <div className="space-y-2">
                           {availableSubcategories.map((subcat) => {
                             const variantProduct = variantProducts[subcat.id] || productData;
-                            
-                            const hasDisc = variantProduct.discountprice !== undefined && 
-                                          variantProduct.discountprice !== null && 
-                                          variantProduct.discountprice !== variantProduct.price;
-                            
+
+                            const hasDisc = variantProduct.discountprice !== undefined &&
+                              variantProduct.discountprice !== null &&
+                              variantProduct.discountprice !== variantProduct.price;
+
                             const variantPrice = hasDisc ? variantProduct.discountprice : variantProduct.price;
                             const variantOriginalPrice = hasDisc ? variantProduct.price : null;
-                            
+
                             const isSelected = selectedSubcategory === subcat.id;
-                            
+
                             return (
                               <label
                                 key={subcat.id}
@@ -1116,8 +1120,8 @@ const Product = () => {
                                 className={`
                                   relative p-3 sm:p-4 rounded-lg border-2 transition-all duration-150
                                   flex items-center justify-between w-full cursor-pointer
-                                  ${isSelected 
-                                    ? 'border-black bg-black text-white shadow-lg' 
+                                  ${isSelected
+                                    ? 'border-black bg-black text-white shadow-lg'
                                     : 'border-gray-200 bg-white text-gray-800 hover:border-gray-400 hover:shadow'
                                   }
                                 `}
@@ -1127,10 +1131,10 @@ const Product = () => {
                                   name="subcategory"
                                   value={subcat.id}
                                   checked={isSelected}
-                                  onChange={() => {}}
+                                  onChange={() => { }}
                                   className="absolute opacity-0 w-0 h-0"
                                 />
-                                
+
                                 {/* Left side - Radio indicator and name */}
                                 <div className="flex items-center gap-2 sm:gap-3">
                                   <div className={`
@@ -1141,7 +1145,7 @@ const Product = () => {
                                   </div>
                                   <span className="text-sm sm:text-base font-medium">{subcat.name}</span>
                                 </div>
-                                
+
                                 {/* Right side - Price */}
                                 <div className="flex sm:flex-row flex-col items-center gap-1 sm:gap-2">
                                   <span className="font-bold text-sm sm:text-base">
@@ -1196,11 +1200,10 @@ const Product = () => {
                   <button
                     onClick={handleAddToCart}
                     disabled={stock === 0 || isAddingToCart}
-                    className={`w-full py-3 px-4 bg-black text-white font-medium rounded-lg border border-transparent transition-all h-12 ${
-                      stock === 0 || isAddingToCart
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:bg-gray-800 active:scale-[0.98]'
-                    }`}
+                    className={`w-full py-3 px-4 bg-black text-white font-medium rounded-lg border border-transparent transition-all h-12 ${stock === 0 || isAddingToCart
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-gray-800 active:scale-[0.98]'
+                      }`}
                   >
                     {isAddingToCart ? (
                       <div className="flex items-center justify-center gap-3">
@@ -1226,11 +1229,10 @@ const Product = () => {
                       boxShadow: getBoxShadow(),
                       transition: 'transform 0.05s linear, box-shadow 0.1s ease'
                     }}
-                    className={`w-full py-3 px-4 bg-[#355337] text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 h-12 ${
-                      stock === 0 || isAddingToCart 
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:bg-[#426444] active:scale-[0.98]'
-                    }`}
+                    className={`w-full py-3 px-4 bg-[#355337] text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 h-12 ${stock === 0 || isAddingToCart
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-[#426444] active:scale-[0.98]'
+                      }`}
                   >
                     {isAddingToCart ? (
                       <div className="flex items-center justify-center gap-3">
@@ -1248,9 +1250,8 @@ const Product = () => {
                   <button
                     onClick={handleOrderOnWhatsApp}
                     disabled={stock === 0}
-                    className={`w-full py-3 px-4 bg-green-600 text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 transition-all h-12 ${
-                      stock === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700 active:scale-[0.98]'
-                    }`}
+                    className={`w-full py-3 px-4 bg-green-600 text-white font-medium rounded-lg border border-transparent flex items-center justify-center gap-3 transition-all h-12 ${stock === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700 active:scale-[0.98]'
+                      }`}
                   >
                     <FaWhatsapp className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span className="text-sm sm:text-base">Order on WhatsApp</span>
@@ -1271,7 +1272,7 @@ const Product = () => {
                       </div>
                       <span className="text-xs sm:text-sm text-gray-600">{deliveryDates.ordered}</span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 flex-shrink-0" />
@@ -1279,7 +1280,7 @@ const Product = () => {
                       </div>
                       <span className="text-xs sm:text-sm text-gray-600">{deliveryDates.readyStart} - {deliveryDates.readyEnd}</span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <FaTruck className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 flex-shrink-0" />
@@ -1290,7 +1291,7 @@ const Product = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Expandable Sections - Fixed height containers */}
               <div className="space-y-4">
                 {/* Description Section */}
@@ -1486,7 +1487,7 @@ const Product = () => {
                       <div className="text-center py-6">
                         <h4 className="text-lg font-medium text-gray-900 mb-2">Sign In to Review</h4>
                         <p className="text-gray-600 mb-4">Please login to share your experience with this product</p>
-                        <button 
+                        <button
                           onClick={() => {
                             setIsLoginModalOpen(true);
                             setAuthMode('login');
@@ -1504,7 +1505,7 @@ const Product = () => {
                             {renderClickableStars(rating, setRating)}
                           </div>
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-900 mb-2">Your Review</label>
                           <textarea
@@ -1575,24 +1576,22 @@ const Product = () => {
                                 <p className="text-gray-500 text-sm">{review.date}</p>
                               </div>
                             </div>
-                            
+
                             <p className="text-gray-700 mb-3">{review.comment}</p>
-                            
+
                             <div className="flex items-center gap-4 pt-3 border-t border-gray-200">
                               <button
                                 onClick={() => handleLikeReview(review.id)}
-                                className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm ${
-                                  hasLiked ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                                }`}
+                                className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm ${hasLiked ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                                  }`}
                               >
                                 <FaThumbsUp className="w-4 h-4" />
                                 <span>{review.likes}</span>
                               </button>
                               <button
                                 onClick={() => handleDislikeReview(review.id)}
-                                className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm ${
-                                  hasDisliked ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
-                                }`}
+                                className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm ${hasDisliked ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+                                  }`}
                               >
                                 <FaThumbsDown className="w-4 h-4" />
                                 <span>{review.dislikes}</span>

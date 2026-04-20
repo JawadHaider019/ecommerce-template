@@ -30,7 +30,7 @@ const LatestCollection = () => {
       const uniqueProducts = publishedProducts.filter((product, index, self) =>
         index === self.findIndex(p => p._id === product._id)
       );
-      
+
       // MAX 4 PRODUCTS
       const latestUniqueProducts = uniqueProducts.slice(0, 20);
 
@@ -83,7 +83,7 @@ const LatestCollection = () => {
 
   // Enhanced Slick Slider settings for better mobile experience - SAME AS BEFORE
   const sliderSettings = {
-    dots: true, 
+    dots: true,
     infinite: latestProducts.length > 1,
     speed: 500,
     slidesToShow: Math.min(4, latestProducts.length),
@@ -159,20 +159,20 @@ const LatestCollection = () => {
     ],
     appendDots: dots => (
       <div className="mt-8 md:mt-10"> {/* Increased margin top */}
-        <ul style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
+        <ul style={{
+          display: 'flex',
+          justifyContent: 'center',
           gap: '8px',
           padding: 0,
           margin: 0,
           listStyle: 'none'
-        }}> 
+        }}>
           {dots}
         </ul>
       </div>
     ),
     customPaging: i => (
-      <button 
+      <button
         style={{
           width: '30px',
           height: '30px',
@@ -186,7 +186,7 @@ const LatestCollection = () => {
         }}
         aria-label={`Go to slide ${i + 1}`}
       >
-        <div 
+        <div
           style={{
             width: i === currentSlide ? '24px' : '8px',
             height: i === currentSlide ? '4px' : '8px',
@@ -227,7 +227,7 @@ const LatestCollection = () => {
       }
     `;
     document.head.appendChild(style);
-    
+
     return () => {
       document.head.removeChild(style);
     };
@@ -250,7 +250,7 @@ const LatestCollection = () => {
 
     updateSliderVisibility();
     window.addEventListener('resize', updateSliderVisibility);
-    
+
     return () => {
       window.removeEventListener('resize', updateSliderVisibility);
     };
@@ -297,7 +297,7 @@ const LatestCollection = () => {
           Discover Pure Clay's newest range of organic products, proudly made in Pakistan. Each item is crafted with care, delivering natural, wholesome, and sustainable options for a healthier life.
         </p>
       </div>
-      
+
       {latestProducts.length === 0 ? (
         <div className="text-center text-gray-500 py-8 px-4">
           No products available at the moment.
@@ -311,6 +311,7 @@ const LatestCollection = () => {
                 <div className="mx-0">
                   <ProductItem
                     id={item._id}
+                    slug={item.slug}
                     image={item.image && item.image.length > 0 ? item.image[0] : "/images/fallback-image.jpg"}
                     name={item.name}
                     price={item.price}
@@ -322,7 +323,7 @@ const LatestCollection = () => {
               </div>
             ))}
           </Slider>
-          
+
           {/* Add custom arrows outside the slider - hidden on mobile - SAME LOGIC */}
           {latestProducts.length > Math.min(3, latestProducts.length) && (
             <>
@@ -338,6 +339,7 @@ const LatestCollection = () => {
             <ProductItem
               key={item._id}
               id={item._id}
+              slug={item.slug}
               image={item.image && item.image.length > 0 ? item.image[0] : "/images/fallback-image.jpg"}
               name={item.name}
               price={item.price}

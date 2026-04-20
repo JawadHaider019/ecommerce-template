@@ -29,17 +29,17 @@ const Collection = () => {
         }
 
         const data = await response.json();
-        
+
         let categories = data;
-        
+
         if (data.data && Array.isArray(data.data)) {
           categories = data.data;
         }
-        
+
         if (data.categories && Array.isArray(data.categories)) {
           categories = data.categories;
         }
-        
+
         if (!Array.isArray(categories)) {
           throw new Error('Categories data is not an array');
         }
@@ -51,7 +51,7 @@ const Collection = () => {
         const transformedCategories = categories.map((cat) => {
           const categoryId = cat._id || cat.id;
           const categoryName = cat.name || cat.categoryName || cat.title || 'Category';
-          
+
           if (categoryId) {
             idToNameMap[categoryId] = categoryName;
           }
@@ -59,11 +59,11 @@ const Collection = () => {
           const subcategories = (cat.subcategories || cat.subCategories || []).map((sub) => {
             const subcategoryId = sub._id || sub.id;
             const subcategoryName = sub.name || sub.subcategoryName || sub.title || sub || 'Subcategory';
-            
+
             if (subcategoryId) {
               subcategoryIdToNameMap[subcategoryId] = subcategoryName;
             }
-            
+
             return {
               id: subcategoryId,
               name: subcategoryName
@@ -81,7 +81,7 @@ const Collection = () => {
         setCategoryIdMap(idToNameMap);
         setSubcategoryIdMap(subcategoryIdToNameMap);
         setError(null);
-        
+
       } catch (error) {
         setError(error.message);
         // Fallback: extract categories from products
@@ -90,14 +90,14 @@ const Collection = () => {
           if (product && product.category) {
             const categoryName = product.category;
             const subcategoryName = product.subcategory;
-            
+
             if (!categoryMap[categoryName]) {
               categoryMap[categoryName] = {
                 name: categoryName,
                 subcategories: new Set()
               };
             }
-            
+
             if (subcategoryName) {
               categoryMap[categoryName].subcategories.add(subcategoryName);
             }
@@ -110,7 +110,7 @@ const Collection = () => {
             name: sub
           }))
         }));
-        
+
         setBackendCategories(fallbackCategories);
       } finally {
         setLoading(false);
@@ -144,14 +144,14 @@ const Collection = () => {
 
   // Toggle functions
   const toggleCategory = useCallback((categoryName) => {
-    setSelectedCategories(prev => 
+    setSelectedCategories(prev =>
       prev.includes(categoryName) ? prev.filter(c => c !== categoryName) : [...prev, categoryName]
     );
     setSelectedSubCategories([]);
   }, []);
 
   const toggleSubCategory = useCallback((subcategoryName) => {
-    setSelectedSubCategories(prev => 
+    setSelectedSubCategories(prev =>
       prev.includes(subcategoryName) ? prev.filter(s => s !== subcategoryName) : [...prev, subcategoryName]
     );
   }, []);
@@ -204,7 +204,7 @@ const Collection = () => {
       productsCopy = productsCopy.filter(item => {
         const itemCategoryId = item.category;
         const itemCategoryName = getCategoryName(itemCategoryId);
-        
+
         return selectedCategories.some(selectedCat => {
           const selectedCategoryId = getCategoryId(selectedCat);
           return itemCategoryId === selectedCategoryId || itemCategoryName === selectedCat;
@@ -217,7 +217,7 @@ const Collection = () => {
       productsCopy = productsCopy.filter(item => {
         const itemSubcategoryId = item.subcategory;
         const itemSubcategoryName = getSubcategoryName(itemSubcategoryId);
-        
+
         return selectedSubCategories.some(selectedSub => {
           const selectedSubcategoryId = getSubcategoryId(selectedSub);
           return itemSubcategoryId === selectedSubcategoryId || itemSubcategoryName === selectedSub;
@@ -250,11 +250,11 @@ const Collection = () => {
 
     setFilterProducts(productsCopy);
   }, [
-    products, 
-    search, 
-    showSearch, 
-    selectedCategories, 
-    selectedSubCategories, 
+    products,
+    search,
+    showSearch,
+    selectedCategories,
+    selectedSubCategories,
     sortType,
     getCategoryName,
     getCategoryId,
@@ -276,18 +276,18 @@ const Collection = () => {
   const getSubcategoryProductCount = useCallback((subcategoryName) => {
     const subcategoryId = getSubcategoryId(subcategoryName);
     return products.filter(product => {
-      const parentCategorySelected = selectedCategories.length === 0 || 
+      const parentCategorySelected = selectedCategories.length === 0 ||
         selectedCategories.some(cat => {
           const categoryId = getCategoryId(cat);
           const productCategoryId = product.category;
           const productCategoryName = getCategoryName(productCategoryId);
           return productCategoryId === categoryId || productCategoryName === cat;
         });
-      
+
       const productSubcategoryId = product.subcategory;
       const productSubcategoryName = getSubcategoryName(productSubcategoryId);
-      
-      return parentCategorySelected && 
+
+      return parentCategorySelected &&
         (productSubcategoryId === subcategoryId || productSubcategoryName === subcategoryName);
     }).length;
   }, [products, selectedCategories, getSubcategoryId, getCategoryId, getCategoryName, getSubcategoryName]);
@@ -304,8 +304,8 @@ const Collection = () => {
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <div className="text-red-500 text-lg">Error loading categories</div>
         <div className="text-gray-500 text-sm">{error}</div>
-        <button 
-          onClick={() => window.location.reload()} 
+        <button
+          onClick={() => window.location.reload()}
           className="px-4 py-2 bg-black text-white hover:bg-gray-900 transition-colors"
         >
           Retry
@@ -326,15 +326,15 @@ const Collection = () => {
     <div className="flex flex-col gap-1 pt-10 sm:flex-row sm:gap-10">
       {/* Filters Sidebar */}
       <div className="min-w-60">
-        <p 
-          onClick={() => setShowFilter(!showFilter)} 
+        <p
+          onClick={() => setShowFilter(!showFilter)}
           className="my-2 flex cursor-pointer items-center gap-2 text-2xl"
         >
           Filters
-          <img 
-            className={`h-3 sm:hidden ${showFilter ? 'rotate-90' : ''}`} 
-            src={assets.dropdown_icon} 
-            alt="" 
+          <img
+            className={`h-3 sm:hidden ${showFilter ? 'rotate-90' : ''}`}
+            src={assets.dropdown_icon}
+            alt=""
           />
         </p>
 
@@ -343,9 +343,9 @@ const Collection = () => {
             <div className="mb-4 p-2 bg-yellow-100 border border-yellow-400 rounded text-xs">
               <strong>Note:</strong> Using fallback categories. {error}
             </div>
-          )} 
+          )}
 
-        
+
           {/* Categories Section */}
           <p className="mb-3 text-md font-medium">Categories</p>
           <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
@@ -354,9 +354,9 @@ const Collection = () => {
                 const productCount = getCategoryProductCount(cat.name);
                 return (
                   <label key={cat.name} className="flex gap-2 items-center cursor-pointer">
-                    <input 
-                      className="w-4 h-4 accent-black text-black" 
-                      type="checkbox" 
+                    <input
+                      className="w-4 h-4 accent-black text-black"
+                      type="checkbox"
                       checked={selectedCategories.includes(cat.name)}
                       onChange={() => toggleCategory(cat.name)}
                     />
@@ -381,9 +381,9 @@ const Collection = () => {
                   const productCount = getSubcategoryProductCount(sub);
                   return (
                     <label key={sub} className="flex gap-2 items-center cursor-pointer">
-                      <input 
-                        className="w-4 h-4 accent-black text-black" 
-                        type="checkbox" 
+                      <input
+                        className="w-4 h-4 accent-black text-black"
+                        type="checkbox"
                         checked={selectedSubCategories.includes(sub)}
                         onChange={() => toggleSubCategory(sub)}
                         disabled={productCount === 0}
@@ -416,19 +416,19 @@ const Collection = () => {
       {/* Products Grid */}
       <div className="flex-1">
         <div className="mb-4 text-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <Title  text1={'All'} text2={'Collections'} />
-          
+          <Title text1={'All'} text2={'Collections'} />
+
           {/* Results count and active filters */}
           <div className="flex flex-col gap-2">
             <div className="text-sm text-gray-600">
               Showing {filterProducts.length} of {products.length} products
             </div>
-        
+
           </div>
-          
+
           {/* Sort Dropdown */}
-          <select 
-            onChange={(e) => setSortType(e.target.value)} 
+          <select
+            onChange={(e) => setSortType(e.target.value)}
             className="border-2 border-gray-300 px-3 py-2 text-sm rounded"
             value={sortType}
           >
@@ -444,12 +444,12 @@ const Collection = () => {
         {hasActiveFilters && (
           <div className="mb-4 flex flex-wrap gap-2">
             {selectedCategories.map(cat => (
-              <span 
-                key={cat} 
+              <span
+                key={cat}
                 className="bg-gray-100 px-3 py-1 rounded-full text-sm flex items-center gap-1"
               >
                 {cat}
-                <button 
+                <button
                   onClick={() => setSelectedCategories(prev => prev.filter(c => c !== cat))}
                   className="text-gray-500 hover:text-gray-700"
                 >
@@ -458,12 +458,12 @@ const Collection = () => {
               </span>
             ))}
             {selectedSubCategories.map(sub => (
-              <span 
-                key={sub} 
+              <span
+                key={sub}
                 className="bg-gray-100 px-3 py-1 rounded-full text-sm flex items-center gap-1"
               >
                 {sub}
-                <button 
+                <button
                   onClick={() => setSelectedSubCategories(prev => prev.filter(s => s !== sub))}
                   className="text-gray-500 hover:text-gray-700"
                 >
@@ -481,6 +481,7 @@ const Collection = () => {
               <ProductItem
                 key={item._id}
                 id={item._id}
+                slug={item.slug}
                 image={item.image && item.image.length > 0 ? item.image[0] : assets.fallback_image}
                 name={item.name}
                 price={item.price}

@@ -3,7 +3,7 @@ import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
 import { FaStar, FaStarHalf, FaRegStar, FaArrowRight } from 'react-icons/fa';
 
-const ProductItem = ({ id, image, name, price, discount, rating, status = 'published' }) => {
+const ProductItem = ({ id, slug, image, name, price, discount, rating, status = 'published' }) => {
   const { currency } = useContext(ShopContext);
   const navigate = useNavigate();
   const [isImageLoaded, setIsImageLoaded] = useState(false);
@@ -22,7 +22,7 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
     img.src = image;
     img.loading = 'eager';
     img.decoding = 'async';
-    
+
     img.onload = img.onerror = () => {
       setIsImageLoaded(true);
     };
@@ -38,7 +38,7 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
         link.href = url.origin;
         link.crossOrigin = 'anonymous';
         document.head.appendChild(link);
-        
+
         return () => {
           document.head.removeChild(link);
         };
@@ -49,9 +49,9 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
   }, [image]);
 
   const handleClick = useCallback(() => {
-    navigate(`/product/${id}`);
+    navigate(`/product/${slug || id}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [navigate, id]);
+  }, [navigate, id, slug]);
 
   // Memoized rating calculation
   const renderRating = useCallback((ratingValue = 0) => {
@@ -88,14 +88,14 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
     const actualPrice = discount ? discount : price;
     const discountPercentage = discount ? Math.round(((price - discount) / price) * 100) : 0;
     const showDiscount = discount && discountPercentage > 0;
-    
+
     return { actualPrice, discountPercentage, showDiscount };
   }, [price, discount]);
 
   // FIX 1: Smart rating display - only reserve space when needed
   const ratingDisplay = useMemo(() => {
     if (rating <= 0) return null;
-    
+
     return (
       <div className="flex items-center gap-1 mb-2">
         {renderRating(rating)}
@@ -107,7 +107,7 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
   // Memoized discount badge
   const discountBadge = useMemo(() => {
     if (!showDiscount) return null;
-    
+
     return (
       <div className="absolute top-3 right-3 bg-black text-white px-2 py-1 rounded-full text-xs font-bold z-10">
         {discountPercentage}% OFF
@@ -119,23 +119,23 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
   const getContentHeight = useMemo(() => {
     let height = 0;
     height += 40; // Base padding
-    
+
     // Title height (approx 20px per line)
     const titleLines = Math.ceil(name.length / 25); // Rough estimate
     height += titleLines * 20;
-    
+
     // Rating height if exists
     if (rating > 0) height += 24; // Rating + gap
-    
+
     // Price section height
     height += 40; // Price + button
-    
+
     return height;
   }, [name, rating]);
 
   return (
-    <div 
-      onClick={handleClick} 
+    <div
+      onClick={handleClick}
       className="cursor-pointer bg-white rounded-2xl border border-black/50 p-2 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col w-full max-w-[320px] mx-auto group"
       role="button"
       tabIndex={0}
@@ -157,15 +157,14 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
             {!isImageLoaded && (
               <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse" />
             )}
-            
+
             {/* Actual Image with width/height attributes */}
             <img
               ref={imageRef}
-              className={`w-full h-full object-cover transition-all duration-500 ${
-                isImageLoaded 
-                  ? 'opacity-100 group-hover:scale-110' 
-                  : 'opacity-0'
-              }`}
+              className={`w-full h-full object-cover transition-all duration-500 ${isImageLoaded
+                ? 'opacity-100 group-hover:scale-110'
+                : 'opacity-0'
+                }`}
               src={image}
               alt={name}
               loading="eager"
@@ -178,17 +177,17 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
           </div>
         </div>
       </div>
-      
+
       {/* Content Section - Compact spacing */}
       <div className="flex flex-col flex-1">
         {/* Title - Always visible */}
         <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm leading-tight mb-1 group-hover:text-gray-700 transition-colors">
           {name}
         </h3>
-        
+
         {/* Rating - Only appears when needed, no reserved space */}
         {ratingDisplay}
-        
+
         {/* Price and Button - Fixed at bottom */}
         <div className="mt-auto">
           <div className="flex items-center justify-between">
@@ -204,8 +203,8 @@ const ProductItem = ({ id, image, name, price, discount, rating, status = 'publi
                 )}
               </div>
             </div>
-            
-            <button 
+
+            <button
               className="w-8 h-8 bg-black rounded-full flex items-center justify-center transition-all duration-300 group-hover:bg-black group-hover:scale-110 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 flex-shrink-0"
               aria-label="View product details"
               onClick={(e) => {

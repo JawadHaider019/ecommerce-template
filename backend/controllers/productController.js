@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
+import mongoose from 'mongoose';
 import productModel from '../models/productModel.js';
 // 🚫 REMOVED: import { notifyNewProduct } from '../controllers/newsletterController.js';
 
@@ -12,16 +13,16 @@ cloudinary.config({
 // ------------------- ADD PRODUCT -------------------
 const addProduct = async (req, res) => {
   try {
-    const { 
-      name, 
-      description, 
-      cost, 
-      price, 
-      discountprice, 
-      quantity, 
-      category, 
-      subcategory, 
-      bestseller, 
+    const {
+      name,
+      description,
+      cost,
+      price,
+      discountprice,
+      quantity,
+      category,
+      subcategory,
+      bestseller,
       status,
       // New optional fields
       ingredients,
@@ -43,22 +44,22 @@ const addProduct = async (req, res) => {
     // Parse array fields if they're strings (from form data)
     let parsedIngredients = [];
     let parsedBenefits = [];
-    
+
     try {
       if (ingredients) {
-        parsedIngredients = typeof ingredients === 'string' 
-          ? JSON.parse(ingredients) 
+        parsedIngredients = typeof ingredients === 'string'
+          ? JSON.parse(ingredients)
           : ingredients;
       }
     } catch (e) {
       console.error('Error parsing ingredients:', e);
       parsedIngredients = ingredients ? [ingredients] : [];
     }
-    
+
     try {
       if (benefits) {
-        parsedBenefits = typeof benefits === 'string' 
-          ? JSON.parse(benefits) 
+        parsedBenefits = typeof benefits === 'string'
+          ? JSON.parse(benefits)
           : benefits;
       }
     } catch (e) {
@@ -98,16 +99,16 @@ const addProduct = async (req, res) => {
     //   }
     // }
 
-    res.json({ 
-      success: true, 
-      message: 'Product added successfully', 
-      product 
+    res.json({
+      success: true,
+      message: 'Product added successfully',
+      product
     });
   } catch (error) {
     console.error("Add Product Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };
@@ -116,18 +117,18 @@ const addProduct = async (req, res) => {
 const listProducts = async (req, res) => {
   try {
     const { status = 'all' } = req.query; // Default to 'all'
-    
+
     // Build query
     let query = {};
-    
+
     // If status is specified and not 'all', apply status filter
     if (status && status !== 'all') {
       query.status = status;
     }
     // If status is 'all' or not provided, no status filter (get all products)
-    
+
     const products = await productModel.find(query);
-    
+
     console.log('📦 Products found:', products.length);
     console.log('🔍 Query used:', query);
     console.log('📊 Status breakdown:', {
@@ -135,17 +136,17 @@ const listProducts = async (req, res) => {
       draft: products.filter(p => p.status === 'draft').length,
       archived: products.filter(p => p.status === 'archived').length
     });
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       products,
-      count: products.length 
+      count: products.length
     });
   } catch (error) {
     console.error("List Products Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };
@@ -154,15 +155,15 @@ const listProducts = async (req, res) => {
 const removeProduct = async (req, res) => {
   try {
     await productModel.findByIdAndDelete(req.body.id);
-    res.json({ 
-      success: true, 
-      message: "Product removed successfully" 
+    res.json({
+      success: true,
+      message: "Product removed successfully"
     });
   } catch (error) {
     console.error("Remove Product Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };
@@ -170,25 +171,41 @@ const removeProduct = async (req, res) => {
 // ------------------- SINGLE PRODUCT -------------------
 const singleProduct = async (req, res) => {
   try {
-    const { productId } = req.body;
-    const product = await productModel.findById(productId);
-    
-    if (!product) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Product not found" 
+    const { productId, slug } = req.body;
+    let query = {};
+
+    if (slug) {
+      // Check both slug field and _id field (in case ID was passed as slug from old link)
+      // This ensures that legacy links still work
+      const isId = mongoose.Types.ObjectId.isValid(slug);
+      query = isId ? { $or: [{ slug }, { _id: slug }] } : { slug };
+    } else if (productId) {
+      query = { _id: productId };
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Product ID or slug is required"
       });
     }
-    
-    res.json({ 
-      success: true, 
-      product 
+
+    const product = await productModel.findOne(query);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      product
     });
   } catch (error) {
     console.error("Single Product Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };
@@ -198,13 +215,13 @@ const updateProduct = async (req, res) => {
   try {
     // Log all fields for debugging
     const fields = [
-      'id', 'name', 'description', 'cost', 'price', 'discountprice', 
-      'quantity', 'category', 'subcategory', 'bestseller', 'status', 
+      'id', 'name', 'description', 'cost', 'price', 'discountprice',
+      'quantity', 'category', 'subcategory', 'bestseller', 'status',
       'removedImages',
       // New fields
       'ingredients', 'howToUse', 'benefits'
     ];
-    
+
     fields.forEach(field => {
       console.log(`${field}:`, req.body[field]);
     });
@@ -230,18 +247,18 @@ const updateProduct = async (req, res) => {
 
     if (!id) {
       console.log("ERROR: No product ID provided");
-      return res.status(400).json({ 
-        success: false, 
-        message: "Product ID is required" 
+      return res.status(400).json({
+        success: false,
+        message: "Product ID is required"
       });
     }
 
     const existingProduct = await productModel.findById(id);
     if (!existingProduct) {
       console.log("ERROR: Product not found with ID:", id);
-      return res.status(404).json({ 
-        success: false, 
-        message: "Product not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
       });
     }
 
@@ -250,22 +267,22 @@ const updateProduct = async (req, res) => {
     // Parse array fields if they're strings (from form data)
     let parsedIngredients = existingProduct.ingredients;
     let parsedBenefits = existingProduct.benefits;
-    
+
     if (ingredients !== undefined) {
       try {
-        parsedIngredients = typeof ingredients === 'string' 
-          ? JSON.parse(ingredients) 
+        parsedIngredients = typeof ingredients === 'string'
+          ? JSON.parse(ingredients)
           : ingredients;
       } catch (e) {
         console.error('Error parsing ingredients:', e);
         parsedIngredients = ingredients ? [ingredients] : [];
       }
     }
-    
+
     if (benefits !== undefined) {
       try {
-        parsedBenefits = typeof benefits === 'string' 
-          ? JSON.parse(benefits) 
+        parsedBenefits = typeof benefits === 'string'
+          ? JSON.parse(benefits)
           : benefits;
       } catch (e) {
         console.error('Error parsing benefits:', e);
@@ -301,8 +318,8 @@ const updateProduct = async (req, res) => {
     // Handle removed images
     let removedImageUrls = [];
     try {
-      removedImageUrls = typeof removedImages === "string" 
-        ? JSON.parse(removedImages) 
+      removedImageUrls = typeof removedImages === "string"
+        ? JSON.parse(removedImages)
         : removedImages || [];
       console.log("Removed images:", removedImageUrls);
     } catch (e) {
@@ -311,7 +328,7 @@ const updateProduct = async (req, res) => {
 
     if (removedImageUrls.length > 0) {
       const normalizeUrl = url => url.replace(/^https?:/, "").trim();
-      finalImages = finalImages.filter(img => 
+      finalImages = finalImages.filter(img =>
         !removedImageUrls.some(removed => normalizeUrl(removed) === normalizeUrl(img))
       );
 
@@ -341,10 +358,10 @@ const updateProduct = async (req, res) => {
 
       if (newImages.length > 0) {
         const newImageUrls = await Promise.all(
-          newImages.map(file => 
-            cloudinary.uploader.upload(file.path, { 
-              resource_type: "image", 
-              folder: "products" 
+          newImages.map(file =>
+            cloudinary.uploader.upload(file.path, {
+              resource_type: "image",
+              folder: "products"
             }).then(res => res.secure_url)
           )
         );
@@ -355,12 +372,9 @@ const updateProduct = async (req, res) => {
 
     updateData.image = finalImages;
 
-    // Perform the update
-    const updatedProduct = await productModel.findByIdAndUpdate(
-      id, 
-      updateData, 
-      { new: true, runValidators: true }
-    );
+    // Perform the update using save() to trigger pre-save hooks (like slug generation)
+    Object.assign(existingProduct, updateData);
+    const updatedProduct = await existingProduct.save();
 
     // 🚫 REMOVED: Product notification code
     // if (status === 'published' && existingProduct.status !== 'published') {
@@ -372,17 +386,17 @@ const updateProduct = async (req, res) => {
     //   }
     // }
 
-    res.json({ 
-      success: true, 
-      message: "Product updated successfully", 
-      product: updatedProduct 
+    res.json({
+      success: true,
+      message: "Product updated successfully",
+      product: updatedProduct
     });
 
   } catch (error) {
     console.error("Update Product Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };
@@ -391,33 +405,33 @@ const updateProduct = async (req, res) => {
 const updateProductStatus = async (req, res) => {
   try {
     const { id, status } = req.body;
-    
+
     if (!id || !status) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Product ID and status are required" 
+      return res.status(400).json({
+        success: false,
+        message: "Product ID and status are required"
       });
     }
 
     const validStatuses = ['draft', 'published', 'archived', 'scheduled'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Invalid status. Must be: ${validStatuses.join(', ')}` 
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be: ${validStatuses.join(', ')}`
       });
     }
 
     const existingProduct = await productModel.findById(id);
     if (!existingProduct) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Product not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
       });
     }
 
     const updatedProduct = await productModel.findByIdAndUpdate(
-      id, 
-      { status }, 
+      id,
+      { status },
       { new: true }
     );
 
@@ -431,16 +445,16 @@ const updateProductStatus = async (req, res) => {
     //   }
     // }
 
-    res.json({ 
-      success: true, 
-      message: "Product status updated successfully", 
-      product: updatedProduct 
+    res.json({
+      success: true,
+      message: "Product status updated successfully",
+      product: updatedProduct
     });
   } catch (error) {
     console.error("Update Product Status Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };
@@ -450,16 +464,16 @@ const getProductsByStatus = async (req, res) => {
   try {
     const { status } = req.params;
     const products = await productModel.find({ status });
-    
-    res.json({ 
-      success: true, 
-      products 
+
+    res.json({
+      success: true,
+      products
     });
   } catch (error) {
     console.error("Get Products By Status Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };

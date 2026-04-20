@@ -49,7 +49,7 @@ const App = () => {
   useEffect(() => {
     // Don't run in development
     if (import.meta.env.DEV) return;
-    
+
     // Prevent double initialization
     if (clarityInitialized.current) return;
 
@@ -78,22 +78,22 @@ const App = () => {
             script.src = `${domains[currentDomain]}?ref=${Math.random().toString(36).substring(7)}`;
             script.async = true;
             script.setAttribute('data-clarity', projectId);
-            
+
             script.onload = () => {
               clarityInitialized.current = true;
               console.log('Clarity loaded successfully');
-              
+
               // Send initial page view
               if (window.clarity) {
                 window.clarity('set', 'page', location.pathname);
               }
             };
-            
+
             script.onerror = () => {
               currentDomain++;
               loadScript(); // Try next domain
             };
-            
+
             document.head.appendChild(script);
           };
 
@@ -147,28 +147,28 @@ const App = () => {
               }
             });
           `;
-          
+
           const blob = new Blob([workerCode], { type: 'application/javascript' });
           const workerUrl = URL.createObjectURL(blob);
           const worker = new Worker(workerUrl);
-          
+
           setTimeout(() => {
             worker.postMessage('init');
           }, 2000);
-          
+
           // Clean up
           setTimeout(() => {
             worker.terminate();
             URL.revokeObjectURL(workerUrl);
           }, 10000);
         }
-      } catch (e) {}
+      } catch (e) { }
     };
 
     // Delay initialization to bypass some ad blockers
     const delay = Math.random() * 3000 + 2000; // 2-5 seconds
     const timer1 = setTimeout(initClarity, delay);
-    
+
     // Try worker method after longer delay
     const timer2 = setTimeout(initWorker, 5000);
 
@@ -264,9 +264,9 @@ const App = () => {
         <Route path='/collection' element={<Collection />} />
         <Route path='/about' element={<About />} />
         <Route path='/contact' element={<Contact />} />
-        <Route path='/product/:productId' element={<Product />} />
+        <Route path='/product/:slug' element={<Product />} />
         <Route path="/deal/:dealId" element={<Deal />} />
-        <Route path="/collection/product/:productId" element={<Product />} />
+        <Route path="/collection/product/:slug" element={<Product />} />
         <Route path='/cart' element={<Cart />} />
         <Route path='/blog' element={<Blog />} />
         <Route path="/blog/:id" element={<BlogPost />} />

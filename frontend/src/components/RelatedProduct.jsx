@@ -48,12 +48,13 @@ const RelatedProduct = ({ category }) => {
             <ProductItem
               key={item._id}
               id={item._id}
+              slug={item.slug}
               image={item.image && item.image.length > 0 ? item.image[0] : assets.fallback_image}
               name={item.name}
               price={item.price}
               discount={item.discountprice}
               rating={item.rating || 0}
-                  status={item.status}
+              status={item.status}
             />
           ))}
         </div>

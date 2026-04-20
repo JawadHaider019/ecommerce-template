@@ -11,7 +11,7 @@ const dataCache = {
   deals: null,
   deliverySettings: null,
   timestamp: 0,
-  CACHE_DURATION: 2 * 60 * 1000 // 2 minutes
+  CACHE_DURATION: 0 // Disabled for immediate data synchronization during transition
 };
 
 const ShopContextProvider = ({ children }) => {
@@ -84,7 +84,7 @@ const ShopContextProvider = ({ children }) => {
     if (!hasLoadedCart) {
       const savedCartItems = localStorage.getItem('cartItems');
       const savedCartDeals = localStorage.getItem('cartDeals');
-      
+
       if (savedCartItems) setCartItems(JSON.parse(savedCartItems));
       if (savedCartDeals) setCartDeals(JSON.parse(savedCartDeals));
       setHasLoadedCart(true);
@@ -115,24 +115,24 @@ const ShopContextProvider = ({ children }) => {
       // Get current local cart BEFORE making API call
       const currentLocalItems = { ...cartItems };
       const currentLocalDeals = { ...cartDeals };
-      
+
       // Fetch server cart
       const response = await axios.get(`${BACKEND_URL}/api/cart`, {
         headers: { token },
         timeout: 5000
       });
-      
+
       if (response.data.success) {
         const serverCartItems = response.data.cartData?.products || {};
         const serverCartDeals = response.data.cartData?.deals || {};
-        
+
         // SMART MERGE: Only add items that don't exist in server cart
         const mergedCartItems = { ...serverCartItems };
         const mergedCartDeals = { ...serverCartDeals };
-        
+
         let itemsMerged = 0;
         let dealsMerged = 0;
-        
+
         // Merge local items into server cart (only if not already in server)
         Object.entries(currentLocalItems).forEach(([itemId, quantity]) => {
           if (quantity > 0 && !serverCartItems[itemId]) {
@@ -140,7 +140,7 @@ const ShopContextProvider = ({ children }) => {
             itemsMerged++;
           }
         });
-        
+
         // Merge local deals into server cart (only if not already in server)
         Object.entries(currentLocalDeals).forEach(([dealId, quantity]) => {
           if (quantity > 0 && !serverCartDeals[dealId]) {
@@ -148,16 +148,16 @@ const ShopContextProvider = ({ children }) => {
             dealsMerged++;
           }
         });
-        
+
         // Update state with merged cart
         setCartItems(mergedCartItems);
         setCartDeals(mergedCartDeals);
-        
+
         // Sync merged cart to server
         if (itemsMerged > 0 || dealsMerged > 0) {
           await syncMergedCartToServer(mergedCartItems, mergedCartDeals);
         }
-        
+
         // Clear localStorage since we've merged to server
         localStorage.removeItem('cartItems');
         localStorage.removeItem('cartDeals');
@@ -187,10 +187,10 @@ const ShopContextProvider = ({ children }) => {
   const clearCart = async () => {
     setCartItems({});
     setCartDeals({});
-    
+
     localStorage.removeItem('cartItems');
     localStorage.removeItem('cartDeals');
-    
+
     if (token && isBackendAvailable) {
       try {
         await axios.post(`${BACKEND_URL}/api/cart/clear`, {}, {
@@ -220,13 +220,13 @@ const ShopContextProvider = ({ children }) => {
       setCartItems(prev => {
         const updated = { ...prev };
         quantity === 0 ? delete updated[itemId] : (updated[itemId] = quantity);
-        
+
         if (Object.keys(updated).length > 0) {
           localStorage.setItem('cartItems', JSON.stringify(updated));
         } else {
           localStorage.removeItem('cartItems');
         }
-        
+
         return updated;
       });
 
@@ -235,7 +235,7 @@ const ShopContextProvider = ({ children }) => {
           await axios.post(
             `${BACKEND_URL}/api/cart/update`,
             { itemId, quantity },
-            { 
+            {
               headers: { token },
               timeout: 5000
             }
@@ -259,13 +259,13 @@ const ShopContextProvider = ({ children }) => {
     setCartDeals(prev => {
       const updated = { ...prev };
       quantity === 0 ? delete updated[dealId] : (updated[dealId] = quantity);
-      
+
       if (Object.keys(updated).length > 0) {
         localStorage.setItem('cartDeals', JSON.stringify(updated));
       } else {
         localStorage.removeItem('cartDeals');
       }
-      
+
       return updated;
     });
 
@@ -274,7 +274,7 @@ const ShopContextProvider = ({ children }) => {
         await axios.post(
           `${BACKEND_URL}/api/cart/update-deal`,
           { dealId, quantity },
-          { 
+          {
             headers: { token },
             timeout: 5000
           }
@@ -304,7 +304,7 @@ const ShopContextProvider = ({ children }) => {
           ...prev,
           [itemId]: (prev[itemId] || 0) + quantity
         };
-        
+
         localStorage.setItem('cartItems', JSON.stringify(updated));
         return updated;
       });
@@ -314,7 +314,7 @@ const ShopContextProvider = ({ children }) => {
           await axios.post(
             `${BACKEND_URL}/api/cart/add`,
             { itemId, quantity },
-            { 
+            {
               headers: { token },
               timeout: 5000
             }
@@ -352,7 +352,7 @@ const ShopContextProvider = ({ children }) => {
         ...prev,
         [dealId]: (prev[dealId] || 0) + quantity
       };
-      
+
       localStorage.setItem('cartDeals', JSON.stringify(updated));
       return updated;
     });
@@ -362,7 +362,7 @@ const ShopContextProvider = ({ children }) => {
         await axios.post(
           `${BACKEND_URL}/api/cart/add-deal`,
           { dealId, quantity },
-          { 
+          {
             headers: { token },
             timeout: 5000
           }
@@ -498,7 +498,7 @@ const ShopContextProvider = ({ children }) => {
         timeout: 5000
       });
       const updatedSettings = response.data?.settings || response.data;
-      
+
       if (updatedSettings) {
         dataCache.deliverySettings = updatedSettings;
         dataCache.timestamp = Date.now();
@@ -517,7 +517,7 @@ const ShopContextProvider = ({ children }) => {
 
   // Optimized average rating calculation
   const calculateAverageRating = useCallback((reviews) => {
-    const validRatings = reviews.filter(review => 
+    const validRatings = reviews.filter(review =>
       review && typeof review.rating === 'number' && review.rating > 0 && review.rating <= 5
     );
 
@@ -589,7 +589,7 @@ const ShopContextProvider = ({ children }) => {
         timeout: 8000
       });
       const productsData = response.data?.products;
-      
+
       if (productsData) {
         const productsWithBasicData = productsData.map(product => ({
           ...product,
@@ -611,7 +611,7 @@ const ShopContextProvider = ({ children }) => {
                 try {
                   const reviews = await fetchProductReviews(product._id);
                   const averageRating = calculateAverageRating(reviews);
-                  
+
                   return {
                     ...product,
                     rating: averageRating,
@@ -684,7 +684,7 @@ const ShopContextProvider = ({ children }) => {
               try {
                 const reviews = await fetchDealReviews(deal._id);
                 const averageRating = calculateAverageRating(reviews);
-                
+
                 return {
                   ...deal,
                   rating: averageRating,
@@ -751,7 +751,7 @@ const ShopContextProvider = ({ children }) => {
       if (response.data) {
         // Invalidate cache
         dataCache.timestamp = 0;
-        
+
         if (isDeal) {
           await fetchDealReviews(reviewData.dealId);
           await fetchDeals();
@@ -822,14 +822,14 @@ const ShopContextProvider = ({ children }) => {
 
     setLoadingState('cart', true, "Loading cart...");
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/cart`, { 
+      const response = await axios.get(`${BACKEND_URL}/api/cart`, {
         headers: { token },
         timeout: 5000
       });
       if (response.data.success) {
         const serverCartItems = response.data.cartData?.products || {};
         const serverCartDeals = response.data.cartData?.deals || {};
-        
+
         setCartItems(serverCartItems);
         setCartDeals(serverCartDeals);
         setHasLoadedCart(true);
@@ -852,7 +852,7 @@ const ShopContextProvider = ({ children }) => {
     return Object.entries(items).reduce((total, [id, quantity]) => {
       const item = itemsArray.find(p => p._id === id);
       if (!item || quantity <= 0) return total;
-      
+
       const price = item[discountKey] || item[priceKey];
       return total + (price * quantity);
     }, 0);
@@ -904,7 +904,7 @@ const ShopContextProvider = ({ children }) => {
     if (storedToken) {
       setToken(storedToken);
     }
-    
+
     // Check backend availability on mount
     checkBackendAvailability();
   }, [checkBackendAvailability]);
@@ -947,19 +947,19 @@ const ShopContextProvider = ({ children }) => {
     loading,
     isBackendAvailable,
     hasLoadedCart,
-    
+
     // Loading functions
     isLoadingAny,
     setLoadingState,
-    
+
     // UI functions
     setSearch,
     setShowSearch,
-    
+
     // Auth functions
     setToken,
     setUser,
-    
+
     // Cart functions
     addToCart,
     addDealToCart,
@@ -974,19 +974,19 @@ const ShopContextProvider = ({ children }) => {
     getTotalAmount: getCartTotal,
     getCart,
     clearCart,
-    
+
     // Deal functions
     getDealById,
     isDealInCart,
     getDealQuantityInCart,
-    
+
     // Delivery functions
     getDeliveryCharge,
     isFreeDeliveryAvailable,
     getAmountForFreeDelivery,
     updateDeliverySettings,
     fetchDeliverySettings,
-    
+
     // Review functions
     fetchProductReviews,
     fetchDealReviews,
@@ -995,11 +995,11 @@ const ShopContextProvider = ({ children }) => {
     getProductRatingInfo,
     getDealRatingInfo,
     calculateAverageRating,
-    
+
     // Data refresh functions
     refetchProducts: fetchProducts,
     refetchDeals: fetchDeals,
-    
+
     // Stock functions
     checkProductStock,
     checkDealStock,

@@ -29,7 +29,7 @@ const BestSeller = () => {
       // STRICT filtering - only products explicitly marked as bestsellers
       const bestProducts = publishedProducts.filter((item) => {
         // Check each possible bestseller field explicitly
-        const isExplicitBestSeller = 
+        const isExplicitBestSeller =
           (item.bestseller === true || item.bestseller === "true") ||
           (item.bestSeller === true || item.bestSeller === "true") ||
           (item.best_seller === true || item.best_seller === "true") ||
@@ -96,7 +96,7 @@ const BestSeller = () => {
 
   // Enhanced Slick Slider settings for better mobile experience - SAME AS LatestCollection
   const sliderSettings = {
-    dots: true, 
+    dots: true,
     infinite: bestSeller.length > 1,
     speed: 500,
     slidesToShow: Math.min(4, bestSeller.length),
@@ -172,20 +172,20 @@ const BestSeller = () => {
     ],
     appendDots: dots => (
       <div className="mt-8 md:mt-10"> {/* Increased margin top */}
-        <ul style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
+        <ul style={{
+          display: 'flex',
+          justifyContent: 'center',
           gap: '8px',
           padding: 0,
           margin: 0,
           listStyle: 'none'
-        }}> 
+        }}>
           {dots}
         </ul>
       </div>
     ),
     customPaging: i => (
-      <button 
+      <button
         style={{
           width: '30px',
           height: '30px',
@@ -199,7 +199,7 @@ const BestSeller = () => {
         }}
         aria-label={`Go to slide ${i + 1}`}
       >
-        <div 
+        <div
           style={{
             width: i === currentSlide ? '24px' : '8px',
             height: i === currentSlide ? '4px' : '8px',
@@ -240,7 +240,7 @@ const BestSeller = () => {
       }
     `;
     document.head.appendChild(style);
-    
+
     return () => {
       document.head.removeChild(style);
     };
@@ -263,7 +263,7 @@ const BestSeller = () => {
 
     updateSliderVisibility();
     window.addEventListener('resize', updateSliderVisibility);
-    
+
     return () => {
       window.removeEventListener('resize', updateSliderVisibility);
     };
@@ -310,7 +310,7 @@ const BestSeller = () => {
           <Title text1={'Popular'} text2={'Choices'} />
         </div>
       </div>
-      
+
       {bestSeller.length === 0 ? (
         <div className="text-center text-gray-500 py-8 px-4">
           No best sellers available at the moment. Check back soon!
@@ -324,6 +324,7 @@ const BestSeller = () => {
                 <div className="mx-0">
                   <ProductItem
                     id={item._id || item.id}
+                    slug={item.slug}
                     image={item.image && item.image.length > 0 ? item.image[0] : "/images/fallback-image.jpg"}
                     name={item.name || "Unnamed Product"}
                     price={item.price || 0}
@@ -335,7 +336,7 @@ const BestSeller = () => {
               </div>
             ))}
           </Slider>
-          
+
           {/* Add custom arrows outside the slider - hidden on mobile - SAME LOGIC AS LatestCollection */}
           {bestSeller.length > Math.min(3, bestSeller.length) && (
             <>
@@ -351,6 +352,7 @@ const BestSeller = () => {
             <ProductItem
               key={item._id || item.id}
               id={item._id || item.id}
+              slug={item.slug}
               image={item.image && item.image.length > 0 ? item.image[0] : "/images/fallback-image.jpg"}
               name={item.name || "Unnamed Product"}
               price={item.price || 0}
