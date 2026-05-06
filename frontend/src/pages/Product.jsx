@@ -1,5 +1,6 @@
 import { useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { ShopContext } from '../context/ShopContext';
 import RelatedProduct from '../components/RelatedProduct';
 import LoginModal from '../components/Login';
@@ -915,6 +916,59 @@ const Product = () => {
     return { averageRating: avgRating, ratingBreakdown: breakdown };
   }, [reviews]);
 
+  // Dynamic Product Schema for SEO
+  const productSchema = useMemo(() => {
+    if (!productData) return null;
+
+    const baseUrl = window.location.origin;
+    const productUrl = `${baseUrl}/product/${productData.slug}`;
+    const imageUrl = productData.image?.[0] || '';
+
+    // Calculate price range for AggregateOffer
+    let prices = [actualPrice];
+    if (variantProducts) {
+      Object.values(variantProducts).forEach(variant => {
+        const vPrice = variant.discountprice || variant.price;
+        if (vPrice) prices.push(vPrice);
+      });
+    }
+
+    const lowPrice = Math.min(...prices);
+    const highPrice = Math.max(...prices);
+
+    const schema = {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      "name": productData.name,
+      "image": imageUrl.startsWith('http') ? imageUrl : `${baseUrl}${imageUrl}`,
+      "description": productData.description || "",
+      "brand": {
+        "@type": "Pakistani Brand",
+        "name": "Pure Clay"
+      },
+      "sku": productData._id || productData.sku || "N/A",
+      "offers": {
+        "@type": "AggregateOffer",
+        "url": productUrl,
+        "priceCurrency": "PKR",
+        "lowPrice": lowPrice.toFixed(0),
+        "highPrice": highPrice.toFixed(0),
+        "offerCount": prices.length.toString(),
+        "availability": stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
+      }
+    };
+
+    if (reviews.length > 0) {
+      schema.aggregateRating = {
+        "@type": "AggregateRating",
+        "ratingValue": averageRating.toFixed(1),
+        "reviewCount": reviews.length.toString()
+      };
+    }
+
+    return schema;
+  }, [productData, actualPrice, variantProducts, stock, reviews, averageRating]);
+
   const filteredReviews = useMemo(() =>
     filterRating ? reviews.filter((review) => review.rating === filterRating) : reviews
     , [reviews, filterRating]);
@@ -972,6 +1026,15 @@ const Product = () => {
 
   return (
     <>
+      <Helmet>
+        <title>{productData.name} | Natura Bliss</title>
+        <meta name="description" content={productData.description || `Buy ${productData.name} at Natura Bliss. Best quality organic products in Pakistan.`} />
+        {productSchema && (
+          <script type="application/ld+json">
+            {JSON.stringify(productSchema)}
+          </script>
+        )}
+      </Helmet>
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-8xl mx-auto px-2 py-6 md:py-8">
           {/* Product Header */}
