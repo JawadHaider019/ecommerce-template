@@ -1,16 +1,16 @@
 import { Link } from "react-router-dom"
 import { assets } from "../assets/assets"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { 
-  faFacebookF, 
-  faInstagram, 
-  faWhatsapp, 
-  faTiktok,
+import {
+    faFacebookF,
+    faInstagram,
+    faWhatsapp,
+    faTiktok,
 } from "@fortawesome/free-brands-svg-icons"
-import { 
-  faEnvelope, 
-  faPhone, 
-  faMapMarkerAlt,
+import {
+    faEnvelope,
+    faPhone,
+    faMapMarkerAlt,
 } from "@fortawesome/free-solid-svg-icons"
 import { useState, useEffect } from "react"
 import axios from "axios"
@@ -68,27 +68,27 @@ const Footer = () => {
     }, [])
 
     const socialPlatforms = [
-        { 
-            key: 'facebook', 
-            icon: faFacebookF, 
+        {
+            key: 'facebook',
+            icon: faFacebookF,
             color: "hover:bg-blue-600",
             label: "Facebook"
         },
-        { 
-            key: 'instagram', 
-            icon: faInstagram, 
+        {
+            key: 'instagram',
+            icon: faInstagram,
             color: "hover:bg-pink-600",
             label: "Instagram"
         },
-        { 
-            key: 'tiktok', 
-            icon: faTiktok, 
+        {
+            key: 'tiktok',
+            icon: faTiktok,
             color: "hover:bg-black",
             label: "TikTok"
         },
-        { 
-            key: 'whatsapp', 
-            icon: faWhatsapp, 
+        {
+            key: 'whatsapp',
+            icon: faWhatsapp,
             color: "hover:bg-green-600",
             label: "WhatsApp"
         }
@@ -99,9 +99,9 @@ const Footer = () => {
     const LogoDisplay = () => {
         if (businessInfo.logos?.website?.url) {
             return (
-                <img 
-                    src={businessInfo.logos.website.url} 
-                    alt={`${businessInfo.company?.name} Logo`} 
+                <img
+                    src={businessInfo.logos.website.url}
+                    alt={`${businessInfo.company?.name} Logo`}
                     className="w-24 h-24 mb-2 object-contain rounded-2xl shadow-lg"
                     onError={(e) => {
                         e.target.src = assets.logo
@@ -109,12 +109,12 @@ const Footer = () => {
                 />
             )
         }
-        
+
         return (
-            <img 
-                src={assets.logo} 
-                className="w-24 h-24 mb-6 rounded-2xl shadow-lg" 
-                alt="Pure Clay Logo" 
+            <img
+                src={assets.logo}
+                className="w-24 h-24 mb-6 rounded-2xl shadow-lg"
+                alt="Pure Clay Logo"
             />
         )
     }
@@ -145,7 +145,7 @@ const Footer = () => {
             {/* Main Footer Content */}
             <div className="max-w-7xl mx-auto px-6 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-                    
+
                     {/* Brand Column */}
                     <div className="space-y-2">
                         <LogoDisplay />
@@ -165,8 +165,8 @@ const Footer = () => {
                         <ul className="space-y-3">
                             {['About', 'Products', 'Blog', 'Contact'].map((item) => (
                                 <li key={item}>
-                                    <Link 
-                                        to={`/${item.toLowerCase()}`} 
+                                    <Link
+                                        to={`/${item.toLowerCase()}`}
                                         className="text-gray-300 hover:text-white transition-all duration-300 hover:translate-x-2 block py-1"
                                     >
                                         {item.toUpperCase()}
@@ -218,7 +218,7 @@ const Footer = () => {
                             {socialPlatforms.map((platform) => {
                                 const socialUrl = businessInfo.socialMedia?.[platform.key]
                                 const isActive = !!socialUrl
-                                
+
                                 return (
                                     <a
                                         key={platform.key}
@@ -236,8 +236,8 @@ const Footer = () => {
                             })}
                         </div>
                         <p className="text-gray-400 text-sm mt-4">
-                            {Object.values(businessInfo.socialMedia || {}).filter(url => url).length > 0 
-                                ? "Stay connected for updates and exclusive offers" 
+                            {Object.values(businessInfo.socialMedia || {}).filter(url => url).length > 0
+                                ? "Stay connected for updates and exclusive offers"
                                 : "Follow us for natural beauty tips"
                             }
                         </p>
@@ -248,17 +248,9 @@ const Footer = () => {
                 <div className="border-t border-gray-100 pt-8">
                     <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0">
                         <p className="text-gray-400 text-sm">
-                            © {currentYear} {businessInfo.company?.name || "Pure Clay"}. All rights reserved. 
+                            © {currentYear} {businessInfo.company?.name || "Pure Clay"}. All rights reserved.
                         </p>
-                        <div className="text-gray-400 text-sm px-1">
-                        A Project of {" "}
-                            <Link 
-                                to='https://jawumitech.com/' 
-                                className="text-white hover:text-gray-100 transition-colors font-medium"
-                            >
-                                JawumiTech
-                            </Link>
-                        </div>
+
                     </div>
                 </div>
             </div>
