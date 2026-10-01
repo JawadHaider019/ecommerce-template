@@ -3,14 +3,14 @@ import mongoose from "mongoose";
 const businessDetailsSchema = new mongoose.Schema(
   {
     company: {
-      name: { type: String, default: "Natura Bliss" },
-      tagline: { type: String, default: "Pure Natural Skincare" },
+      name: { type: String, default: "Pure Clay" },
+      tagline: { type: String, default: "100% Pure & Organic Living" },
       description: {
         type: String,
         default:
-          "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
+          "Pure, organic foods and wellness products crafted with natural ingredients.",
       },
-      foundedYear: { type: Number, default: 2025 },
+      foundedYear: { type: Number, default: 2024 },
     },
 
     contact: {

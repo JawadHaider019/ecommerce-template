@@ -102,7 +102,7 @@ async function processLogoUpload({ file, logoType, businessDetails, updateData, 
     
     // Upload new logo to Cloudinary
     const result = await cloudinary.uploader.upload(file.path, {
-      folder: 'natura-bliss/logos'
+      folder: 'pure-clay/logos'
     });
     
     updateData.logos[logoType] = {
@@ -173,8 +173,8 @@ export const getBusinessDetails = async (req, res) => {
       fixedContactData = {
         customerSupport: {
           phone: businessDetails.contact.customerSupport, // the phone number string
-          email: "naturabliss@gmail.com", // default email
-          hours: "24/7" // default hours
+          email: "info@pureclay.com", // default email
+          hours: "Within 24/48 hours" // default hours
         }
       };
       
@@ -186,9 +186,9 @@ export const getBusinessDetails = async (req, res) => {
       // Use existing data if structure is correct
       fixedContactData = businessDetails.contact || {
         customerSupport: {
-          email: "naturabliss@gmail.com",
-          phone: "+92-317 5546007",
-          hours: "24/7"
+          email: "info@pureclay.com",
+          phone: "+92 326 0325457",
+          hours: "Within 24/48 hours"
         }
       };
     }
@@ -199,10 +199,10 @@ export const getBusinessDetails = async (req, res) => {
     // Ensure all required fields are present with proper fallbacks
     const responseData = {
       company: {
-        name: processedData.company?.name || "Natura Bliss",
-        tagline: processedData.company?.tagline || "Pure Natural Skincare",
-        description: processedData.company?.description || "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
-        foundedYear: processedData.company?.foundedYear || 2023
+        name: processedData.company?.name || "Pure Clay",
+        tagline: processedData.company?.tagline || "100% Pure & Organic Living",
+        description: processedData.company?.description || "Pure, organic foods and wellness products crafted with natural ingredients.",
+        foundedYear: processedData.company?.foundedYear || 2024
       },
       contact: fixedContactData,
       location: {
@@ -387,9 +387,9 @@ export const updateCompanyDetails = async (req, res) => {
         // Ensure we have the proper structure
         updateData.contact = {
           customerSupport: {
-            email: customerSupportData.email || businessDetails.contact?.customerSupport?.email || "naturabliss@gmail.com",
-            phone: customerSupportData.phone || businessDetails.contact?.customerSupport?.phone || "+92-317 5546007",
-            hours: customerSupportData.hours || businessDetails.contact?.customerSupport?.hours || "24/7"
+            email: customerSupportData.email || businessDetails.contact?.customerSupport?.email || "info@pureclay.com",
+            phone: customerSupportData.phone || businessDetails.contact?.customerSupport?.phone || "+92 326 0325457",
+            hours: customerSupportData.hours || businessDetails.contact?.customerSupport?.hours || "Within 24/48 hours"
           }
         };
         console.log('✅ Processed customer support data:', updateData.contact.customerSupport);
@@ -398,9 +398,9 @@ export const updateCompanyDetails = async (req, res) => {
         // If parsing fails, use existing data
         updateData.contact = businessDetails.contact || {
           customerSupport: {
-            email: "naturabliss@gmail.com",
-            phone: "+92-317 5546007",
-            hours: "24/7"
+            email: "info@pureclay.com",
+            phone: "+92 326 0325457",
+            hours: "Within 24/48 hours"
           }
         };
       }
@@ -408,9 +408,9 @@ export const updateCompanyDetails = async (req, res) => {
       // Keep existing contact data if no new data provided
       updateData.contact = businessDetails.contact || {
         customerSupport: {
-          email: "naturabliss@gmail.com",
-          phone: "+92-317 5546007",
-          hours: "24/7"
+          email: "info@pureclay.com",
+          phone: "+92 326 0325457",
+          hours: "Within 24/48 hours"
         }
       };
     }
@@ -811,7 +811,7 @@ export const addStore = async (req, res) => {
     // Handle store logo using your upload middleware
     if (req.file) {
       const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'natura-bliss/stores'
+        folder: 'pure-clay/stores'
       });
       
       newStore.storeLogo = {
@@ -995,7 +995,7 @@ export const updateStoreLogo = async (req, res) => {
     }
     
     const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'natura-bliss/stores'
+      folder: 'pure-clay/stores'
     });
     
     businessDetails.multiStore.stores[storeIndex].storeLogo = {

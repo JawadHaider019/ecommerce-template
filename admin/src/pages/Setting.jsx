@@ -64,16 +64,16 @@ const Setting = () => {
   // Business details state
   const [businessDetails, setBusinessDetails] = useState({
     company: {
-      name: "Natura Bliss",
-      tagline: "Pure Natural Skincare",
-      description: "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
-      foundedYear: 2023
+      name: "Pure Clay",
+      tagline: "100% Pure & Organic Living",
+      description: "Pure, organic foods and wellness products crafted with natural ingredients.",
+      foundedYear: 2024
     },
     contact: {
       customerSupport: {
-        email: "naturabliss@gmail.com",
-        phone: "+92-333-3333",
-        hours: "24/7"
+        email: "info@pureclay.com",
+        phone: "+92 326 0325457",
+        hours: "Within 24/48 hours"
       }
     },
     location: {
@@ -219,16 +219,16 @@ const Setting = () => {
         if (data.success && data.data) {
           const completeData = {
             company: data.data.company || {
-              name: "Natura Bliss",
-              tagline: "Pure Natural Skincare",
-              description: "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
-              foundedYear: 2023
+              name: "Pure Clay",
+              tagline: "100% Pure & Organic Living",
+              description: "Pure, organic foods and wellness products crafted with natural ingredients.",
+              foundedYear: 2024
             },
             contact: data.data.contact || {
               customerSupport: {
-                email: "naturabliss@gmail.com",
-                phone: "+92-333-3333",
-                hours: "24/7"
+                email: "info@pureclay.com",
+                phone: "+92 326 0325457",
+                hours: "Within 24/48 hours"
               }
             },
             location: data.data.location || {
@@ -1487,9 +1487,9 @@ const BusinessDetailsContent = ({
 }) => {
   const safeBusinessDetails = {
     company: businessDetails?.company || {
-      name: "Natura Bliss",
-      tagline: "Pure Natural Skincare",
-      description: "Pure, handmade natural skincare products crafted with organic ingredients for your wellness.",
+      name: "Pure Clay",
+      tagline: "100% Pure & Organic Living",
+      description: "Pure, organic foods and wellness products crafted with natural ingredients.",
       foundedYear: 2024
     },
     contact: {

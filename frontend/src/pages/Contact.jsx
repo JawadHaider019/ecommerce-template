@@ -27,15 +27,15 @@ const backendUrl = import.meta.env.VITE_BACKEND_URL;
 const Contact = () => {
   const [businessInfo, setBusinessInfo] = useState({
     company: {
-      name: "Natural Skincare",
-      tagline: "Pure Natural Skincare",
-      description: "Pure, handmade natural skincare products crafted with organic ingredients for your wellness."
+      name: "Pure Clay",
+      tagline: "100% Pure & Organic Living",
+      description: "Pure, wholesome natural and organic foods and wellness products crafted with organic ingredients."
     },
     contact: {
       customerSupport: {
-        email: "contact@naturalskincare.com",
-        phone: "+1-555-123-4567",
-        hours: "24/7"
+        email: "info@pureclay.com",
+        phone: "+92 326 0325457",
+        hours: "Within 24/48 hours"
       }
     },
     location: {
@@ -522,7 +522,7 @@ const Contact = () => {
                   <div>
                     <h4 className="font-semibold text-gray-900 text-base">Email</h4>
                     <p className="text-gray-600 text-base mt-1">
-                      {businessInfo.contact?.customerSupport?.email || "contact@naturalskincare.com"}
+                      {businessInfo.contact?.customerSupport?.email || "info@pureclay.com"}
                     </p>
                   </div>
                 </div>

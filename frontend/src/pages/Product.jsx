@@ -1027,8 +1027,8 @@ const Product = () => {
   return (
     <>
       <Helmet>
-        <title>{productData.name} | Natura Bliss</title>
-        <meta name="description" content={productData.description || `Buy ${productData.name} at Natura Bliss. Best quality organic products in Pakistan.`} />
+        <title>{productData.name} | Pure Clay</title>
+        <meta name="description" content={productData.description || `Buy ${productData.name} at Pure Clay. Best quality organic products in Pakistan.`} />
         {productSchema && (
           <script type="application/ld+json">
             {JSON.stringify(productSchema)}

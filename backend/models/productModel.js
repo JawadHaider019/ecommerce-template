@@ -100,4 +100,7 @@ productSchema.pre('save', async function (next) {
 });
 
 const productModel = mongoose.models.product || mongoose.model("product", productSchema);
+if (!mongoose.models.products) {
+    mongoose.model("products", productSchema);
+}
 export default productModel;
