@@ -367,15 +367,40 @@ const StatusProgress = memo(({ status }) => {
 const OrderCard = memo(({ order, currency, backendUrl, isGuest = false }) => {
   const [showDetails, setShowDetails] = useState(false);
   
-  const { totalAmount, formattedDate, statusConfig } = useMemo(() => {
+  const { totalAmount, subtotal, discount, deliveryCharges, couponCode, formattedDate, statusConfig } = useMemo(() => {
     const subtotal = order.items?.reduce((sum, item) => 
-      sum + ((item.price || 0) * (item.quantity || 1)), 0
+      sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0
     ) || 0;
-    const totalAmount = subtotal + (order.deliveryCharges || 0);
+    const deliveryCharges = Number(order.deliveryCharges) || 0;
+    const explicitDiscount = Number(order.discount) || Number(order.coupon?.discountAmount) || 0;
+    
+    // Inferred discount if order.amount already had discount subtracted
+    const inferredDiscount = (order.amount && (subtotal + deliveryCharges) > (Number(order.amount) + 0.01))
+      ? Math.round(((subtotal + deliveryCharges) - Number(order.amount)) * 100) / 100
+      : 0;
+      
+    const discount = explicitDiscount > 0 ? explicitDiscount : inferredDiscount;
+    
+    const couponCode =
+      order.coupon?.code ||
+      order.couponCode ||
+      (typeof order.coupon === 'string' && order.coupon !== '[object Object]' && order.coupon.trim()
+        ? order.coupon
+        : null) ||
+      (discount > 0 ? 'PROMO' : null);
+    
+    // Calculate final payable amount with discount applied
+    const calculatedPayable = Math.max(0, subtotal - discount) + deliveryCharges;
+    
+    // Use order.amount if it already reflects the discounted total, else use calculatedPayable
+    const totalAmount = (order.amount !== undefined && order.amount > 0 && order.amount <= (calculatedPayable + 0.01))
+      ? Number(order.amount)
+      : calculatedPayable;
+
     const formattedDate = formatOrderDate(order.orderPlacedAt || order.date || order.createdAt);
     const config = STATUS_CONFIG[order.status] || STATUS_CONFIG['Order Placed'];
     
-    return { totalAmount, formattedDate, statusConfig: config };
+    return { totalAmount, subtotal, discount, deliveryCharges, couponCode, formattedDate, statusConfig: config };
   }, [order]);
 
   const StatusIcon = statusConfig.icon;
@@ -386,7 +411,7 @@ const OrderCard = memo(({ order, currency, backendUrl, isGuest = false }) => {
       <div className="p-6 border-b border-gray-100">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex flex-wrap items-center gap-2.5 mb-2">
               <div className={`p-2 rounded-lg ${statusConfig.color} flex items-center gap-2`}>
                 <StatusIcon className="w-4 h-4" />
                 <span className="text-sm font-medium">{order.status}</span>
@@ -401,6 +426,12 @@ const OrderCard = memo(({ order, currency, backendUrl, isGuest = false }) => {
                   Guest
                 </span>
               )}
+              {discount > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <FaTag className="text-emerald-600 text-[10px]" />
+                  <span>Coupon: <strong className="font-mono">{couponCode || 'APPLIED'}</strong></span>
+                </span>
+              )}
             </div>
             <h3 className="text-lg font-bold text-gray-900">
               Order #{order._id?.substring(0, 8).toUpperCase()}
@@ -410,9 +441,22 @@ const OrderCard = memo(({ order, currency, backendUrl, isGuest = false }) => {
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm text-gray-600">Total Amount</p>
-              <p className="text-xl font-bold text-gray-900">
-                {currency}{totalAmount.toFixed(2)}
-              </p>
+              <div className="flex items-center gap-2 justify-end">
+                {discount > 0 && (
+                  <span className="text-xs text-gray-400 line-through">
+                    {currency}{(subtotal + deliveryCharges).toFixed(2)}
+                  </span>
+                )}
+                <p className={`text-xl font-bold ${discount > 0 ? 'text-emerald-700' : 'text-gray-900'}`}>
+                  {currency}{totalAmount.toFixed(2)}
+                </p>
+              </div>
+              {discount > 0 && (
+                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md mt-1">
+                  <FaTag className="text-[9px]" />
+                  <span>Saved {currency}{discount.toFixed(2)} with {couponCode || 'Promo'}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -465,9 +509,9 @@ const OrderCard = memo(({ order, currency, backendUrl, isGuest = false }) => {
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <FaReceipt className="w-4 h-4" />
-                  Payment & Delivery
+                  Payment & Breakdown
                 </h4>
-                <div className="bg-gray-50 p-4 rounded-xl space-y-3">
+                <div className="bg-gray-50 p-4 rounded-xl space-y-2.5 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Payment Method:</span>
                     <span className="font-medium text-gray-900 capitalize">
@@ -475,10 +519,31 @@ const OrderCard = memo(({ order, currency, backendUrl, isGuest = false }) => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Subtotal:</span>
+                    <span className="font-medium text-gray-900">
+                      {currency}{subtotal.toFixed(2)}
+                    </span>
+                  </div>
+                  {discount > 0 && (
+                    <div className="flex items-center justify-between p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+                      <span className="flex items-center gap-1.5 font-medium text-xs">
+                        <FaTag className="w-3 h-3 text-emerald-600" />
+                        Coupon Applied: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-800">{couponCode || 'PROMO'}</span>
+                      </span>
+                      <span className="font-bold text-sm">
+                        -{currency}{discount.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
                     <span className="text-gray-600">Delivery Charges:</span>
                     <span className="font-medium text-gray-900">
-                      {currency}{(order.deliveryCharges || 0).toFixed(2)}
+                      {order.deliveryCharges === 0 ? 'FREE' : `${currency}${(order.deliveryCharges || 0).toFixed(2)}`}
                     </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200 font-bold text-gray-900">
+                    <span>Total Amount:</span>
+                    <span className={discount > 0 ? 'text-emerald-700 text-base font-extrabold' : ''}>{currency}{totalAmount.toFixed(2)}</span>
                   </div>
                 </div>
               </div>

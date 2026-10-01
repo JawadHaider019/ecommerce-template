@@ -12,6 +12,7 @@ import List from './pages/List.jsx'
 import Orders from './pages/Orders.jsx'
 import Dashboard from './pages/Dashboard.jsx';
 import Setting from './pages/Setting.jsx';
+import Coupons from './pages/Coupons.jsx';
 import ContentManagement from './components/ContentManagement/ContentManagement.jsx';
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -54,6 +55,7 @@ const App = () => {
                             <Route path='/add' element={<Add />} />
                             <Route path='/list' element={<List />} />
                             <Route path='/orders' element={<Orders />} />
+                            <Route path='/coupons' element={<Coupons />} />
                             <Route path='/settings' element={<Setting />} />
                             
                             {/* Redirect any unknown route to home */}

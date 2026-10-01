@@ -8,6 +8,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { assets } from "../assets/assets";
 import LoginModal from '../components/Login';
+import { FaTag, FaCheck, FaTimes } from 'react-icons/fa';
 
 const PlaceOrder = () => {
   const [loading, setLoading] = useState(false);
@@ -61,10 +62,38 @@ const PlaceOrder = () => {
     products,
     deals,
     currency,
-    clearCart
+    clearCart,
+    appliedCoupon,
+    availableCoupons,
+    applyCoupon,
+    removeCoupon,
+    getCouponDiscount,
+    setAppliedCoupon
   } = useContext(ShopContext);
   
   const navigate = useNavigate();
+
+  // Coupon state for checkout
+  const [couponInput, setCouponInput] = useState('');
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  // Handle apply coupon in checkout
+  const handleApplyCoupon = async (codeToApply = null) => {
+    const code = codeToApply || couponInput;
+    if (!code || !code.trim()) {
+      toast.error('Please enter a coupon code');
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+    const emailToPass = formData.email || guestEmail || user?.email || null;
+    const res = await applyCoupon(code, emailToPass);
+    setIsApplyingCoupon(false);
+
+    if (res && res.success) {
+      setCouponInput('');
+    }
+  };
 
   // Handle click outside suggestions
   useEffect(() => {
@@ -754,10 +783,12 @@ const PlaceOrder = () => {
     // Clear React state
     setCartItems({});
     setCartDeals({});
+    if (setAppliedCoupon) setAppliedCoupon(null);
     
     // Clear localStorage
     localStorage.removeItem('cartItems');
     localStorage.removeItem('cartDeals');
+    localStorage.removeItem('appliedCoupon');
     localStorage.removeItem('guestCheckoutData');
     
     // Call context clearCart if available (for logged-in users)
@@ -824,8 +855,10 @@ const PlaceOrder = () => {
       }
 
       const { orderItems, calculatedAmount } = processCartItems();
-      const deliveryCharge = getDeliveryCharge(calculatedAmount);
-      const finalAmount = calculatedAmount + deliveryCharge;
+      const couponDiscount = getCouponDiscount ? getCouponDiscount(calculatedAmount) : 0;
+      const discountedSubtotal = Math.max(0, calculatedAmount - couponDiscount);
+      const deliveryCharge = getDeliveryCharge(discountedSubtotal);
+      const finalAmount = discountedSubtotal + deliveryCharge;
 
       if (orderItems.length === 0) {
         toast.error('Your cart is empty');
@@ -837,6 +870,15 @@ const PlaceOrder = () => {
       const orderData = {
         items: orderItems,
         amount: finalAmount,
+        discount: couponDiscount,
+        couponCode: appliedCoupon?.code || null,
+        coupon: appliedCoupon
+          ? {
+              code: appliedCoupon.code,
+              discountAmount: couponDiscount,
+              discountType: appliedCoupon.discountType,
+            }
+          : null,
         address: formData,
         deliveryCharges: deliveryCharge,
         customerDetails: {
@@ -903,6 +945,14 @@ const PlaceOrder = () => {
               description: item.description
             })),
             amount: finalAmount,
+            discount: couponDiscount,
+            coupon: appliedCoupon
+              ? {
+                  code: appliedCoupon.code,
+                  discountAmount: couponDiscount,
+                  discountType: appliedCoupon.discountType,
+                }
+              : null,
             deliveryCharges: deliveryCharge,
             address: {
               street: formData.street.trim(),
@@ -1406,6 +1456,89 @@ const PlaceOrder = () => {
               <div className="lg:sticky lg:top-4 lg:h-fit space-y-6">
                 <div className="bg-white rounded-3xl border border-gray-300 p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
+
+                  {/* Coupon / Promo Code Input Section */}
+                  <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-2xl">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FaTag className="text-gray-700 text-sm" />
+                      <h3 className="font-bold text-gray-900 text-sm">Have a Promo Code?</h3>
+                    </div>
+
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs flex-shrink-0">
+                            <FaCheck />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-mono font-bold text-emerald-800 text-xs tracking-wider truncate">
+                              {appliedCoupon.code}
+                            </p>
+                            <p className="text-[11px] text-emerald-600 font-medium">
+                              {appliedCoupon.discountType === 'percentage'
+                                ? `${appliedCoupon.discountAmount}% Discount Applied`
+                                : `${currency} ${appliedCoupon.discountAmount} Discount Applied`}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeCoupon}
+                          className="p-1.5 text-emerald-700 hover:text-red-600 hover:bg-emerald-100 rounded-lg transition text-xs flex-shrink-0"
+                          title="Remove coupon"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter coupon code"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleApplyCoupon();
+                            }
+                          }}
+                          className="flex-1 uppercase font-mono px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleApplyCoupon()}
+                          disabled={isApplyingCoupon || !couponInput.trim()}
+                          className="bg-black text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-gray-800 disabled:opacity-50 transition shadow-sm"
+                        >
+                          {isApplyingCoupon ? 'Applying...' : 'Apply'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Available Offers Quick Chips */}
+                    {!appliedCoupon && availableCoupons && availableCoupons.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-200/80">
+                        <p className="text-[11px] text-gray-500 font-medium mb-1.5">Available Offers:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {availableCoupons.slice(0, 3).map((coupon) => (
+                            <button
+                              key={coupon._id || coupon.code}
+                              type="button"
+                              onClick={() => handleApplyCoupon(coupon.code)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg text-[11px] font-mono font-medium text-gray-800 transition cursor-pointer"
+                            >
+                              <span>{coupon.code}</span>
+                              <span className="text-emerald-600 font-semibold text-[10px]">
+                                ({coupon.discountType === 'percentage' ? `${coupon.discountAmount}% OFF` : `Rs.${coupon.discountAmount}`})
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <CartTotal/>
                 </div>
               

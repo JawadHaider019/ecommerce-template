@@ -4,7 +4,7 @@ import Title from '../components/Title';
 import { assets } from "../assets/assets";
 import CartTotal from "../components/CartTotal";
 import { useNavigate } from "react-router-dom"; 
-import { FaInfoCircle, FaTrash, FaMinus, FaPlus, FaChevronDown, FaChevronUp, FaExclamationTriangle } from "react-icons/fa";
+import { FaInfoCircle, FaTrash, FaMinus, FaPlus, FaChevronDown, FaChevronUp, FaExclamationTriangle, FaTag, FaCheck, FaTimes } from "react-icons/fa";
 import { toast } from 'react-toastify';
 
 const Cart = () => {
@@ -15,9 +15,16 @@ const Cart = () => {
     cartItems, 
     cartDeals,
     updateQuantity,
-    updateDealQuantity
+    updateDealQuantity,
+    appliedCoupon,
+    availableCoupons,
+    applyCoupon,
+    removeCoupon,
+    getCouponDiscount
   } = useContext(ShopContext);
 
+  const [couponInput, setCouponInput] = useState('');
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [productData, setProductData] = useState(null);
   const [productCartData, setProductCartData] = useState([]);
   const [dealCartData, setDealCartData] = useState([]);
@@ -810,6 +817,18 @@ const Cart = () => {
     };
   }, []);
 
+  const handleApplyCoupon = async (codeToApply = null) => {
+    const code = codeToApply || couponInput;
+    if (!code || !code.trim()) {
+      toast.error('Please enter a coupon code');
+      return;
+    }
+    setIsApplyingCoupon(true);
+    await applyCoupon(code);
+    setCouponInput('');
+    setIsApplyingCoupon(false);
+  };
+
   return (
     <div className="pt-8 md:pt-14 px-4 md:px-0">
       <div className="mb-6 md:mb-8 text-3xl text-center">
@@ -1117,9 +1136,89 @@ const Cart = () => {
       {/* Cart Total and Checkout */}
       {(productCartData.length > 0 || dealCartData.length > 0) && (
         <div className="my-12 md:my-20">
-          <div className="w-full md:w-[450px] ml-auto border rounded-3xl border-black/50 bg-white p-6">
+          <div className="w-full md:w-[450px] ml-auto border rounded-3xl border-black/30 bg-white p-6 shadow-sm">
+            {/* Coupon / Promo Code Section */}
+            <div className="mb-6 pb-6 border-b border-gray-100">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-2 flex items-center gap-1.5">
+                <FaTag className="text-gray-500 text-xs" />
+                Have a Promo Code / Coupon?
+              </label>
+
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                      <FaCheck />
+                    </span>
+                    <div>
+                      <p className="font-mono font-bold text-sm text-emerald-950">
+                        {appliedCoupon.code}
+                      </p>
+                      <p className="text-xs text-emerald-700 font-medium">
+                        {appliedCoupon.discountType === 'percentage'
+                          ? `${appliedCoupon.discountAmount}% Discount Applied`
+                          : `${currency} ${appliedCoupon.discountAmount} Discount Applied`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={removeCoupon}
+                    className="p-1.5 text-emerald-700 hover:text-red-600 hover:bg-emerald-100 rounded-lg transition text-sm"
+                    title="Remove coupon"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter coupon code"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleApplyCoupon();
+                      }
+                    }}
+                    className="flex-1 uppercase font-mono px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition"
+                  />
+                  <button
+                    onClick={() => handleApplyCoupon()}
+                    disabled={isApplyingCoupon || !couponInput.trim()}
+                    className="bg-black text-white px-5 py-2.5 rounded-2xl text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition"
+                  >
+                    {isApplyingCoupon ? 'Applying...' : 'Apply'}
+                  </button>
+                </div>
+              )}
+
+              {/* Available Coupons list */}
+              {!appliedCoupon && availableCoupons && availableCoupons.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-[11px] text-gray-500 font-medium mb-1.5">Available Offers:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableCoupons.slice(0, 3).map((coupon) => (
+                      <button
+                        key={coupon._id || coupon.code}
+                        type="button"
+                        onClick={() => handleApplyCoupon(coupon.code)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-lg text-xs font-mono font-medium text-gray-800 transition"
+                      >
+                        <span>{coupon.code}</span>
+                        <span className="text-emerald-600 font-semibold text-[10px]">
+                          ({coupon.discountType === 'percentage' ? `${coupon.discountAmount}% OFF` : `Rs.${coupon.discountAmount}`})
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <CartTotal />
-            <div className="w-full text-center md:text-end mt-6 pt-4 border-t border-black/50">
+            <div className="w-full text-center md:text-end mt-6 pt-4 border-t border-gray-100">
               <button
                 onClick={handleProceedToCheckout}
                 disabled={hasOutOfStockItems}

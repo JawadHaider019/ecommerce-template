@@ -3,7 +3,9 @@ import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
 import notificationModel from "../models/notifcationModel.js";
 import Comment from "../models/commentModel.js";
+import couponModel from "../models/couponModel.js";
 import { sendOrderConfirmationEmail } from '../services/emailService.js';
+import jwt from 'jsonwebtoken';
 
 // 🆕 Notification Types
 const NOTIFICATION_TYPES = {
@@ -354,13 +356,15 @@ const placeOrder = async (req, res) => {
     
     const { items, amount, address, deliveryCharges, customerDetails } = req.body;
     
-    // 🆕 IMPORTANT: req.userId will be undefined for guests
-    let userId = null;
-    
     // Check if token is provided in headers (logged-in user)
-    if (req.headers.token) {
-      // In a real implementation, you would verify the token here
-      userId = req.userId; // This comes from auth middleware
+    let userId = req.userId || null;
+    if (!userId && req.headers.token) {
+      try {
+        const decoded = jwt.verify(req.headers.token, process.env.JWT_SECRET);
+        userId = decoded.id;
+      } catch (tokenErr) {
+        console.log("Token verification in placeOrder:", tokenErr.message);
+      }
     }
     
     const isGuest = !userId;
@@ -410,6 +414,52 @@ const placeOrder = async (req, res) => {
     const validatedItems = await validateAndProcessItems(items);
     console.log(`✅ Validated ${validatedItems.length} items for order`);
 
+    // Calculate subtotal from validated items
+    const calculatedSubtotal = validatedItems.reduce(
+      (sum, item) => sum + Number(item.price) * Number(item.quantity),
+      0
+    );
+
+    // Process Coupon if provided
+    let discountAmount = 0;
+    let couponInfo = { code: null, discountAmount: 0, discountType: null };
+    let appliedCouponDoc = null;
+
+    const couponParam = req.body.couponCode || req.body.coupon?.code || (typeof req.body.coupon === 'string' ? req.body.coupon : null);
+    if (couponParam) {
+      const cleanCode = couponParam.trim().toUpperCase();
+      const foundCoupon = await couponModel.findOne({ code: cleanCode });
+      if (foundCoupon) {
+        const userIdentifier = customerDetails.email || userId;
+        const validation = foundCoupon.isValid(calculatedSubtotal, userIdentifier, validatedItems);
+        if (validation.valid) {
+          discountAmount = foundCoupon.calculateDiscount(calculatedSubtotal, validatedItems);
+          couponInfo = {
+            code: foundCoupon.code,
+            discountAmount: discountAmount,
+            discountType: foundCoupon.discountType,
+          };
+          appliedCouponDoc = foundCoupon;
+          console.log(`🎟️ Coupon "${foundCoupon.code}" valid. Discount: Rs. ${discountAmount}`);
+        } else {
+          console.log(`⚠️ Coupon "${cleanCode}" rejected: ${validation.message}`);
+        }
+      }
+    }
+
+    // Fallback: If req.body.discount was provided (e.g. from frontend state)
+    if (discountAmount === 0 && req.body.discount && Number(req.body.discount) > 0) {
+      discountAmount = Number(req.body.discount);
+      couponInfo = {
+        code: req.body.coupon?.code || couponParam || 'COUPON',
+        discountAmount: discountAmount,
+        discountType: req.body.coupon?.discountType || 'percentage'
+      };
+    }
+
+    // Final order amount calculation: (Subtotal - Discount) + Delivery Charges
+    const finalOrderAmount = Math.max(0, calculatedSubtotal - discountAmount) + Number(deliveryCharges || 0);
+
     // Reduce inventory
     console.log("📦 Reducing inventory quantity...");
     await reduceInventory(validatedItems);
@@ -430,7 +480,9 @@ const placeOrder = async (req, res) => {
         dealImage: item.dealImage || null,
         dealDescription: item.dealDescription || null
       })),
-      amount: Number(amount),
+      amount: Number(finalOrderAmount),
+      discount: Number(discountAmount),
+      coupon: couponInfo,
       address,
       deliveryCharges: deliveryCharges || 0,
       paymentMethod: "COD",
@@ -450,12 +502,36 @@ const placeOrder = async (req, res) => {
       isGuest: orderData.isGuest,
       customerName: orderData.customerDetails.name,
       customerEmail: orderData.customerDetails.email, // Log email for debugging
-      totalItems: orderData.items.length
+      totalItems: orderData.items.length,
+      amount: orderData.amount,
+      discount: orderData.discount,
+      coupon: orderData.coupon?.code
     });
 
     // Save order - THIS CREATES A SEPARATE ORDER DOCUMENT
     const newOrder = new orderModel(orderData);
     await newOrder.save();
+
+    // Record Coupon Usage
+    if (appliedCouponDoc) {
+      try {
+        await couponModel.findByIdAndUpdate(appliedCouponDoc._id, {
+          $inc: { usedCount: 1 },
+          $push: {
+            usedBy: {
+              userId: userId || null,
+              email: customerDetails.email.trim().toLowerCase(),
+              orderId: newOrder._id.toString(),
+              discountApplied: discountAmount,
+              usedAt: new Date(),
+            },
+          },
+        });
+        console.log(`🎟️ Recorded usage for coupon "${appliedCouponDoc.code}" on order ${newOrder._id}`);
+      } catch (couponError) {
+        console.error("❌ Error updating coupon usage:", couponError.message);
+      }
+    }
 
     console.log(`✅ Order created: ${newOrder._id} for ${isGuest ? 'Guest' : 'User'}: ${newOrder.customerDetails.name}`);
 
@@ -622,6 +698,8 @@ const getGuestOrders = async (req, res) => {
         description: item.description
       })),
       amount: order.amount,
+      discount: order.discount || order.coupon?.discountAmount || 0,
+      coupon: order.coupon || null,
       status: order.status,
       date: order.date,
       deliveryCharges: order.deliveryCharges,
@@ -751,6 +829,8 @@ const getGuestOrderDetails = async (req, res) => {
         image: item.image
       })),
       amount: order.amount,
+      discount: order.discount || order.coupon?.discountAmount || 0,
+      coupon: order.coupon || null,
       status: order.status,
       date: order.date,
       deliveryCharges: order.deliveryCharges,

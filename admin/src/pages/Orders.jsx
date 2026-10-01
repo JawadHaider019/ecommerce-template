@@ -666,7 +666,8 @@ const BillingSummary = ({ order }) => {
     );
     
     const deliveryCharges = order.deliveryCharges || 0;
-    const total = subtotal + deliveryCharges;
+    const discount = order.discount || order.coupon?.discountAmount || 0;
+    const total = Math.max(0, subtotal - discount) + deliveryCharges;
     
     // COD orders are automatically considered verified
     const isCOD = order.paymentMethod === 'COD';
@@ -693,6 +694,8 @@ const BillingSummary = ({ order }) => {
 
     return {
       subtotal,
+      discount,
+      coupon: order.coupon,
       deliveryCharges,
       total,
       prepaidAmount,
@@ -720,6 +723,15 @@ const BillingSummary = ({ order }) => {
             <span className="text-gray-600">Subtotal:</span>
             <span className="font-semibold text-black">{currency}{billingDetails.subtotal.toFixed(2)}</span>
           </div>
+          {billingDetails.discount > 0 && (
+            <div className="flex justify-between text-emerald-600 font-medium">
+              <span className="flex items-center gap-1">
+                <FontAwesomeIcon icon={faTag} className="text-xs" />
+                Coupon Discount {billingDetails.coupon?.code ? `(${billingDetails.coupon.code})` : ''}:
+              </span>
+              <span>-{currency}{billingDetails.discount.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-gray-600">Delivery Charges:</span>
             <span className="font-semibold text-black">
@@ -800,7 +812,8 @@ const OrderCard = ({
     [order.items]
   );
   
-  const total = subtotal + (order.deliveryCharges || 0);
+  const discount = Number(order.discount) || Number(order.coupon?.discountAmount) || 0;
+  const total = Math.max(0, subtotal - discount) + (order.deliveryCharges || 0);
   const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG['Pending'];
   
   // Determine if this order needs verification (only online payments)
@@ -856,6 +869,12 @@ const OrderCard = ({
                       paymentStatus={order.paymentStatus} 
                       paymentMethod={order.paymentMethod}
                     />
+                    {discount > 0 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <FontAwesomeIcon icon={faTag} className="mr-1 text-emerald-600" />
+                        Coupon: {order.coupon?.code || 'PROMO'} (-{currency}{discount.toFixed(2)})
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-600">
@@ -883,7 +902,21 @@ const OrderCard = ({
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xl font-bold text-black">{currency}{total.toFixed(2)}</p>
+            <div className="flex items-center gap-1.5 justify-end">
+              {discount > 0 && (
+                <span className="text-xs text-gray-400 line-through">
+                  {currency}{(subtotal + (order.deliveryCharges || 0)).toFixed(2)}
+                </span>
+              )}
+              <p className={`text-xl font-bold ${discount > 0 ? 'text-emerald-700' : 'text-black'}`}>
+                {currency}{total.toFixed(2)}
+              </p>
+            </div>
+            {discount > 0 && (
+              <p className="text-[11px] font-semibold text-emerald-600">
+                Discount: -{currency}{discount.toFixed(2)}
+              </p>
+            )}
             <p className="text-sm text-gray-600">{totalItemsCount} items</p>
             <p className={`text-xs font-medium mt-1 ${
               order.paymentMethod === 'COD' ? 'text-black' : 'text-gray-600'

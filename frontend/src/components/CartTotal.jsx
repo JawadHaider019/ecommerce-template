@@ -10,15 +10,20 @@ const CartTotal = () => {
         isFreeDeliveryAvailable,
         getAmountForFreeDelivery,
         deliverySettings,
-        deliverySettingsLoading 
+        deliverySettingsLoading,
+        appliedCoupon,
+        getCouponDiscount,
+        removeCoupon
     } = useContext(ShopContext)
 
     // Safe calculations with fallbacks
     const subtotal = getCartAmount?.() || 0
-    const deliveryCharge = getDeliveryCharge?.(subtotal) || 0
-    const totalAmount = subtotal + deliveryCharge
-    const isFreeDelivery = isFreeDeliveryAvailable?.(subtotal) || false
-    const amountNeeded = getAmountForFreeDelivery?.(subtotal) || 0
+    const couponDiscount = getCouponDiscount?.(subtotal) || 0
+    const discountedSubtotal = Math.max(0, subtotal - couponDiscount)
+    const deliveryCharge = getDeliveryCharge?.(discountedSubtotal) || 0
+    const totalAmount = discountedSubtotal + deliveryCharge
+    const isFreeDelivery = isFreeDeliveryAvailable?.(discountedSubtotal) || false
+    const amountNeeded = getAmountForFreeDelivery?.(discountedSubtotal) || 0
 
     if (deliverySettingsLoading) {
         return (
@@ -47,6 +52,28 @@ const CartTotal = () => {
                     <p>{currency} {subtotal.toFixed(2)}</p>
                 </div>
                 <hr />
+
+                {/* Applied Coupon Discount */}
+                {appliedCoupon && couponDiscount > 0 && (
+                    <>
+                        <div className="flex justify-between items-center text-emerald-600 font-medium">
+                            <div className="flex items-center gap-1.5">
+                                <span>Coupon ({appliedCoupon.code})</span>
+                                {removeCoupon && (
+                                    <button 
+                                        onClick={removeCoupon}
+                                        className="text-xs text-red-500 hover:text-red-700 underline font-normal"
+                                        title="Remove coupon"
+                                    >
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                            <p>-{currency} {couponDiscount.toFixed(2)}</p>
+                        </div>
+                        <hr />
+                    </>
+                )}
                 
                 {/* Shipping Fee */}
                 <div className="flex justify-between">
@@ -69,7 +96,7 @@ const CartTotal = () => {
                 <hr />
                 
                 {/* Total */}
-                <div className="flex justify-between">
+                <div className="flex justify-between font-bold text-base text-gray-900">
                     <p>Total</p>
                     <p>{currency} {totalAmount.toFixed(2)}</p>
                 </div>

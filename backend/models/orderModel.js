@@ -16,6 +16,14 @@ const orderSchema = new mongoose.Schema({
     date: {type: Number, required: true},
     deliveryCharges: {type: Number, required: true, default: 0},
     
+    // 🆕 Coupon / Discount Details
+    coupon: {
+        code: { type: String, default: null },
+        discountAmount: { type: Number, default: 0 },
+        discountType: { type: String, default: null }
+    },
+    discount: { type: Number, default: 0 },
+    
     // 🆕 ADD THIS FIELD
     isGuest: { type: Boolean, default: false },
     

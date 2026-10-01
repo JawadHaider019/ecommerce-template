@@ -34,6 +34,15 @@ const ShopContextProvider = ({ children }) => {
   const [deliverySettingsLoading, setDeliverySettingsLoading] = useState(false);
   const [isBackendAvailable, setIsBackendAvailable] = useState(true);
   const [hasLoadedCart, setHasLoadedCart] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(() => {
+    try {
+      const saved = localStorage.getItem('appliedCoupon');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [availableCoupons, setAvailableCoupons] = useState([]);
 
   const [loading, setLoading] = useState({
     products: { status: false, message: "Loading products..." },
@@ -184,12 +193,14 @@ const ShopContextProvider = ({ children }) => {
   };
 
   // Enhanced clear cart function
-  const clearCart = async () => {
+  const clearCart = useCallback(async () => {
     setCartItems({});
     setCartDeals({});
+    setAppliedCoupon(null);
 
     localStorage.removeItem('cartItems');
     localStorage.removeItem('cartDeals');
+    localStorage.removeItem('appliedCoupon');
 
     if (token && isBackendAvailable) {
       try {
@@ -201,7 +212,7 @@ const ShopContextProvider = ({ children }) => {
         // Silent error handling
       }
     }
-  };
+  }, [token, BACKEND_URL, isBackendAvailable]);
 
   // ==================== OPTIMIZED CART OPERATIONS ====================
 
@@ -880,10 +891,142 @@ const ShopContextProvider = ({ children }) => {
     return productDiscount + dealDiscount;
   }, [cartItems, cartDeals, products, deals]);
 
+  // Helper to format current cart items for coupon & discount validation
+  const getCartItemsList = useCallback(() => {
+    const list = [];
+    Object.entries(cartItems).forEach(([id, quantity]) => {
+      if (quantity > 0) {
+        const prod = products.find(p => p._id === id);
+        if (prod) {
+          const unitPrice = prod.discountprice
+            ? prod.price - (prod.price * (prod.discountprice / 100))
+            : prod.price;
+          list.push({
+            id: prod._id,
+            productId: prod._id,
+            _id: prod._id,
+            name: prod.name,
+            price: unitPrice,
+            quantity: quantity
+          });
+        }
+      }
+    });
+    return list;
+  }, [cartItems, products]);
+
+  // ==================== COUPON MANAGEMENT ====================
+
+  const getCouponDiscount = useCallback((subtotal) => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.minOrderAmount > 0 && subtotal < appliedCoupon.minOrderAmount) {
+      return 0;
+    }
+
+    let baseAmount = subtotal;
+
+    // If coupon is restricted to specific products
+    if (
+      appliedCoupon.appliesTo === 'specific' &&
+      Array.isArray(appliedCoupon.applicableProducts) &&
+      appliedCoupon.applicableProducts.length > 0
+    ) {
+      const applicableIds = appliedCoupon.applicableProducts.map(p =>
+        (typeof p === 'object' && p ? p._id : p).toString()
+      );
+      const currentItems = getCartItemsList();
+      const eligibleItems = currentItems.filter(item =>
+        applicableIds.includes(item.id ? item.id.toString() : '')
+      );
+
+      if (eligibleItems.length === 0) return 0;
+
+      baseAmount = eligibleItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      if (appliedCoupon.minOrderAmount > 0 && baseAmount < appliedCoupon.minOrderAmount) {
+        return 0;
+      }
+    }
+
+    let discount = 0;
+    if (appliedCoupon.discountType === 'percentage') {
+      discount = (baseAmount * appliedCoupon.discountAmount) / 100;
+      if (appliedCoupon.maxDiscountAmount && appliedCoupon.maxDiscountAmount > 0) {
+        discount = Math.min(discount, appliedCoupon.maxDiscountAmount);
+      }
+    } else if (appliedCoupon.discountType === 'fixed') {
+      discount = Math.min(appliedCoupon.discountAmount, baseAmount);
+    }
+
+    return Math.max(0, Math.round(discount * 100) / 100);
+  }, [appliedCoupon, getCartItemsList]);
+
+  const applyCoupon = useCallback(async (code, userEmail = null) => {
+    if (!code || !code.trim()) {
+      toast.error("Please enter a coupon code");
+      return { success: false, message: "Please enter a coupon code" };
+    }
+
+    const subtotal = getCartSubtotal();
+    if (subtotal <= 0) {
+      toast.error("Your cart is empty");
+      return { success: false, message: "Your cart is empty" };
+    }
+
+    try {
+      const email = userEmail || user?.email || (token ? decodeToken(token)?.email : null);
+      const userId = user?._id || (token ? decodeToken(token)?.id : null);
+      const currentItems = getCartItemsList();
+
+      const res = await axios.post(`${BACKEND_URL}/api/coupon/apply`, {
+        code: code.trim(),
+        cartSubtotal: subtotal,
+        userEmail: email,
+        userId: userId,
+        items: currentItems
+      });
+
+      if (res.data.success) {
+        const couponData = {
+          ...res.data.coupon,
+          discount: res.data.discount
+        };
+        setAppliedCoupon(couponData);
+        localStorage.setItem('appliedCoupon', JSON.stringify(couponData));
+        toast.success(res.data.message || `Coupon "${couponData.code}" applied!`);
+        return { success: true, coupon: couponData, discount: res.data.discount };
+      } else {
+        toast.error(res.data.message || "Invalid coupon");
+        return { success: false, message: res.data.message };
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message || "Failed to apply coupon";
+      toast.error(msg);
+      return { success: false, message: msg };
+    }
+  }, [BACKEND_URL, getCartSubtotal, user, token, decodeToken, getCartItemsList]);
+
+  const removeCoupon = useCallback(() => {
+    setAppliedCoupon(null);
+    localStorage.removeItem('appliedCoupon');
+    toast.info("Coupon removed");
+  }, []);
+
+  const fetchAvailableCoupons = useCallback(async () => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/coupon/available`);
+      if (res.data.success) {
+        setAvailableCoupons(res.data.coupons || []);
+      }
+    } catch {
+      // Silent error
+    }
+  }, [BACKEND_URL]);
+
   const getCartTotal = useCallback(() => {
     const subtotal = getCartSubtotal();
-    return subtotal + getDeliveryCharge(subtotal);
-  }, [getCartSubtotal, getDeliveryCharge]);
+    const discount = getCouponDiscount(subtotal);
+    return Math.max(0, subtotal - discount) + getDeliveryCharge(subtotal);
+  }, [getCartSubtotal, getCouponDiscount, getDeliveryCharge]);
 
   const getDealById = useCallback((dealId) => {
     return deals.find(deal => deal._id === dealId);
@@ -917,7 +1060,8 @@ const ShopContextProvider = ({ children }) => {
     fetchProducts();
     fetchDeals();
     fetchDeliverySettings();
-  }, [fetchProducts, fetchDeals, fetchDeliverySettings]);
+    fetchAvailableCoupons();
+  }, [fetchProducts, fetchDeals, fetchDeliverySettings, fetchAvailableCoupons]);
 
   useEffect(() => {
     if (token && isBackendAvailable && !hasLoadedCart) {
@@ -947,6 +1091,15 @@ const ShopContextProvider = ({ children }) => {
     loading,
     isBackendAvailable,
     hasLoadedCart,
+
+    // Coupons
+    appliedCoupon,
+    availableCoupons,
+    applyCoupon,
+    removeCoupon,
+    getCouponDiscount,
+    fetchAvailableCoupons,
+    setAppliedCoupon,
 
     // Loading functions
     isLoadingAny,
@@ -1023,6 +1176,12 @@ const ShopContextProvider = ({ children }) => {
     loading,
     isBackendAvailable,
     hasLoadedCart,
+    appliedCoupon,
+    availableCoupons,
+    applyCoupon,
+    removeCoupon,
+    getCouponDiscount,
+    fetchAvailableCoupons,
     isLoadingAny,
     setLoadingState,
     addToCart,
@@ -1052,7 +1211,6 @@ const ShopContextProvider = ({ children }) => {
     fetchDeals,
     BACKEND_URL,
     getCart,
-    clearCart,
     checkProductStock,
     checkDealStock,
     checkBackendAvailability
